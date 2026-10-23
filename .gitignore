@@ -21,4 +21,7 @@ store/*
 *.idsig
 dist/
 tools/audio-src/
+.android-emulator-home/
+.avd-home/
+.emu-data*/
 

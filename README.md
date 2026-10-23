@@ -2,13 +2,16 @@
 
 Неоновая аркада для Android: ведите светящуюся сферу пальцем по всей игровой плоскости, уклоняйтесь от астероидов, собирайте бонусы и улучшайте рекорды. Версия 1.7 добавляет три режима, испытание дня, ежедневные задания, историю забегов и коллекцию скинов.
 
-![Главное меню](screenshots/menu.png)
+Скриншоты интерфейса версии 1.7 пока не публикуются: доступные изображения не являются
+кадрами из приложения. Их нужно снять на реальном устройстве или рабочем эмуляторе.
 
-![Игровой процесс](screenshots/gameplay.png)
+Для съёмки на рабочей машине с Android SDK используйте `tools/capture-screenshots.ps1`.
+Скрипт устанавливает `dist/NeonDodge-1.7.apk`, запускает игру, автоматически сохраняет
+меню и игровой экран, а затем просит вручную открыть паузу и game over:
 
-![Пауза](screenshots/pause.png)
-
-![Игра окончена](screenshots/game-over.png)
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\capture-screenshots.ps1
+```
 
 Полное описание механик и устройства проекта: [PROJECT.md](PROJECT.md). История изменений: [CHANGELOG.md](CHANGELOG.md).
 
@@ -99,8 +102,8 @@ adb install -r NeonDodge-1.7.apk
 ```
 app/src/main/java/com/isaev/neondodge/  — код игры
 app/src/main/res/                       — ресурсы и локализация
-screenshots/                            — актуальные скриншоты 1.7
-tools/make_screenshots.py               — воспроизводимая подготовка превью
+screenshots/                            — проверенные кадры приложения (добавляются после съёмки)
+tools/capture-screenshots.ps1            — съёмка кадров из установленного APK через adb
 store/                                  — карточка RuStore и её ассеты
 PROJECT.md                              — техническое описание
 CHANGELOG.md                            — история версий
