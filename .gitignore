@@ -15,6 +15,9 @@ keystore.properties
 store/*
 !store/*.md
 !store/**/*.md
+!store/*.png
+!store/screenshots/
+!store/screenshots/*.png
 *.jks
 *.keystore
 *.apk
