@@ -42,7 +42,7 @@
     <string name="rule_6">Pause is the button in the top-right corner.</string>
     <string name="rule_7">After 90 seconds asteroids gradually speed up and spawn more often.</string>
     <string name="rules_multiplier">Score multiplier</string>
-    <string name="rules_multiplier_desc">Every star raises the multiplier by +0.2 (up to x5.0). Any collision resets it to x1.0.</string>
+    <string name="rules_multiplier_desc">Stars raise the score multiplier by +0.2 without a cap. Close fly-bys build a separate multiplier; a shield keeps both multipliers after a hit.</string>
     <string name="rules_progress">Progress</string>
     <string name="rule_progress_1">Neon is the sum of Classic/Hardcore/Daily Challenge run scores plus 300 per completed quest. Zen is training and gives no neon for score.</string>
     <string name="rule_progress_2">Every day the game offers three new quests out of seven. The Daily Challenge gives one attempt, a fixed seed and a separate record.</string>
@@ -104,14 +104,24 @@
     <string name="bonus_shield">Shield</string>
     <string name="bonus_magnet">Magnet</string>
     <string name="bonus_slow">Slow time</string>
+    <string name="bonus_bomb">Bomb</string>
+    <string name="bonus_phase">Phase</string>
+    <string name="bonus_double">Double score</string>
     <string name="bonus_star_desc">+50 points and +0.2 multiplier</string>
     <string name="bonus_heart_desc">+1 life while below three</string>
     <string name="bonus_shield_desc">Absorbs one hit</string>
     <string name="bonus_magnet_desc">Pulls stars for 8 seconds</string>
     <string name="bonus_slow_desc">Slows the world for 6 seconds</string>
+    <string name="bonus_bomb_desc">Clears nearby asteroids</string>
+    <string name="bonus_phase_desc">Pass through asteroids for 6 seconds</string>
+    <string name="bonus_double_desc">Doubles score for 8 seconds</string>
     <string name="bonus_shield_active">Shield active</string>
+    <string name="bonus_shield_blocked">Shield absorbed the hit</string>
     <string name="bonus_magnet_active">Magnet active</string>
     <string name="bonus_slow_active">Time slowed</string>
+    <string name="bonus_bomb_active">Bomb cleared the field</string>
+    <string name="bonus_phase_active">Phase active</string>
+    <string name="bonus_double_active">Double score active</string>
 
     <string name="stat_dodged">Dodged</string>
     <string name="stat_combo">Best combo</string>
@@ -145,11 +155,15 @@
     <string name="skin_lime">Lime</string>
     <string name="skin_violet">Pulsar</string>
     <string name="skin_white">Ghost</string>
+    <string name="skin_sunset">Sunset</string>
+    <string name="skin_aqua">Aqua</string>
     <string name="trail_neon">Neon</string>
     <string name="trail_sparks">Sparks</string>
     <string name="trail_flame">Flame</string>
     <string name="trail_ghost">Shade</string>
     <string name="trail_magnet">Magnet</string>
+    <string name="trail_comet">Comet</string>
+    <string name="trail_pulse">Pulse</string>
 
     <string name="skin_free">Available from the start</string>
     <string name="unlock_points">Unlocks at %1$s neon</string>

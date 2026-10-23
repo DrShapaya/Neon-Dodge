@@ -42,7 +42,7 @@
     <string name="rule_6">Пауза — кнопка в правом верхнем углу.</string>
     <string name="rule_7">После 90 секунд астероиды постепенно ускоряются, а интервал между ними сокращается.</string>
     <string name="rules_multiplier">Множитель очков</string>
-    <string name="rules_multiplier_desc">Каждая звезда повышает множитель на +0,2 (максимум x5,0). Любое столкновение сбрасывает его до x1,0.</string>
+    <string name="rules_multiplier_desc">Звёзды повышают множитель очков на +0,2 без ограничения. Близкие пролёты дают отдельный множитель; щит сохраняет оба множителя после удара.</string>
     <string name="rules_progress">Прогресс</string>
     <string name="rule_progress_1">Неон — сумма очков Classic/Hardcore/испытания дня и награда +300 за задание. «Дзен» — тренировка без неона за очки.</string>
     <string name="rule_progress_2">Каждый день игра предлагает три новых задания из семи. Испытание дня — одна попытка, фиксированный seed и отдельный рекорд.</string>
@@ -104,14 +104,24 @@
     <string name="bonus_shield">Щит</string>
     <string name="bonus_magnet">Магнит</string>
     <string name="bonus_slow">Замедление</string>
+    <string name="bonus_bomb">Бомба</string>
+    <string name="bonus_phase">Фаза</string>
+    <string name="bonus_double">Очки x2</string>
     <string name="bonus_star_desc">+50 очков и +0,2 к множителю</string>
     <string name="bonus_heart_desc">+1 жизнь, если их меньше трёх</string>
     <string name="bonus_shield_desc">Поглощает одно попадание</string>
     <string name="bonus_magnet_desc">Притягивает звёзды 8 секунд</string>
     <string name="bonus_slow_desc">Замедляет мир на 6 секунд</string>
+    <string name="bonus_bomb_desc">Уничтожает ближайшие астероиды</string>
+    <string name="bonus_phase_desc">Позволяет проходить сквозь астероиды 6 секунд</string>
+    <string name="bonus_double_desc">Удваивает очки на 8 секунд</string>
     <string name="bonus_shield_active">Щит активен</string>
+    <string name="bonus_shield_blocked">Щит поглотил удар</string>
     <string name="bonus_magnet_active">Магнит активен</string>
     <string name="bonus_slow_active">Время замедлено</string>
+    <string name="bonus_bomb_active">Бомба очистила поле</string>
+    <string name="bonus_phase_active">Фаза активна</string>
+    <string name="bonus_double_active">Очки x2 активны</string>
 
     <string name="stat_dodged">Пролёты</string>
     <string name="stat_combo">Макс. комбо</string>
@@ -145,11 +155,15 @@
     <string name="skin_lime">Кислота</string>
     <string name="skin_violet">Пульсар</string>
     <string name="skin_white">Призрак</string>
+    <string name="skin_sunset">Закат</string>
+    <string name="skin_aqua">Аква</string>
     <string name="trail_neon">Неон</string>
     <string name="trail_sparks">Искры</string>
     <string name="trail_flame">Пламя</string>
     <string name="trail_ghost">Тень</string>
     <string name="trail_magnet">Магнит</string>
+    <string name="trail_comet">Комета</string>
+    <string name="trail_pulse">Импульс</string>
 
     <string name="skin_free">Доступно сразу</string>
     <string name="unlock_points">Откроется за %1$s неон</string>

@@ -81,9 +81,9 @@ function makeCoin() {
 }
 
 // ---------------------------------------------------------------- music loop
-function makeMusic() {
+function makeMusic(outputName = 'music.wav', variant = 0) {
   const sr = 22050;
-  const bpm = 96;
+  const bpm = variant ? 112 : 96;
   const beat = 60 / bpm;             // 0.625 s
   const bars = 8;
   const dur = bars * 4 * beat;       // 20 s
@@ -92,7 +92,16 @@ function makeMusic() {
 
   const A2 = 110.00, C3 = 130.81, E3 = 164.81;
   const F2 = 87.31, G2 = 98.00, B2 = 123.47, D3 = 146.83;
-  const chords = [
+  const chords = variant ? [
+    { bass: 73.42, notes: [D3, 185.00, 220.00] }, // Dm
+    { bass: 55.00, notes: [A2, C3, E3] },         // Am
+    { bass: 65.41, notes: [C3, E3, 196.00] },     // C
+    { bass: 49.00, notes: [G2, B2, D3] },         // G
+    { bass: 73.42, notes: [D3, 185.00, 220.00] },
+    { bass: 55.00, notes: [A2, C3, E3] },
+    { bass: 65.41, notes: [C3, E3, 196.00] },
+    { bass: 49.00, notes: [G2, B2, D3] },
+  ] : [
     { bass: 55.00, notes: [A2, C3, E3] },  // Am
     { bass: 43.65, notes: [F2, A2, C3] },  // F
     { bass: 65.41, notes: [C3, E3, 196.00] }, // C
@@ -147,7 +156,9 @@ function makeMusic() {
   function addArp() {
     for (let b = 0; b < bars; b++) {
       const chord = chords[b];
-      const pattern = [0, 1, 2, 1, 2, 0, 1, 2]; // eighth notes
+      const pattern = variant
+        ? [0, 2, 1, 2, 0, 1, 2, 1]
+        : [0, 1, 2, 1, 2, 0, 1, 2]; // eighth notes
       for (let step = 0; step < 8; step++) {
         const start = b * barLen + step * beat * 0.5;
         const idx = pattern[step] % chord.notes.length;
@@ -166,9 +177,13 @@ function makeMusic() {
 
   function addShimmer() {
     const events = [
-      [1.25, 1, 660.0], [3.75, 2, 523.25], [6.25, 3, 783.99],
-      [8.75, 4, 659.25], [11.25, 5, 523.25], [13.75, 6, 783.99],
-      [16.25, 7, 659.25], [18.25, 8, 880.00],
+      ...(variant
+        ? [[0.95, 1, 587.33], [3.1, 2, 739.99], [5.6, 3, 880.0],
+          [8.1, 4, 659.25], [10.6, 5, 783.99], [13.1, 6, 987.77],
+          [15.6, 7, 880.0], [17.2, 8, 1174.66]]
+        : [[1.25, 1, 660.0], [3.75, 2, 523.25], [6.25, 3, 783.99],
+          [8.75, 4, 659.25], [11.25, 5, 523.25], [13.75, 6, 783.99],
+          [16.25, 7, 659.25], [18.25, 8, 880.00]]),
     ];
     for (const [start, bar, f] of events) {
       const gain = 0.030 + (bar % 2) * 0.006;
@@ -203,8 +218,9 @@ function makeMusic() {
     out[n - 1 - i] *= k;
   }
   normalize(out, 0.72);
-  writeWav(path.join(SRC, 'music.wav'), out, sr);
+  writeWav(path.join(SRC, outputName), out, sr);
 }
 
 makeCoin();
-makeMusic();
+makeMusic('music.wav', 0);
+makeMusic('music_alt.wav', 1);

@@ -44,8 +44,8 @@ final class Progress {
     static final int ACH_SURVIVE_120 = 9;
     static final int ACH_COUNT = 10;
 
-    static final int SPHERE_COUNT = 6;
-    static final int TRAIL_COUNT = 5;
+    static final int SPHERE_COUNT = 8;
+    static final int TRAIL_COUNT = 7;
 
     private final SharedPreferences prefs;
 
@@ -286,9 +286,6 @@ final class Progress {
         if (score > challengeBest) {
             challengeBest = score;
         }
-        if (score > best) {
-            best = score;
-        }
     }
 
     private void resetDaily() {
@@ -425,6 +422,10 @@ final class Progress {
                 return dodged >= 300;
             case 5:
                 return totalTime >= 900f;
+            case 6:
+                return pointsTotal >= 12000;
+            case 7:
+                return bestCombo >= 30;
             default:
                 return false;
         }
@@ -442,6 +443,10 @@ final class Progress {
                 return dodged >= 500;
             case 4:
                 return questsDone >= 5;
+            case 5:
+                return stars >= 250;
+            case 6:
+                return totalTime >= 1800f;
             default:
                 return false;
         }
@@ -460,6 +465,10 @@ final class Progress {
                 return ratio(dodged, 300);
             case 5:
                 return ratio((int) totalTime, 900);
+            case 6:
+                return ratio(pointsTotal, 12000);
+            case 7:
+                return ratio(bestCombo, 30);
             default:
                 return 1f;
         }
@@ -476,6 +485,10 @@ final class Progress {
                 return ratio(dodged, 500);
             case 4:
                 return ratio(questsDone, 5);
+            case 5:
+                return ratio(stars, 250);
+            case 6:
+                return ratio((int) totalTime, 1800);
             default:
                 return 1f;
         }
@@ -494,7 +507,8 @@ final class Progress {
         if (m >= 0 && m < MODE_COUNT && score > bestByMode[m]) {
             bestByMode[m] = score;
         }
-        if (score > best) {
+        // Career unlocks use only scored modes; Zen and Daily stay separate.
+        if ((m == MODE_CLASSIC || m == MODE_HARDCORE) && score > best) {
             best = score;
         }
     }

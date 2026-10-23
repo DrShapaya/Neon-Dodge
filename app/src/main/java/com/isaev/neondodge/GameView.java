@@ -25,7 +25,9 @@ import android.view.MotionEvent;
 import android.view.View;
 
 import java.util.ArrayList;
+import java.text.NumberFormat;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Random;
 
 /**
@@ -69,30 +71,37 @@ public class GameView extends View implements Choreographer.FrameCallback {
     private static final int P_SHIELD = 2;
     private static final int P_MAGNET = 3;
     private static final int P_SLOW = 4;
+    private static final int P_BOMB = 5;
+    private static final int P_PHASE = 6;
+    private static final int P_DOUBLE = 7;
 
     private static final float MAGNET_TIME = 8f;
     private static final float SLOW_TIME = 6f;
     private static final float SLOW_SCALE = 0.45f;
+    private static final float PHASE_TIME = 6f;
+    private static final float DOUBLE_TIME = 8f;
     private static final int MAX_LIVES = 3;
 
     private static final int CONTROL_ABOVE = 0;
     private static final int CONTROL_AT = 1;
 
     private static final float MULT_STEP = 0.2f;
-    private static final float MULT_MAX = 5f;
 
     // Sphere / trail skin palettes.
     private static final int[] SPHERE_OUTER = {
-            0xFF5FF3FF, 0xFFFF4FD8, 0xFFFFD75E, 0xFFB6FF5C, 0xFFA46BFF, 0xFFEFFBFF
+            0xFF5FF3FF, 0xFFFF4FD8, 0xFFFFD75E, 0xFFB6FF5C, 0xFFA46BFF, 0xFFEFFBFF,
+            0xFFFF7A45, 0xFF65E6C5
     };
     private static final int[] SPHERE_INNER = {
-            0xFFBFFAFF, 0xFFFFB8F0, 0xFFFFF0B8, 0xFFEBFFC0, 0xFFDCC7FF, 0xFFFFFFFF
+            0xFFBFFAFF, 0xFFFFB8F0, 0xFFFFF0B8, 0xFFEBFFC0, 0xFFDCC7FF, 0xFFFFFFFF,
+            0xFFFFD0B8, 0xFFB9FFF0
     };
     private static final int[] TRAIL_COLORS = {
-            0xAA5FF3FF, 0xCCFFD75E, 0xCCFF9E4F, 0x88A46BFF, 0xCCFF4FD8
+            0xAA5FF3FF, 0xCCFFD75E, 0xCCFF9E4F, 0x88A46BFF, 0xCCFF4FD8,
+            0xCCFF6A45, 0xCC65E6C5
     };
-    private static final float[] TRAIL_SIZE = {1f, 0.85f, 1.15f, 1.30f, 1f};
-    private static final float[] TRAIL_RATE = {0.022f, 0.017f, 0.025f, 0.030f, 0.020f};
+    private static final float[] TRAIL_SIZE = {1f, 0.85f, 1.15f, 1.30f, 1f, 1.2f, 0.75f};
+    private static final float[] TRAIL_RATE = {0.022f, 0.017f, 0.025f, 0.030f, 0.020f, 0.015f, 0.035f};
 
     // Asteroid types: colour tells the player which ability it has.
     private static final int T_GREEN = 0;   // bounces off walls
@@ -143,10 +152,13 @@ public class GameView extends View implements Choreographer.FrameCallback {
     private int runStars;
     private int runDodged;
     private int runMaxCombo;
+    private int bossMask;
     private boolean scoreBanked;
 
     private float scoreMult = 1f;
     private float runMaxMult = 1f;
+    private float closeMult = 1f;
+    private float runMaxCloseMult = 1f;
 
     private boolean soundOn = true;
     private boolean vibOn = true;
@@ -164,6 +176,8 @@ public class GameView extends View implements Choreographer.FrameCallback {
     private int shieldCharges;
     private float magnetTimer;
     private float slowTimer;
+    private float phaseTimer;
+    private float doubleTimer;
     private float specialTimer;
     private float checkTimer;
     private float saveTimer;
@@ -173,6 +187,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
     private float py = 1400f;
     private float targetX = px;
     private float targetY = py;
+    private int activePointerId = MotionEvent.INVALID_POINTER_ID;
     private float invuln;
     private float shake;
     private float flash;
@@ -284,8 +299,12 @@ public class GameView extends View implements Choreographer.FrameCallback {
     private String sQuestReward;
     private String sAchievementUnlocked;
     private String sShieldActive;
+    private String sShieldBlocked;
     private String sMagnetActive;
     private String sSlowActive;
+    private String sBombActive;
+    private String sPhaseActive;
+    private String sDoubleActive;
     private String sSphere;
     private String sTrail;
     private String sZen;
@@ -310,8 +329,8 @@ public class GameView extends View implements Choreographer.FrameCallback {
     private final String[] sRuleProgress = new String[3];
     private final String[] sAstName = new String[9];
     private final String[] sAstDesc = new String[9];
-    private final String[] sBonusName = new String[5];
-    private final String[] sBonusDesc = new String[5];
+    private final String[] sBonusName = new String[8];
+    private final String[] sBonusDesc = new String[8];
     private final String[] sStatName = new String[6];
     private final String[] sAchName = new String[Progress.ACH_COUNT];
     private final String[] sQuestName = new String[Progress.QUEST_COUNT];
@@ -324,6 +343,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
     private SharedPreferences prefs;
     private SoundPool soundPool;
     private MediaPlayer musicPlayer;
+    private int musicTrack;
     private int sndCoin;
     private int sndHit;
     private int sndPower;
@@ -336,7 +356,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
     public GameView(Context context) {
         super(context);
         setFocusable(true);
-        setKeepScreenOn(true);
+        setKeepScreenOn(false);
 
         prefs = context.getSharedPreferences("neon_dodge", Context.MODE_PRIVATE);
         progress = new Progress(context);
@@ -421,8 +441,12 @@ public class GameView extends View implements Choreographer.FrameCallback {
         sQuestReward = context.getString(R.string.quest_reward, Progress.QUEST_REWARD);
         sAchievementUnlocked = context.getString(R.string.achievement_unlocked);
         sShieldActive = context.getString(R.string.bonus_shield_active);
+        sShieldBlocked = context.getString(R.string.bonus_shield_blocked);
         sMagnetActive = context.getString(R.string.bonus_magnet_active);
         sSlowActive = context.getString(R.string.bonus_slow_active);
+        sBombActive = context.getString(R.string.bonus_bomb_active);
+        sPhaseActive = context.getString(R.string.bonus_phase_active);
+        sDoubleActive = context.getString(R.string.bonus_double_active);
         sSphere = context.getString(R.string.skins_sphere);
         sTrail = context.getString(R.string.skins_trail);
         sZen = context.getString(R.string.zen_hud);
@@ -484,11 +508,17 @@ public class GameView extends View implements Choreographer.FrameCallback {
         sBonusName[2] = context.getString(R.string.bonus_shield);
         sBonusName[3] = context.getString(R.string.bonus_magnet);
         sBonusName[4] = context.getString(R.string.bonus_slow);
+        sBonusName[5] = context.getString(R.string.bonus_bomb);
+        sBonusName[6] = context.getString(R.string.bonus_phase);
+        sBonusName[7] = context.getString(R.string.bonus_double);
         sBonusDesc[0] = context.getString(R.string.bonus_star_desc);
         sBonusDesc[1] = context.getString(R.string.bonus_heart_desc);
         sBonusDesc[2] = context.getString(R.string.bonus_shield_desc);
         sBonusDesc[3] = context.getString(R.string.bonus_magnet_desc);
         sBonusDesc[4] = context.getString(R.string.bonus_slow_desc);
+        sBonusDesc[5] = context.getString(R.string.bonus_bomb_desc);
+        sBonusDesc[6] = context.getString(R.string.bonus_phase_desc);
+        sBonusDesc[7] = context.getString(R.string.bonus_double_desc);
 
         sStatName[0] = context.getString(R.string.stat_dodged);
         sStatName[1] = context.getString(R.string.stat_combo);
@@ -522,12 +552,16 @@ public class GameView extends View implements Choreographer.FrameCallback {
         sSphereName[3] = context.getString(R.string.skin_lime);
         sSphereName[4] = context.getString(R.string.skin_violet);
         sSphereName[5] = context.getString(R.string.skin_white);
+        sSphereName[6] = context.getString(R.string.skin_sunset);
+        sSphereName[7] = context.getString(R.string.skin_aqua);
 
         sTrailName[0] = context.getString(R.string.trail_neon);
         sTrailName[1] = context.getString(R.string.trail_sparks);
         sTrailName[2] = context.getString(R.string.trail_flame);
         sTrailName[3] = context.getString(R.string.trail_ghost);
         sTrailName[4] = context.getString(R.string.trail_magnet);
+        sTrailName[5] = context.getString(R.string.trail_comet);
+        sTrailName[6] = context.getString(R.string.trail_pulse);
 
         sSphereCond[0] = context.getString(R.string.skin_free);
         sSphereCond[1] = context.getString(R.string.unlock_points, fmt(4000));
@@ -535,11 +569,15 @@ public class GameView extends View implements Choreographer.FrameCallback {
         sSphereCond[3] = context.getString(R.string.unlock_combo, fmt(12));
         sSphereCond[4] = context.getString(R.string.unlock_dodged, fmt(300));
         sSphereCond[5] = context.getString(R.string.unlock_time, formatTime(900));
+        sSphereCond[6] = context.getString(R.string.unlock_points, fmt(12000));
+        sSphereCond[7] = context.getString(R.string.unlock_combo, fmt(30));
         sTrailCond[0] = context.getString(R.string.skin_free);
         sTrailCond[1] = context.getString(R.string.unlock_stars, fmt(50));
         sTrailCond[2] = context.getString(R.string.unlock_best, fmt(4000));
         sTrailCond[3] = context.getString(R.string.unlock_dodged, fmt(500));
         sTrailCond[4] = context.getString(R.string.unlock_quests, fmt(5));
+        sTrailCond[5] = context.getString(R.string.unlock_stars, fmt(250));
+        sTrailCond[6] = context.getString(R.string.unlock_time, formatTime(1800));
     }
 
 
@@ -620,7 +658,8 @@ public class GameView extends View implements Choreographer.FrameCallback {
             return;
         }
         try {
-            musicPlayer = MediaPlayer.create(getContext(), R.raw.music);
+            musicPlayer = MediaPlayer.create(getContext(),
+                    musicTrack == 0 ? R.raw.music : R.raw.music_alt);
             if (musicPlayer != null) {
                 musicPlayer.setLooping(true);
                 musicPlayer.setVolume(0.45f, 0.45f);
@@ -817,7 +856,6 @@ public class GameView extends View implements Choreographer.FrameCallback {
         if (soundPool == null) {
             initAudio();
         }
-        initMusic();
         startLoop();
     }
 
@@ -844,7 +882,11 @@ public class GameView extends View implements Choreographer.FrameCallback {
 
     public void onHostResume() {
         progress.ensureDay();
-        startMusicIfEnabled();
+        // Не блокируем первый кадр меню декодированием OGG; музыка стартует
+        // при начале забега или возвращении из паузы.
+        if (state == ST_PLAY || state == ST_PAUSE) {
+            startMusicIfEnabled();
+        }
         startLoop();
     }
 
@@ -947,7 +989,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
         float late = zenMode ? 0f : Math.max(0f, elapsed - diffTime);
         latePressure = Math.min(0.30f, late / 300f);
         score += dt * (70f + 120f * difficulty)
-                * (1f + 0.25f * latePressure) * scoreMult;
+                * (1f + 0.25f * latePressure) * scoreFactor();
         progress.totalTime += dt;
         progress.dailyTime += dt;
         if ((int) elapsed > progress.bestTime) {
@@ -971,6 +1013,19 @@ public class GameView extends View implements Choreographer.FrameCallback {
 
         if (invuln > 0f) {
             invuln -= dt;
+        }
+        phaseTimer = Math.max(0f, phaseTimer - dt);
+        doubleTimer = Math.max(0f, doubleTimer - dt);
+
+        // Mini-bosses arrive at 2, 4 and 6 minutes and create a clear tempo spike.
+        int minute = (int) (elapsed / 60f);
+        if (minute >= 2 && minute <= 6 && (minute & 1) == 0) {
+            int bit = 1 << (minute / 2 - 1);
+            if ((bossMask & bit) == 0) {
+                bossMask |= bit;
+                spawnBoss(minute);
+                announceTimer = 2.4f;
+            }
         }
 
         targetX = clamp(targetX, PLAYER_R + 6f, W - PLAYER_R - 6f);
@@ -1027,12 +1082,18 @@ public class GameView extends View implements Choreographer.FrameCallback {
         specialTimer -= dt;
         if (specialTimer <= 0f && elapsed > 3f) {
             float v = pickupRnd.nextFloat();
-            if (v < 0.34f) {
+            if (v < 0.20f) {
                 spawnPickup(P_SHIELD);
-            } else if (v < 0.67f) {
+            } else if (v < 0.38f) {
                 spawnPickup(P_MAGNET);
-            } else {
+            } else if (v < 0.56f) {
                 spawnPickup(P_SLOW);
+            } else if (v < 0.72f) {
+                spawnPickup(P_BOMB);
+            } else if (v < 0.87f) {
+                spawnPickup(P_PHASE);
+            } else {
+                spawnPickup(P_DOUBLE);
             }
             specialTimer = 15f + pickupRnd.nextFloat() * 9f;
         }
@@ -1088,12 +1149,20 @@ public class GameView extends View implements Choreographer.FrameCallback {
         return slowTimer > 0f ? SLOW_SCALE : 1f;
     }
 
+    private float scoreFactor() {
+        return scoreMult * closeMult * (doubleTimer > 0f ? 2f : 1f);
+    }
+
     private void updateObstacles(float dt) {
         float sdt = dt * slowFactor();
         for (int i = obstacles.size() - 1; i >= 0; i--) {
             Obs o = obstacles.get(i);
 
-            if (o.type == T_ORANGE) {
+            if (o.boss) {
+                o.vy = o.baseVy * (0.72f + 0.28f *
+                        (0.5f + 0.5f * (float) Math.sin(time * (1.5f + o.bossStage * 0.35f))));
+                o.vx += (float) Math.sin(time * 0.7f + o.bossStage) * sdt * 35f;
+            } else if (o.type == T_ORANGE) {
                 o.burstPhase += sdt;
                 if (o.burstPhase >= 1.05f) {
                     o.burstPhase -= 1.05f;
@@ -1131,7 +1200,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
                 continue;
             }
 
-            if (o.type == T_GREEN) {
+            if (o.type == T_GREEN || o.boss) {
                 if (o.x < o.r + 8f) {
                     o.x = o.r + 8f;
                     o.vx = Math.abs(o.vx);
@@ -1175,7 +1244,9 @@ public class GameView extends View implements Choreographer.FrameCallback {
                     }
                     comboTimer = 2.2f;
                     comboPop = 1f;
-                    score += 5f * Math.min(combo, 12) * scoreMult;
+                    closeMult = Math.min(999f, closeMult + MULT_STEP);
+                    runMaxCloseMult = Math.max(runMaxCloseMult, closeMult);
+                    score += 5f * combo * scoreFactor();
                     for (int k = 0; k < 3; k++) {
                         addParticle(o.x + (rnd.nextFloat() - 0.5f) * o.r,
                                 py - 10f + (rnd.nextFloat() - 0.5f) * 30f,
@@ -1193,8 +1264,18 @@ public class GameView extends View implements Choreographer.FrameCallback {
                 if (dist2(o.x, o.y, px, py) < rr * rr) {
                     // Броня выдерживает удар щита: щит спасает сферу,
                     // но сам астероид продолжает падать.
-                    boolean survivesShield = o.type == T_ARMOR
+                    boolean survivesShield = (o.type == T_ARMOR || o.boss)
                             && shieldCharges > 0 && !zenMode;
+                    if (o.boss && o.bossHits > 1 && !survivesShield) {
+                        o.bossHits--;
+                        o.bounceFlash = 1f;
+                        explode(o.x, o.y, 18, o.color);
+                        invuln = 0.75f;
+                        shake = 18f;
+                        flash = 0.18f;
+                        toast("BOSS · " + o.bossHits + " HP");
+                        continue;
+                    }
                     if (!survivesShield) {
                         obstacles.remove(i);
                     }
@@ -1352,6 +1433,25 @@ public class GameView extends View implements Choreographer.FrameCallback {
         obstacles.add(o);
     }
 
+    private void spawnBoss(int minute) {
+        Obs o = new Obs();
+        o.boss = true;
+        o.bossStage = minute / 2;
+        o.bossHits = 3 + o.bossStage;
+        o.type = T_ARMOR;
+        o.color = minute == 2 ? C_MAGENTA : (minute == 4 ? C_ORANGE : C_GOLD);
+        o.r = 82f + o.bossStage * 8f;
+        o.x = o.r + 24f + gameRnd.nextFloat() * (W - 2f * o.r - 48f);
+        o.y = -o.r - 60f;
+        o.baseVy = 250f + o.bossStage * 24f;
+        o.vy = o.baseVy;
+        o.vx = (gameRnd.nextBoolean() ? 1f : -1f) * (90f + o.bossStage * 20f);
+        o.rot = gameRnd.nextFloat() * 360f;
+        o.vrot = 60f + o.bossStage * 18f;
+        obstacles.add(o);
+        toast("MINI-BOSS · " + minute + ":00");
+    }
+
     private void spawnSplitFragments(Obs parent) {
         for (int side = -1; side <= 1; side += 2) {
             Obs f = new Obs();
@@ -1375,6 +1475,16 @@ public class GameView extends View implements Choreographer.FrameCallback {
     }
 
     private int pickObstacleType() {
+        // Новые механики вводятся постепенно, чтобы первые секунды оставались читаемыми.
+        if (elapsed < 20f) {
+            return gameRnd.nextInt(3);
+        }
+        if (elapsed < 45f) {
+            return gameRnd.nextInt(5);
+        }
+        if (elapsed < 75f) {
+            return gameRnd.nextInt(7);
+        }
         float v = gameRnd.nextFloat();
         if (v < 0.14f) {
             return T_GREEN;
@@ -1432,6 +1542,9 @@ public class GameView extends View implements Choreographer.FrameCallback {
                 break;
             case P_MAGNET:
             case P_SLOW:
+            case P_BOMB:
+            case P_PHASE:
+            case P_DOUBLE:
                 p.r = 29f;
                 p.vy = 270f;
                 break;
@@ -1447,12 +1560,11 @@ public class GameView extends View implements Choreographer.FrameCallback {
     }
 
     private void hit(Obs o) {
-        combo = 0;
-        comboTimer = 0f;
-        comboPop = 0f;
-        resetMultiplier();
-
         if (zenMode) {
+            combo = 0;
+            comboTimer = 0f;
+            comboPop = 0f;
+            resetMultipliers();
             shake = 18f;
             flash = 0.45f;
             invuln = 1.2f;
@@ -1473,10 +1585,15 @@ public class GameView extends View implements Choreographer.FrameCallback {
             explode(o.x, o.y, 14, o.color);
             playSound(sndPower, 0.85f);
             buzz(35);
-            toast(sShieldActive);
+            toast(sShieldBlocked);
             checkProgress();
             return;
         }
+
+        combo = 0;
+        comboTimer = 0f;
+        comboPop = 0f;
+        resetMultipliers();
 
         lives--;
         shake = 30f;
@@ -1498,7 +1615,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
                     lives++;
                     playSound(sndPower, 1f);
                 } else {
-                    score += 60f * scoreMult;
+                    score += 60f * scoreFactor();
                     playSound(sndCoin, 1.25f);
                 }
                 explode(p.x, p.y, 16, C_RED);
@@ -1507,7 +1624,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
 
             case P_SHIELD:
                 shieldCharges = 1;
-                score += 25f * scoreMult;
+                score += 25f * scoreFactor();
                 explode(p.x, p.y, 18, C_MINT);
                 playSound(sndPower, 1.05f);
                 buzz(20);
@@ -1516,7 +1633,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
 
             case P_MAGNET:
                 magnetTimer = MAGNET_TIME;
-                score += 30f * scoreMult;
+                score += 30f * scoreFactor();
                 explode(p.x, p.y, 18, C_MAGENTA);
                 playSound(sndPower, 1.15f);
                 buzz(20);
@@ -1525,16 +1642,49 @@ public class GameView extends View implements Choreographer.FrameCallback {
 
             case P_SLOW:
                 slowTimer = SLOW_TIME;
-                score += 30f * scoreMult;
+                score += 30f * scoreFactor();
                 explode(p.x, p.y, 18, C_ICE);
                 playSound(sndPower, 0.85f);
                 buzz(20);
                 toast(sSlowActive);
                 break;
 
+            case P_BOMB:
+                int cleared = 0;
+                for (int i = obstacles.size() - 1; i >= 0; i--) {
+                    Obs o = obstacles.get(i);
+                    if (dist2(o.x, o.y, p.x, p.y) < 520f * 520f) {
+                        explode(o.x, o.y, 10, o.color);
+                        obstacles.remove(i);
+                        cleared++;
+                    }
+                }
+                score += (120f + cleared * 80f) * scoreFactor();
+                explode(p.x, p.y, 34, C_ORANGE);
+                playSound(sndHit, 0.7f);
+                toast(sBombActive);
+                break;
+
+            case P_PHASE:
+                phaseTimer = PHASE_TIME;
+                invuln = Math.max(invuln, PHASE_TIME);
+                score += 35f * scoreFactor();
+                explode(p.x, p.y, 18, C_VIOLET);
+                playSound(sndPower, 1.25f);
+                toast(sPhaseActive);
+                break;
+
+            case P_DOUBLE:
+                doubleTimer = DOUBLE_TIME;
+                score += 35f * scoreFactor();
+                explode(p.x, p.y, 18, C_GOLD);
+                playSound(sndPower, 1.4f);
+                toast(sDoubleActive);
+                break;
+
             default:
                 bumpMultiplier();
-                score += 50f * scoreMult;
+                score += 50f * scoreFactor();
                 runStars++;
                 progress.stars++;
                 progress.dailyStars++;
@@ -1546,6 +1696,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
     }
 
     private void gameOver() {
+        setKeepScreenOn(false);
         newRecord = dailyChallenge
                 ? (int) score > progress.challengeBest
                 : (int) score > progress.bestForMode(mode);
@@ -1580,6 +1731,13 @@ public class GameView extends View implements Choreographer.FrameCallback {
     }
 
     private void startGame(boolean challenge) {
+        setKeepScreenOn(true);
+        // Чередуем два лупа между забегами, чтобы длинная сессия не звучала одинаково.
+        musicTrack = (musicTrack + 1) & 1;
+        if (musicPlayer != null) {
+            releaseMusic();
+            initMusic();
+        }
         progress.ensureDay();
         dailyChallenge = challenge;
         mode = challenge ? Progress.MODE_CLASSIC : progress.mode;
@@ -1621,10 +1779,15 @@ public class GameView extends View implements Choreographer.FrameCallback {
         runMaxCombo = 0;
         scoreMult = 1f;
         runMaxMult = 1f;
+        closeMult = 1f;
+        runMaxCloseMult = 1f;
         scoreBanked = false;
         shieldCharges = 0;
         magnetTimer = 0f;
         slowTimer = 0f;
+        phaseTimer = 0f;
+        doubleTimer = 0f;
+        bossMask = 0;
         toastTimer = 0f;
         toastText = "";
         resumeTimer = 0f;
@@ -1632,7 +1795,6 @@ public class GameView extends View implements Choreographer.FrameCallback {
         pressedId = B_NONE;
 
         progress.runs++;
-        progress.dailyRuns++;
         progress.saveStats();
         progress.saveDaily();
 
@@ -1657,6 +1819,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
     }
 
     private void resetMenu() {
+        setKeepScreenOn(false);
         boolean finishedRun = !scoreBanked && score > 0f;
         if (finishedRun) {
             bankScore();
@@ -1689,10 +1852,15 @@ public class GameView extends View implements Choreographer.FrameCallback {
         comboPop = 0f;
         scoreMult = 1f;
         runMaxMult = 1f;
+        closeMult = 1f;
+        runMaxCloseMult = 1f;
         announceTimer = 0f;
         shieldCharges = 0;
         magnetTimer = 0f;
         slowTimer = 0f;
+        phaseTimer = 0f;
+        doubleTimer = 0f;
+        bossMask = 0;
         toastTimer = 0f;
         px = W / 2f;
         targetX = px;
@@ -1709,6 +1877,10 @@ public class GameView extends View implements Choreographer.FrameCallback {
         }
         scoreBanked = true;
         int finalScore = (int) score;
+        // A run counts toward the daily quest only after meaningful play.
+        if (elapsed >= 10f || finalScore >= 300) {
+            progress.dailyRuns++;
+        }
         if (dailyChallenge) {
             // Испытание дня — отдельный рекорд; забег идёт по правилам
             // «Классики» и даёт неон, но не попадает в рекорд Classic.
@@ -1726,7 +1898,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
     }
 
     private void bumpMultiplier() {
-        scoreMult = Math.min(MULT_MAX, scoreMult + MULT_STEP);
+        scoreMult += MULT_STEP;
         if (scoreMult > runMaxMult) {
             runMaxMult = scoreMult;
         }
@@ -1734,6 +1906,11 @@ public class GameView extends View implements Choreographer.FrameCallback {
 
     private void resetMultiplier() {
         scoreMult = 1f;
+    }
+
+    private void resetMultipliers() {
+        scoreMult = 1f;
+        closeMult = 1f;
     }
 
     private String fmtMult(float m) {
@@ -2034,6 +2211,20 @@ public class GameView extends View implements Choreographer.FrameCallback {
     }
 
     private void drawObs(Canvas c, Obs o) {
+        if (o.boss) {
+            float pulse = 0.85f + 0.15f * (float) Math.sin(time * 4f);
+            drawGlow(c, o.x, o.y, o.r * 3.6f, o.color, 190);
+            drawHex(c, o.x, o.y, o.r * pulse, o.rot, o.color);
+            pStroke.setStyle(Paint.Style.STROKE);
+            pStroke.setColor(0xFFFFFFFF);
+            pStroke.setAlpha(210);
+            pStroke.setStrokeWidth(5f);
+            c.drawCircle(o.x, o.y, o.r * 0.48f, pStroke);
+            c.drawCircle(o.x, o.y, o.r * 0.22f, pStroke);
+            pStroke.setStyle(Paint.Style.FILL);
+            textC(c, "BOSS", o.x, o.y + 8f, 24f, 0xFFFFFFFF, tfBlack, Paint.Align.CENTER);
+            return;
+        }
         int glowAlpha = 100;
         if (o.type == T_ORANGE) {
             glowAlpha = o.burstPhase < 0.30f ? 170 : 70;
@@ -2278,6 +2469,12 @@ public class GameView extends View implements Choreographer.FrameCallback {
                 return C_MAGENTA;
             case P_SLOW:
                 return C_ICE;
+            case P_BOMB:
+                return C_ORANGE;
+            case P_PHASE:
+                return C_VIOLET;
+            case P_DOUBLE:
+                return C_GOLD;
             default:
                 return C_GOLD;
         }
@@ -2341,6 +2538,33 @@ public class GameView extends View implements Choreographer.FrameCallback {
                 pFill.setColor(0xFFFFFFFF);
                 pFill.setAlpha(alpha);
                 c.drawCircle(x, y, size * 0.15f, pFill);
+                break;
+            }
+            case P_BOMB: {
+                pStroke.setStyle(Paint.Style.STROKE);
+                pStroke.setColor(col);
+                pStroke.setAlpha(alpha);
+                pStroke.setStrokeWidth(size * 0.16f);
+                c.drawCircle(x, y + size * 0.12f, size * 0.56f, pStroke);
+                c.drawLine(x, y - size * 0.44f, x + size * 0.26f, y - size * 0.78f, pStroke);
+                c.drawLine(x + size * 0.26f, y - size * 0.78f,
+                        x + size * 0.50f, y - size * 0.62f, pStroke);
+                strokeReset();
+                break;
+            }
+            case P_PHASE: {
+                pStroke.setStyle(Paint.Style.STROKE);
+                pStroke.setColor(col);
+                pStroke.setAlpha(alpha);
+                pStroke.setStrokeWidth(size * 0.14f);
+                c.drawCircle(x, y, size * 0.74f, pStroke);
+                c.drawCircle(x, y, size * 0.34f, pStroke);
+                c.drawLine(x - size * 0.95f, y, x + size * 0.95f, y, pStroke);
+                strokeReset();
+                break;
+            }
+            case P_DOUBLE: {
+                textC(c, "×2", x, y, size * 0.78f, col, tfBlack, Paint.Align.CENTER);
                 break;
             }
             default:
@@ -2924,6 +3148,14 @@ public class GameView extends View implements Choreographer.FrameCallback {
                 hot ? 0x2EFFD75E : 0x14FFFFFF, hot ? 0x99FFD75E : 0);
         textC(c, hudMultText, W / 2f, my, 27f, hot ? C_GOLD : 0x99A9C4D6,
                 tfBlack, Paint.Align.CENTER);
+        String closeText = "x" + fmtMult(closeMult);
+        float cw = measure(closeText, 25f, tfBlack) + 34f;
+        float cx = W / 2f + mw / 2f + 10f;
+        box(c, cx, my - 24f, cx + cw, my + 24f, 24f,
+                closeMult > 1.01f ? 0x224FD8FF : 0x12FFFFFF,
+                closeMult > 1.01f ? 0x884FD8FF : 0);
+        textC(c, closeText, cx + cw / 2f, my, 25f,
+                closeMult > 1.01f ? C_MAGENTA : 0x889FB8CC, tfBlack, Paint.Align.CENTER);
 
         if (combo >= 2) {
             float pop = 1f + 0.30f * comboPop;
@@ -2967,6 +3199,14 @@ public class GameView extends View implements Choreographer.FrameCallback {
         }
         if (slowTimer > 0f) {
             hudEffect(c, P_SLOW, ex, ey, slowTimer / SLOW_TIME);
+            ex += 68f;
+        }
+        if (phaseTimer > 0f) {
+            hudEffect(c, P_PHASE, ex, ey, phaseTimer / PHASE_TIME);
+            ex += 68f;
+        }
+        if (doubleTimer > 0f) {
+            hudEffect(c, P_DOUBLE, ex, ey, doubleTimer / DOUBLE_TIME);
         }
 
         float bx = pauseBtnX();
@@ -3736,7 +3976,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
         }
 
         y = rulesHeader(c, sLegendBonuses, y + 18f);
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 8; i++) {
             y = rulesBonus(c, i, y);
         }
         endScroll(c, y);
@@ -4134,7 +4374,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
                 fmt(runDodged),
                 formatTime((int) elapsed),
                 "x" + runMaxCombo,
-                "x" + fmtMult(runMaxMult),
+                "x" + fmtMult(runMaxMult) + " · x" + fmtMult(runMaxCloseMult),
                 zenMode ? "—" : "+" + fmt((int) score)
         };
         String[] labels = {sStatName[3], sStatName[0], sStatName[2],
@@ -4206,7 +4446,27 @@ public class GameView extends View implements Choreographer.FrameCallback {
                 pauseGame();
                 return true;
             }
+            if (action == MotionEvent.ACTION_DOWN) {
+                activePointerId = e.getPointerId(0);
+            } else if (action == MotionEvent.ACTION_POINTER_DOWN) {
+                return true;
+            } else if (action == MotionEvent.ACTION_POINTER_UP
+                    && e.getPointerId(e.getActionIndex()) == activePointerId) {
+                int next = e.getActionIndex() == 0 ? 1 : 0;
+                activePointerId = next < e.getPointerCount() ? e.getPointerId(next)
+                        : MotionEvent.INVALID_POINTER_ID;
+                return true;
+            } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                activePointerId = MotionEvent.INVALID_POINTER_ID;
+                return true;
+            }
             if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_MOVE) {
+                int pointerIndex = e.findPointerIndex(activePointerId);
+                if (pointerIndex < 0) {
+                    return true;
+                }
+                x = e.getX(pointerIndex) / scale;
+                y = e.getY(pointerIndex) / scale;
                 float ny = touchTargetY(y);
                 if (!tutorialDone
                         && (Math.abs(x - targetX) > 25f || Math.abs(ny - targetY) > 25f)) {
@@ -4515,16 +4775,9 @@ public class GameView extends View implements Choreographer.FrameCallback {
     }
 
     private String fmt(int v) {
-        String s = String.valueOf(v);
-        StringBuilder b = new StringBuilder(s.length() + 4);
-        int n = s.length();
-        for (int i = 0; i < n; i++) {
-            if (i > 0 && (n - i) % 3 == 0) {
-                b.append(' ');
-            }
-            b.append(s.charAt(i));
-        }
-        return b.toString();
+        NumberFormat nf = NumberFormat.getIntegerInstance(Locale.getDefault());
+        nf.setGroupingUsed(true);
+        return nf.format(v).replace('\u00A0', ' ');
     }
 
     private void toggleSound() {
@@ -4587,6 +4840,9 @@ public class GameView extends View implements Choreographer.FrameCallback {
         boolean passed;
         boolean mineArmed;
         boolean canSplit;
+        boolean boss;
+        int bossStage;
+        int bossHits;
     }
 
     private static class Pickup {
