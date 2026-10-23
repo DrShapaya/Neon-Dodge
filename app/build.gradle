@@ -1,0 +1,65 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Параметры подписи берутся из keystore.properties (в .gitignore) или из
+// переменных окружения NEONDODGE_*. В репозитории секретов нет.
+def keystorePropsFile = rootProject.file('keystore.properties')
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+
+def signingStoreFile = keystoreProps.getProperty('storeFile') ?: System.getenv('NEONDODGE_STORE_FILE')
+def signingStorePassword = keystoreProps.getProperty('storePassword') ?: System.getenv('NEONDODGE_STORE_PASSWORD')
+def signingKeyAlias = keystoreProps.getProperty('keyAlias') ?: System.getenv('NEONDODGE_KEY_ALIAS')
+def signingKeyPassword = keystoreProps.getProperty('keyPassword') ?: System.getenv('NEONDODGE_KEY_PASSWORD')
+
+def signingFileRef = signingStoreFile ? rootProject.file(signingStoreFile) : null
+def hasSigningConfig = signingFileRef != null && signingFileRef.exists() &&
+        signingStorePassword && signingKeyAlias && signingKeyPassword
+
+android {
+    namespace 'com.isaev.neondodge'
+    compileSdk 36
+    buildToolsVersion '36.1.0'
+
+    defaultConfig {
+        applicationId "com.isaev.neondodge"
+        minSdk 26
+        targetSdk 36
+        versionCode 8
+        versionName "1.7"
+    }
+
+    signingConfigs {
+        if (hasSigningConfig) {
+            release {
+                storeFile signingFileRef
+                storePassword signingStorePassword
+                keyAlias signingKeyAlias
+                keyPassword signingKeyPassword
+                enableV1Signing true
+                enableV2Signing true
+                enableV3Signing true
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
+                    'proguard-rules.pro'
+            if (hasSigningConfig) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

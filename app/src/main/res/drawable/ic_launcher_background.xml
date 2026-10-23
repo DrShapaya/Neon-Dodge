@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Сгенерировано tools/icon/make_vectors.py из tools/icon/icon.svg -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:pathData="M0,0 L108,0 L108,108 L0,108 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="41"
+                android:centerY="67"
+                android:gradientRadius="81"
+                android:startColor="#1B2C70"
+                android:centerColor="#0B1030"
+                android:endColor="#05060F" />
+        </aapt:attr>
+    </path>
+    <path
+        android:fillColor="#DDF2FF"
+        android:fillAlpha="0.6"
+        android:pathData="M24,44 m-0.7,0 a0.7,0.7 0 1,1 1.4,0 a0.7,0.7 0 1,1 -1.4,0" />
+    <path
+        android:fillColor="#DDF2FF"
+        android:fillAlpha="0.5"
+        android:pathData="M82,74 m-0.8,0 a0.8,0.8 0 1,1 1.6,0 a0.8,0.8 0 1,1 -1.6,0" />
+    <path
+        android:fillColor="#DDF2FF"
+        android:fillAlpha="0.4"
+        android:pathData="M74,86 m-0.6,0 a0.6,0.6 0 1,1 1.2,0 a0.6,0.6 0 1,1 -1.2,0" />
+    <path
+        android:fillColor="#DDF2FF"
+        android:fillAlpha="0.5"
+        android:pathData="M36,22 m-0.6,0 a0.6,0.6 0 1,1 1.2,0 a0.6,0.6 0 1,1 -1.2,0" />
+    <path
+        android:fillColor="#DDF2FF"
+        android:fillAlpha="0.4"
+        android:pathData="M88,28 m-0.7,0 a0.7,0.7 0 1,1 1.4,0 a0.7,0.7 0 1,1 -1.4,0" />
+</vector>
