@@ -21,6 +21,7 @@ powershell -ExecutionPolicy Bypass -File .\tools\capture-screenshots.ps1
 ```
 
 Полное описание механик и устройства проекта: [PROJECT.md](PROJECT.md). История изменений: [CHANGELOG.md](CHANGELOG.md).
+План следующего обновления: [NEXT-1.8.md](NEXT-1.8.md).
 
 ## Возможности
 
