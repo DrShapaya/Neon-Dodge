@@ -58,7 +58,7 @@ Start-Sleep -Seconds 3
 Save-Screenshot "menu.png"
 
 # Меню рассчитано на портрет 1080×2400; кнопка «Играть» находится по центру ниже выбора режима.
-Invoke-Adb @("-s", "emulator-$EmulatorPort", "shell", "input", "tap", "540", "1780")
+Invoke-Adb @("-s", "emulator-$EmulatorPort", "shell", "input", "tap", "540", "1940")
 Start-Sleep -Seconds 3
 Save-Screenshot "gameplay.png"
 
