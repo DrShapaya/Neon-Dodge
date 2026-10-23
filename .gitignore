@@ -1,5 +1,6 @@
 *.iml
 .gradle/
+.gradle-local/
 local.properties
 .idea/
 .DS_Store
@@ -7,12 +8,17 @@ build/
 captures/
 .externalNativeBuild
 .cxx
-keystore/
+keystore/*
+!store/*.md
+!store/**/*.md
 keystore.properties
-store/
+store/*
+!store/*.md
+!store/**/*.md
 *.jks
 *.keystore
 *.apk
 *.idsig
 dist/
 tools/audio-src/
+
