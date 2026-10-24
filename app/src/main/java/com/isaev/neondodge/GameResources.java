@@ -89,6 +89,12 @@ abstract class GameResources extends GameCore {
         sWorkshopMax = context.getString(R.string.workshop_max);
         sWorkshopBuy = context.getString(R.string.workshop_buy);
         sWorkshopHint = context.getString(R.string.workshop_hint);
+        sWorkshopStat = context.getString(R.string.workshop_stat);
+        sWorkshopStep = context.getString(R.string.workshop_star_step);
+        sWorkshopLevelOf = context.getString(R.string.workshop_level_of);
+        sWorkshopReady = context.getString(R.string.workshop_ready);
+        sWorkshopNeed = context.getString(R.string.workshop_need);
+        sWorkshopCost = context.getString(R.string.workshop_cost);
         sSphere = context.getString(R.string.skins_sphere);
         sTrail = context.getString(R.string.skins_trail);
         sZen = context.getString(R.string.zen_hud);
@@ -236,6 +242,7 @@ abstract class GameResources extends GameCore {
         tfBold = Typeface.create("sans-serif", Typeface.BOLD);
         tfMed = Typeface.create("sans-serif-medium", Typeface.NORMAL);
         tfCond = Typeface.create("sans-serif-condensed", Typeface.BOLD);
+        pText.setFontFeatureSettings("tnum");
 
         glowBmp = Bitmap.createBitmap(128, 128, Bitmap.Config.ARGB_8888);
         Canvas gc = new Canvas(glowBmp);

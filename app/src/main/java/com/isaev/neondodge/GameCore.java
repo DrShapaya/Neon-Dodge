@@ -238,6 +238,8 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     final Rect srcGlow = new Rect(0, 0, 128, 128);
     final RectF tmpRect = new RectF();
     final HashMap<Integer, PorterDuffColorFilter> filters = new HashMap<>();
+    final HashMap<String, Path> neonPaths = new HashMap<>();
+    final Paint pNeon = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     final Path hexPath = new Path();
     final Path starPath = new Path();
@@ -323,6 +325,12 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     String sWorkshopMax;
     String sWorkshopBuy;
     String sWorkshopHint;
+    String sWorkshopStat;
+    String sWorkshopStep;
+    String sWorkshopLevelOf;
+    String sWorkshopReady;
+    String sWorkshopNeed;
+    String sWorkshopCost;
     String sSphere;
     String sTrail;
     String sZen;
@@ -408,20 +416,26 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
         resetMenu();
     }
 
+    // ---------- UI-токены ----------
     //
-    // Цвет в интерфейсе несёт смысл: циан — действие, золото — неон и
-    // награды, магента — испытание дня, мята — выполнено, цвет режима —
-    // сам режим. Форма тоже: главная кнопка — сплошная «капсула», вторичные —
-    // контур, карточки — скругление 28, плитки навигации — 30.
+    // Образ — неоновая вывеска в ночном небе. Смелость потрачена в одном
+    // месте: логотип нарисован трубками. Остальное — тихое тёмное стекло.
+    //
+    // Цвет несёт смысл: циан — действие, золото — неон и награды, магента —
+    // испытание дня, мята — выполнено, цвет режима — сам режим. Форма тоже:
+    // главная кнопка — сплошная капсула, вторичные — стекло с контуром,
+    // карточки — скругление UI_RADIUS, иконки — контур толщиной ICON_STROKE.
 
-    static final int UI_INK = 0xFFE8F7FF;
-    static final int UI_FOG = 0xFF8FA6BD;
-    static final int UI_DIM = 0xFF56697E;
-    static final int UI_SURFACE = 0xE00E1630;
-    static final int UI_SURFACE_HI = 0xF0182450;
-    static final int UI_LINE = 0x1CFFFFFF;
+    static final int UI_INK = 0xFFEAF6FF;
+    static final int UI_FOG = 0xFF93A9C2;
+    static final int UI_DIM = 0xFF5A6D86;
+    static final int UI_SURFACE = 0xD90F1532;
+    static final int UI_SURFACE_HI = 0xF01A2350;
+    static final int UI_LINE = 0x1FFFFFFF;
     static final int UI_ON_ACCENT = 0xFF061018;
     static final float UI_PAD = 48f;
+    static final float UI_RADIUS = 28f;
+    static final float ICON_STROKE = 0.15f;
 
     static final int B_NONE = -1;
     static final int B_PLAY = 1;
@@ -492,12 +506,16 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     float mPlayCy;
     float mDailyCy;
     float mNavCy;
+    float mOrbitRx = 360f;
+    float mOrbitRy = 200f;
 
     int hudBestValue = -1;
     boolean hudBestDaily;
     String hudBestText = "";
     int hudMultTenths = -1;
     String hudMultText = "x1.0";
+    int hudCloseTenths = -1;
+    String hudCloseText = "x1.0";
 
     {
         for (int i = 0; i < MAX_HITS; i++) {

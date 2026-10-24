@@ -8,7 +8,7 @@
     <string name="play_again">Ещё раз</string>
     <string name="pause">Пауза</string>
     <string name="tap_continue">Продолжить</string>
-    <string name="tap_start">Нажмите для старта</string>
+    <string name="tap_start">Играть</string>
     <string name="menu_tagline">уклоняйся от астероидов</string>
     <string name="hint_move">Води пальцем, чтобы уклоняться</string>
     <string name="to_menu">Выйти в меню</string>
@@ -135,6 +135,12 @@
     <string name="workshop_max">Максимальный уровень достигнут</string>
     <string name="workshop_buy">Улучшить</string>
     <string name="workshop_hint">Каждая звезда даёт больше к первому множителю</string>
+    <string name="workshop_stat">Множитель звёзд</string>
+    <string name="workshop_star_step">+%1$s за каждую звезду</string>
+    <string name="workshop_level_of">Уровень %1$d из %2$d</string>
+    <string name="workshop_ready">Можно улучшить</string>
+    <string name="workshop_need">Ещё %1$s неона</string>
+    <string name="workshop_cost">Стоимость</string>
 
     <string name="stat_dodged">Пролёты</string>
     <string name="stat_combo">Макс. комбо</string>

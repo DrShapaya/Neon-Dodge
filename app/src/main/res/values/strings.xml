@@ -8,7 +8,7 @@
     <string name="play_again">Play again</string>
     <string name="pause">Paused</string>
     <string name="tap_continue">Resume</string>
-    <string name="tap_start">Tap to start</string>
+    <string name="tap_start">Play</string>
     <string name="menu_tagline">dodge the asteroids</string>
     <string name="hint_move">Drag your finger to dodge</string>
     <string name="to_menu">Quit to menu</string>
@@ -135,6 +135,12 @@
     <string name="workshop_max">Maximum level reached</string>
     <string name="workshop_buy">Upgrade</string>
     <string name="workshop_hint">Each star adds more to the first multiplier</string>
+    <string name="workshop_stat">Star multiplier</string>
+    <string name="workshop_star_step">+%1$s for every star</string>
+    <string name="workshop_level_of">Level %1$d of %2$d</string>
+    <string name="workshop_ready">Upgrade ready</string>
+    <string name="workshop_need">%1$s more neon needed</string>
+    <string name="workshop_cost">Cost</string>
 
     <string name="stat_dodged">Dodged</string>
     <string name="stat_combo">Best combo</string>

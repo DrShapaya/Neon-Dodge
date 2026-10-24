@@ -13,75 +13,104 @@ abstract class OverlayScreens extends InfoScreens {
     }
 
     void drawPause(Canvas c) {
-        pFill.setColor(0xCC050812);
+        pFill.setColor(0xD0050812);
         c.drawRect(-100f, -100f, W + 100f, worldH + 100f, pFill);
 
         float l = UI_PAD;
         float r = W - UI_PAD;
         float pw = r - l;
         float inner = pw - 96f;
-        float panelH = 830f;
+        float panelH = 744f;
         float pt = Math.max(insetTop + 40f, (worldH - panelH) / 2f);
         box(c, l, pt, r, pt + panelH, 44f, 0xF00E1630, UI_LINE);
-        drawGlow(c, W / 2f, pt, pw * 0.9f, C_CYAN, 30);
+        tube(c, W / 2f - 90f, pt, W / 2f + 90f, pt, C_CYAN, 4f);
 
         float cx = W / 2f;
-        float y = pt + 112f;
-        text(c, sPause, cx, y, 72f, UI_INK, tfBlack, Paint.Align.CENTER);
-        y += 52f;
+        float y = pt + 116f;
+        text(c, sPause, cx, y, 64f, UI_INK, tfBlack, Paint.Align.CENTER);
+        y += 50f;
         updateShownScore();
         text(c, sScore + " " + shownScoreText + "   ·   " + formatTime((int) elapsed),
-                cx, y, 27f, UI_FOG, tfMed, Paint.Align.CENTER);
-        y += 104f;
+                cx, y, 26f, UI_FOG, tfMed, Paint.Align.CENTER);
+        y += 98f;
 
-        primaryButton(c, B_CONTINUE, cx, y, inner, 136f, sTapContinue, C_CYAN, 0.5f);
-        y += 68f + 34f;
+        primaryButton(c, B_CONTINUE, cx, y, inner, 132f, sTapContinue, C_CYAN, 0.5f);
+        y += 66f + 92f;
 
-        // Плитки звука: заливка циан — включено, перечёркнутая иконка — выключено.
-        float gap = 18f;
-        float tw = (inner - gap * 2f) / 3f;
-        float th = 150f;
-        float tl0 = cx - inner / 2f;
+        // Звук — три круглых переключателя: горящее кольцо — включено,
+        // перечёркнутая иконка — выключено.
         int[] ids = {B_MUSIC, B_SOUND, B_VIBRATION};
         String[] labels = {sMusic, sSound, sVibration};
         boolean[] on = {musicOn, soundOn, vibOn};
+        float slot = inner / 3f;
+        float rr = 52f;
         for (int i = 0; i < 3; i++) {
-            float tl = tl0 + i * (tw + gap);
-            float tcx = tl + tw / 2f;
+            float tcx = cx - inner / 2f + slot * (i + 0.5f);
             boolean down = pressed(ids[i]);
-            float in = down ? 4f : 0f;
-            box(c, tl + in, y + in, tl + tw - in, y + th - in, 30f,
-                    on[i] ? 0x265FF3FF : 0x10FFFFFF, on[i] ? 0x885FF3FF : UI_LINE);
-            int ic = on[i] ? 0xFFBFF6FF : UI_DIM;
-            float iy = y + 58f;
+            pFill.setColor(down ? UI_SURFACE_HI : (on[i] ? 0x1F5FF3FF : 0x0FFFFFFF));
+            c.drawCircle(tcx, y, rr, pFill);
+            if (on[i]) {
+                strokeStyle(0x305FF3FF, 10f);
+                c.drawCircle(tcx, y, rr, pStroke);
+            }
+            strokeStyle(on[i] ? C_CYAN : 0x26FFFFFF, on[i] ? 3f : 2f);
+            c.drawCircle(tcx, y, rr, pStroke);
+            strokeReset();
+            int ic = on[i] ? 0xFFDFFBFF : UI_DIM;
             if (i == 0) {
-                iconNote(c, tcx, iy, 22f, ic);
+                iconNote(c, tcx, y, 20f, ic);
             } else if (i == 1) {
-                iconSpeaker(c, tcx, iy, 22f, ic);
+                iconSpeaker(c, tcx, y, 20f, ic);
             } else {
-                iconVibrate(c, tcx, iy, 22f, ic);
+                iconVibrate(c, tcx, y, 20f, ic);
             }
             if (!on[i]) {
-                iconSlash(c, tcx, iy, 24f, ic);
+                iconSlash(c, tcx, y, 22f, ic);
             }
-            textC(c, labels[i], tcx, y + 112f, 24f, on[i] ? UI_INK : UI_FOG,
-                    tfCond, Paint.Align.CENTER);
-            addHit(ids[i], tl, y, tl + tw, y + th);
+            textC(c, labels[i], tcx, y + rr + 34f, 23f, on[i] ? UI_INK : UI_FOG,
+                    tfMed, Paint.Align.CENTER);
+            addHit(ids[i], tcx - slot / 2f, y - rr - 10f, tcx + slot / 2f, y + rr + 56f);
         }
-        y += th + 30f + 56f;
+        y += rr + 96f;
 
-        secondaryButton(c, B_PAUSE_RULES, cx, y, inner, 112f, sRulesButton,
-                C_CYAN, UI_INK);
-        y += 56f + 22f + 50f;
+        pFill.setColor(UI_LINE);
+        c.drawRect(cx - inner / 2f, y - 1f, cx + inner / 2f, y + 1f, pFill);
+        y += 74f;
 
+        // Правила и выход — одной строкой. Первое нажатие «выйти» раскрывает
+        // кнопку на всю ширину с предупреждением, второе завершает забег.
         boolean armed = exitArmed > 0f;
-        boolean down = pressed(B_EXIT);
-        box(c, cx - inner / 2f, y - 50f, cx + inner / 2f, y + 50f, 50f,
-                down ? 0x22FF4F6A : (armed ? 0x18FF4F6A : 0),
-                armed ? 0xAAFF4F6A : 0);
-        textC(c, armed ? sExitConfirm : sToMenu, cx, y, armed ? 27f : 30f,
-                armed ? 0xFFFF8A9C : UI_FOG, tfCond, Paint.Align.CENTER);
-        addHit(B_EXIT, cx - inner / 2f, y - 50f, cx + inner / 2f, y + 50f);
+        float bh = 100f;
+        float half = (inner - 18f) / 2f;
+        if (!armed) {
+            float rcx = cx - inner / 2f + half / 2f;
+            ghostButton(c, B_PAUSE_RULES, rcx, y, half, bh, sRulesButton, 0, false);
+        }
+        float ew = armed ? inner : half;
+        float ecx = armed ? cx : cx + inner / 2f - half / 2f;
+        ghostButton(c, B_EXIT, ecx, y, ew, bh, armed ? sExitConfirm : sToMenu, 1, armed);
+    }
+
+    /** Кнопка-строка паузы: иконка и подпись; danger — красное предупреждение. */
+    void ghostButton(Canvas c, int id, float cx, float cy, float w, float h, String label,
+                     int icon, boolean danger) {
+        boolean down = pressed(id);
+        int accent = danger ? C_RED : 0xFFFFFFFF;
+        box(c, cx - w / 2f, cy - h / 2f, cx + w / 2f, cy + h / 2f, h / 2f,
+                down ? withAlpha(accent, 0x22) : (danger ? 0x18FF4F6A : 0x0DFFFFFF),
+                danger ? 0xAAFF4F6A : UI_LINE);
+        int col = danger ? 0xFFFF8A9C : UI_INK;
+        float size = danger ? 26f : 28f;
+        float tw = measure(label, size, tfBold);
+        float total = tw + 54f;
+        float ix = cx - total / 2f + 16f;
+        if (icon == 0) {
+            iconDoc(c, ix, cy, 16f, col);
+        } else {
+            iconExit(c, ix, cy, 16f, col);
+        }
+        textC(c, label, ix + 38f + tw / 2f, cy, size, col, tfBold, Paint.Align.CENTER);
+        addHit(id, cx - w / 2f, cy - h / 2f, cx + w / 2f, cy + h / 2f);
     }
 
     void drawSettings(Canvas c) {
@@ -206,7 +235,8 @@ abstract class OverlayScreens extends InfoScreens {
                 ? c.saveLayerAlpha(-100f, -100f, W + 100f, worldH + 100f, (int) (255 * ease))
                 : c.save();
         box(c, l, pt, r, pt + panelH, 44f, 0xF00E1630, newRecord ? 0x88FFD75E : UI_LINE);
-        drawGlow(c, W / 2f, pt, pw * 0.9f, newRecord ? C_GOLD : C_MAGENTA, 34);
+        int accent = newRecord ? C_GOLD : (dailyChallenge ? C_MAGENTA : modeColor(mode));
+        tube(c, W / 2f - 90f, pt, W / 2f + 90f, pt, accent, 4f);
 
         float cx = W / 2f;
         float y = pt + 100f;
@@ -252,10 +282,17 @@ abstract class OverlayScreens extends InfoScreens {
         float tw = (inner - gap * 2f) / 3f;
         float th = 120f;
         float gl = cx - inner / 2f;
+        // Сетка итогов без плашек: колонки разделены тонкими линиями.
+        pFill.setColor(UI_LINE);
+        for (int k = 1; k < 3; k++) {
+            float sx = gl + k * (tw + gap) - gap / 2f;
+            c.drawRect(sx - 1f, y + 20f, sx + 1f, y + th * 2f + gap - 20f, pFill);
+        }
+        c.drawRect(gl + 20f, y + th + gap / 2f - 1f, gl + inner - 20f, y + th + gap / 2f + 1f,
+                pFill);
         for (int i = 0; i < 6; i++) {
             float tl = gl + (i % 3) * (tw + gap);
             float tt = y + (i / 3) * (th + gap);
-            box(c, tl, tt, tl + tw, tt + th, 24f, 0x0FFFFFFF, 0);
             boolean neon = i == 5;
             text(c, values[i], tl + tw / 2f, tt + 60f, 36f,
                     neon && !zenMode ? 0xFFFFE9A6 : UI_INK, tfBlack, Paint.Align.CENTER);

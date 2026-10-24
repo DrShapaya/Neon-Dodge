@@ -17,7 +17,7 @@ abstract class HudLayer extends UiKit {
 
         updateShownScore();
         textGlow(c, shownScoreText, W / 2f, top + 112f, 96f,
-                0xFFF2FEFF, 0x885FF3FF, tfBlack);
+                0xFFF2FEFF, 0x665FF3FF, tfBlack, 0.16f);
 
         int best = dailyChallenge ? progress.challengeBest : progress.bestForMode(mode);
         if (best != hudBestValue || dailyChallenge != hudBestDaily) {
@@ -26,43 +26,43 @@ abstract class HudLayer extends UiKit {
             hudBestText = (dailyChallenge ? sDailyChallenge + " · " : "")
                     + sBest + " " + fmt(best);
         }
-        text(c, hudBestText, W / 2f, top + 156f, 25f,
+        text(c, hudBestText, W / 2f, top + 154f, 24f,
                 dailyChallenge ? 0xDDFF9FE9 : 0xAA9FB8CC, tfMed, Paint.Align.CENTER);
 
+        // Множители — пара чипов с иконками: звёзды и близкие пролёты.
         int tenths = Math.round(scoreMult * 10f);
         if (tenths != hudMultTenths) {
             hudMultTenths = tenths;
             hudMultText = "x" + fmtMult(scoreMult);
         }
+        int closeTenths = Math.round(closeMult * 10f);
+        if (closeTenths != hudCloseTenths) {
+            hudCloseTenths = closeTenths;
+            hudCloseText = "x" + fmtMult(closeMult);
+        }
         boolean hot = tenths > 10;
-        float mw = measure(hudMultText, 27f, tfBlack) + 48f;
-        float my = top + 202f;
-        box(c, W / 2f - mw / 2f, my - 24f, W / 2f + mw / 2f, my + 24f, 24f,
-                hot ? 0x2EFFD75E : 0x14FFFFFF, hot ? 0x99FFD75E : 0);
-        textC(c, hudMultText, W / 2f, my, 27f, hot ? C_GOLD : 0x99A9C4D6,
-                tfBlack, Paint.Align.CENTER);
-        String closeText = "x" + fmtMult(closeMult);
-        float cw = measure(closeText, 25f, tfBlack) + 34f;
-        float cx = W / 2f + mw / 2f + 10f;
-        box(c, cx, my - 24f, cx + cw, my + 24f, 24f,
-                closeMult > 1.01f ? 0x224FD8FF : 0x12FFFFFF,
-                closeMult > 1.01f ? 0x884FD8FF : 0);
-        textC(c, closeText, cx + cw / 2f, my, 25f,
-                closeMult > 1.01f ? C_MAGENTA : 0x889FB8CC, tfBlack, Paint.Align.CENTER);
+        boolean close = closeTenths > 10;
+        float my = top + 200f;
+        float mw = measure(hudMultText, 25f, tfBlack) + 74f;
+        float cw = measure(hudCloseText, 25f, tfBlack) + 74f;
+        float gap = 12f;
+        float ml = W / 2f - (mw + gap + cw) / 2f;
+        hudChip(c, ml, my, mw, hudMultText, hot ? C_GOLD : 0, true);
+        hudChip(c, ml + mw + gap, my, cw, hudCloseText, close ? C_MAGENTA : 0, false);
 
         if (hardcoreMode) {
             float hw = measure(sHardcoreMultiplier, 22f, tfBlack) + 34f;
-            box(c, W - UI_PAD - hw, my - 24f, W - UI_PAD, my + 24f, 24f,
+            box(c, W - UI_PAD - hw, my - 22f, W - UI_PAD, my + 22f, 22f,
                     0x22FF4F6A, 0x88FF4F6A);
             textC(c, sHardcoreMultiplier, W - UI_PAD - hw / 2f, my, 22f,
                     C_RED, tfBlack, Paint.Align.CENTER);
         }
         if (bossMult > 1.01f) {
-            float bw = measure(sBossMultiplier + " x" + fmtMult(bossMult), 23f, tfBlack) + 38f;
-            box(c, W / 2f - bw / 2f, my + 36f, W / 2f + bw / 2f, my + 82f,
-                    23f, 0x33FFD75E, 0xAAFFD75E);
-            textC(c, sBossMultiplier + " x" + fmtMult(bossMult), W / 2f, my + 59f,
-                    23f, C_GOLD, tfBlack, Paint.Align.CENTER);
+            String bt = sBossMultiplier + " x" + fmtMult(bossMult);
+            float bw = measure(bt, 23f, tfBlack) + 38f;
+            box(c, W / 2f - bw / 2f, my + 34f, W / 2f + bw / 2f, my + 78f,
+                    22f, 0x33FFD75E, 0xAAFFD75E);
+            textC(c, bt, W / 2f, my + 56f, 23f, C_GOLD, tfBlack, Paint.Align.CENTER);
         }
 
         if (combo >= 2) {
@@ -82,14 +82,15 @@ abstract class HudLayer extends UiKit {
             box(c, UI_PAD, hy - 26f, UI_PAD + zw, hy + 26f, 26f, 0x22B6FF5C, 0x88B6FF5C);
             textC(c, sZen, UI_PAD + zw / 2f, hy, 26f, C_LIME, tfBlack, Paint.Align.CENTER);
         } else {
+            // Жизни: живое сердце с мягким ореолом, потерянное — тусклый силуэт.
             for (int i = 0; i < maxLives; i++) {
-                float hx = UI_PAD + 22f + i * 54f;
+                float hx = UI_PAD + 22f + i * 58f;
                 if (i < lives) {
-                    drawGlow(c, hx, hy, 90f, C_RED, 120);
+                    drawGlow(c, hx, hy, 58f, C_RED, 80);
                     drawHeart(c, hx, hy, 21f, C_RED, 255);
                     drawHeart(c, hx - 5f, hy - 5f, 7f, 0xFFFFD9E0, 120);
                 } else {
-                    drawHeart(c, hx, hy, 21f, C_RED, 40);
+                    drawHeart(c, hx, hy, 21f, 0xFF5A6D86, 70);
                 }
             }
         }
@@ -120,18 +121,30 @@ abstract class HudLayer extends UiKit {
         float bx = pauseBtnX();
         float by = pauseBtnY();
         boolean down = state == ST_PLAY && pressed(B_PAUSE);
-        pFill.setColor(down ? UI_SURFACE_HI : 0xB30E1630);
-        c.drawCircle(bx, by, 42f, pFill);
-        pStroke.setStyle(Paint.Style.STROKE);
-        pStroke.setColor(0x33FFFFFF);
-        pStroke.setStrokeWidth(2f);
-        c.drawCircle(bx, by, 42f, pStroke);
-        pStroke.setStyle(Paint.Style.FILL);
-        box(c, bx - 12f, by - 15f, bx - 5f, by + 15f, 3f, 0xEEDFF5FF, 0);
-        box(c, bx + 5f, by - 15f, bx + 12f, by + 15f, 3f, 0xEEDFF5FF, 0);
+        pFill.setColor(down ? UI_SURFACE_HI : UI_SURFACE);
+        c.drawCircle(bx, by, 40f, pFill);
+        strokeStyle(UI_LINE, 2f);
+        c.drawCircle(bx, by, 40f, pStroke);
+        strokeReset();
+        box(c, bx - 11f, by - 14f, bx - 4f, by + 14f, 3.5f, 0xEEDFF5FF, 0);
+        box(c, bx + 4f, by - 14f, bx + 11f, by + 14f, 3.5f, 0xEEDFF5FF, 0);
         if (state == ST_PLAY) {
             addHit(B_PAUSE, bx - 70f, by - 70f, bx + 70f, by + 70f);
         }
+    }
+
+    /** Чип множителя: иконка и значение; цвет загорается, когда множитель выше x1. */
+    void hudChip(Canvas c, float l, float cy, float w, String value, int lit, boolean star) {
+        boolean on = lit != 0;
+        box(c, l, cy - 22f, l + w, cy + 22f, 22f,
+                on ? withAlpha(lit, 0x26) : 0x14FFFFFF, on ? withAlpha(lit, 0x99) : 0);
+        int ic = on ? lit : 0xAA9FB8CC;
+        if (star) {
+            iconSpark(c, l + 28f, cy, 12f, ic);
+        } else {
+            iconNearMiss(c, l + 28f, cy, 12f, ic);
+        }
+        textC(c, value, l + 48f, cy, 25f, on ? lit : 0xBBA9C4D6, tfBlack, Paint.Align.LEFT);
     }
 
     void hudEffect(Canvas c, int kind, float x, float y, float frac) {

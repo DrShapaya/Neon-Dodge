@@ -1,5 +1,6 @@
 package com.isaev.neondodge;
 
+import android.graphics.Path;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
@@ -93,14 +94,76 @@ abstract class UiKit extends GameRenderer {
         }
     }
 
-    /** Карточка; цветная полоса слева кодирует статус или режим. */
+    /** Карточка; светящаяся «трубка» слева кодирует статус или режим. */
     void card(Canvas c, float l, float t, float r, float b, int accent,
                       boolean highlight) {
-        box(c, l, t, r, b, 28f, highlight ? UI_SURFACE_HI : UI_SURFACE,
+        box(c, l, t, r, b, UI_RADIUS, highlight ? UI_SURFACE_HI : UI_SURFACE,
                 highlight ? 0x995FF3FF : UI_LINE);
         if (accent != 0) {
-            box(c, l + 12f, t + 24f, l + 18f, b - 24f, 3f, accent, 0);
+            float inset = Math.min(30f, (b - t) * 0.28f);
+            tube(c, l + 2f, t + inset, l + 2f, b - inset, accent, 4f);
         }
+    }
+
+    /**
+     * Неоновая трубка: широкий полупрозрачный ореол, цветное тело и светлая
+     * сердцевина. Свечение нарисовано штрихами, а не тенью, чтобы одинаково
+     * выглядеть на всех версиях Android.
+     */
+    void tube(Canvas c, float x1, float y1, float x2, float y2, int color, float width) {
+        strokeStyle(withAlpha(color, 0x30), width * 4f);
+        c.drawLine(x1, y1, x2, y2, pStroke);
+        strokeStyle(color, width);
+        c.drawLine(x1, y1, x2, y2, pStroke);
+        strokeStyle(mix(color, 0xFFFFFFFF, 0.7f), Math.max(1f, width * 0.35f));
+        c.drawLine(x1, y1, x2, y2, pStroke);
+        strokeReset();
+    }
+
+    /** Надпись неоновыми трубками: контур буквы вместо заливки. */
+    void neonText(Canvas c, String s, float x, float y, float size, int color,
+                  float power, Typeface tf) {
+        // Контуры глифов пересекаются; без объединения внутри букв видны
+        // лишние линии. Объединённый путь строится один раз на надпись.
+        String key = s + '@' + (int) size;
+        Path path = neonPaths.get(key);
+        if (path == null) {
+            pText.setTypeface(tf);
+            pText.setTextSize(size);
+            pText.setTextAlign(Paint.Align.CENTER);
+            pText.setLetterSpacing(0.04f);
+            Path raw = new Path();
+            pText.getTextPath(s, 0, s.length(), 0f, 0f, raw);
+            pText.setLetterSpacing(0f);
+            path = new Path();
+            if (!path.op(raw, new Path(), Path.Op.UNION)) {
+                path = raw;
+            }
+            neonPaths.put(key, path);
+        }
+        int a = (int) (255f * clamp(power, 0f, 1f));
+        c.save();
+        c.translate(x, y);
+        pNeon.setStyle(Paint.Style.STROKE);
+        pNeon.setStrokeJoin(Paint.Join.ROUND);
+        pNeon.setStrokeCap(Paint.Cap.ROUND);
+        if (a > 8) {
+            pNeon.setStrokeWidth(size * 0.11f);
+            pNeon.setColor(withAlpha(color, a * 0x30 / 255));
+            pNeon.setShadowLayer(size * 0.20f, 0f, 0f, withAlpha(color, a));
+            c.drawPath(path, pNeon);
+            pNeon.clearShadowLayer();
+        }
+        // Погасшая трубка остаётся видна тусклым стеклом.
+        pNeon.setStrokeWidth(size * 0.045f);
+        pNeon.setColor(withAlpha(color, Math.max(60, a)));
+        c.drawPath(path, pNeon);
+        if (a > 8) {
+            pNeon.setStrokeWidth(size * 0.016f);
+            pNeon.setColor(withAlpha(mix(color, 0xFFFFFFFF, 0.8f), a));
+            c.drawPath(path, pNeon);
+        }
+        c.restore();
     }
 
     void textC(Canvas c, String s, float x, float cy, float size,
@@ -115,27 +178,47 @@ abstract class UiKit extends GameRenderer {
         return pText.measureText(s);
     }
 
+    /**
+     * Главная кнопка — горящая неоновая трубка: стеклянная капсула с цветным
+     * контуром и светящейся подписью. Нажатие «заливает» её светом.
+     */
     void primaryButton(Canvas c, int id, float cx, float cy, float w, float h,
                                String label, int color, float breathe) {
         boolean down = pressed(id);
-        float in = down ? 5f : 0f;
-        c.save();
-        c.scale(w / h * 0.62f, 1f, cx, cy);
-        drawGlow(c, cx, cy, h * 2.4f, color, (int) ((down ? 50f : 70f) + 40f * breathe));
-        c.restore();
-        box(c, cx - w / 2f + in, cy - h / 2f + in, cx + w / 2f - in, cy + h / 2f - in,
-                (h - 2f * in) / 2f, down ? mix(color, 0xFF000000, 0.22f) : color, 0);
-        float size = Math.min(48f, h * 0.34f);
+        float in = down ? 4f : 0f;
+        tmpRect.set(cx - w / 2f + in, cy - h / 2f + in, cx + w / 2f - in, cy + h / 2f - in);
+        float rad = tmpRect.height() / 2f;
+        pFill.setColor(withAlpha(color, down ? 0x48 : 0x1A));
+        c.drawRoundRect(tmpRect, rad, rad, pFill);
+        strokeStyle(withAlpha(color, (int) ((down ? 0x50 : 0x22) + 0x16 * breathe)), 16f);
+        c.drawRoundRect(tmpRect, rad, rad, pStroke);
+        strokeStyle(color, 3.5f);
+        c.drawRoundRect(tmpRect, rad, rad, pStroke);
+        strokeStyle(withAlpha(mix(color, 0xFFFFFFFF, 0.8f), 0xCC), 1.2f);
+        c.drawRoundRect(tmpRect, rad, rad, pStroke);
+        strokeReset();
+
+        int ink = mix(color, 0xFFFFFFFF, 0.72f);
+        float size = Math.min(46f, h * 0.33f);
         float tw = measure(label, size, tfBlack);
-        float tri = size * 0.42f;
-        float tx = cx + tri;
+        float tri = size * 0.40f;
+        float tx = cx;
         if (id == B_PLAY || id == B_AGAIN || id == B_EMPTY_PLAY || id == B_CONTINUE) {
-            float ix = cx - tw / 2f - tri * 0.4f;
-            iconPlay(c, ix, cy, tri, UI_ON_ACCENT);
-        } else {
-            tx = cx;
+            float gap = size * 0.45f;
+            float total = tri * 1.3f + gap + tw;
+            float ix = cx - total / 2f + tri * 0.55f;
+            iconPlay(c, ix, cy, tri, ink);
+            tx = cx - total / 2f + tri * 1.3f + gap + tw / 2f;
         }
-        textC(c, label, tx, cy, size, UI_ON_ACCENT, tfBlack, Paint.Align.CENTER);
+        pText.setTypeface(tfBlack);
+        pText.setTextSize(size);
+        pText.setTextAlign(Paint.Align.CENTER);
+        pText.setLetterSpacing(0.02f);
+        pText.setColor(ink);
+        pText.setShadowLayer(size * 0.35f, 0f, 0f, withAlpha(color, 0xCC));
+        c.drawText(label, tx, cy + size * 0.36f, pText);
+        pText.clearShadowLayer();
+        pText.setLetterSpacing(0f);
         addHit(id, cx - w / 2f, cy - h / 2f, cx + w / 2f, cy + h / 2f);
     }
 
@@ -144,11 +227,22 @@ abstract class UiKit extends GameRenderer {
         boolean down = pressed(id);
         float in = down ? 4f : 0f;
         box(c, cx - w / 2f + in, cy - h / 2f + in, cx + w / 2f - in, cy + h / 2f - in,
-                (h - 2f * in) / 2f, down ? UI_SURFACE_HI : 0x990E1630,
-                withAlpha(accent, down ? 200 : 120));
-        textC(c, label, cx, cy, Math.min(34f, h * 0.30f), textColor,
-                tfCond, Paint.Align.CENTER);
+                (h - 2f * in) / 2f, down ? UI_SURFACE_HI : UI_SURFACE,
+                withAlpha(accent, down ? 170 : 70));
+        textC(c, label, cx, cy, Math.min(31f, h * 0.29f), textColor,
+                tfBold, Paint.Align.CENTER);
         addHit(id, cx - w / 2f, cy - h / 2f, cx + w / 2f, cy + h / 2f);
+    }
+
+    /** Круглая кнопка-иконка со стеклянным фоном. */
+    void roundButton(Canvas c, int id, float cx, float cy, float r) {
+        boolean down = pressed(id);
+        pFill.setColor(down ? UI_SURFACE_HI : UI_SURFACE);
+        c.drawCircle(cx, cy, r, pFill);
+        strokeStyle(down ? 0x55FFFFFF : UI_LINE, 2f);
+        c.drawCircle(cx, cy, r, pStroke);
+        strokeReset();
+        addHit(id, cx - r - 16f, cy - r - 16f, cx + r + 16f, cy + r + 16f);
     }
 
     void progressBar(Canvas c, float l, float r, float cy, float h,
@@ -162,21 +256,26 @@ abstract class UiKit extends GameRenderer {
     }
 
     void switchToggle(Canvas c, float cx, float cy, boolean on) {
-        float w = 92f;
-        float h = 52f;
+        float w = 96f;
+        float h = 56f;
         box(c, cx - w / 2f, cy - h / 2f, cx + w / 2f, cy + h / 2f, h / 2f,
-                on ? 0x665FF3FF : 0x22FFFFFF, on ? 0 : 0x22FFFFFF);
+                on ? C_CYAN : 0x1AFFFFFF, on ? 0 : 0x26FFFFFF);
         float kx = on ? cx + w / 2f - h / 2f : cx - w / 2f + h / 2f;
+        pFill.setColor(on ? UI_ON_ACCENT : 0xFF8093A8);
+        c.drawCircle(kx, cy, h / 2f - 7f, pFill);
         if (on) {
-            drawGlow(c, kx, cy, 90f, C_CYAN, 90);
+            pFill.setColor(C_CYAN);
+            c.drawCircle(kx, cy, 6f, pFill);
         }
-        pFill.setColor(on ? 0xFFFFFFFF : 0xFF7D90A6);
-        c.drawCircle(kx, cy, h / 2f - 6f, pFill);
     }
 
+    /** Подпись раздела; тонкая линия тянется до правого края. */
     float sectionLabel(Canvas c, String s, float y) {
-        text(c, s, UI_PAD + 8f, y + 34f, 27f, UI_FOG, tfMed, Paint.Align.LEFT);
-        return y + 56f;
+        float tw = measure(s, 26f, tfBold);
+        text(c, s, UI_PAD + 6f, y + 34f, 26f, UI_FOG, tfBold, Paint.Align.LEFT);
+        pFill.setColor(UI_LINE);
+        c.drawRect(UI_PAD + 6f + tw + 20f, y + 25f, W - UI_PAD, y + 27f, pFill);
+        return y + 58f;
     }
 
     void strokeStyle(int color, float width) {
@@ -231,69 +330,135 @@ abstract class UiKit extends GameRenderer {
         c.drawCircle(x - s * 0.12f, y - s * 0.30f, s * 0.16f, pFill);
     }
 
+    // Все иконки интерфейса — контурные: линия ICON_STROKE от размера,
+    // скруглённые концы; заливкой выделяется не больше одной точки-акцента.
+
     void iconGear(Canvas c, float x, float y, float s, int color) {
-        pFill.setColor(color);
-        for (int i = 0; i < 8; i++) {
-            c.save();
-            c.rotate(i * 45f, x, y);
-            tmpRect.set(x - s * 0.17f, y - s, x + s * 0.17f, y - s * 0.55f);
-            c.drawRoundRect(tmpRect, s * 0.06f, s * 0.06f, pFill);
-            c.restore();
+        iconPath.reset();
+        int teeth = 8;
+        for (int i = 0; i < teeth * 4; i++) {
+            // Зуб: два угла на внешнем радиусе, два — на внутреннем.
+            double a = Math.toRadians(i * 360.0 / (teeth * 4) - 90.0 + 360.0 / (teeth * 8));
+            float rr = (i % 4 == 0 || i % 4 == 1) ? s : s * 0.74f;
+            float px = x + (float) Math.cos(a) * rr;
+            float py = y + (float) Math.sin(a) * rr;
+            if (i == 0) {
+                iconPath.moveTo(px, py);
+            } else {
+                iconPath.lineTo(px, py);
+            }
         }
-        strokeStyle(color, s * 0.26f);
-        c.drawCircle(x, y, s * 0.58f, pStroke);
+        iconPath.close();
+        strokeStyle(color, s * ICON_STROKE);
+        c.drawPath(iconPath, pStroke);
+        c.drawCircle(x, y, s * 0.30f, pStroke);
         strokeReset();
     }
 
     void iconFlag(Canvas c, float x, float y, float s, int color) {
-        strokeStyle(color, s * 0.16f);
+        strokeStyle(color, s * ICON_STROKE);
         c.drawLine(x - s * 0.62f, y - s, x - s * 0.62f, y + s, pStroke);
-        strokeReset();
         iconPath.reset();
-        iconPath.moveTo(x - s * 0.55f, y - s * 0.92f);
-        iconPath.lineTo(x + s * 0.80f, y - s * 0.55f);
-        iconPath.lineTo(x - s * 0.55f, y - s * 0.05f);
+        iconPath.moveTo(x - s * 0.62f, y - s * 0.88f);
+        iconPath.quadTo(x - s * 0.05f, y - s * 1.10f, x + s * 0.30f, y - s * 0.80f);
+        iconPath.quadTo(x + s * 0.55f, y - s * 0.60f, x + s * 0.78f, y - s * 0.72f);
+        iconPath.lineTo(x + s * 0.78f, y + s * 0.02f);
+        iconPath.quadTo(x + s * 0.55f, y + s * 0.14f, x + s * 0.30f, y - s * 0.06f);
+        iconPath.quadTo(x - s * 0.05f, y - s * 0.36f, x - s * 0.62f, y - s * 0.14f);
+        c.drawPath(iconPath, pStroke);
+        strokeReset();
+    }
+
+    void iconOrb(Canvas c, float x, float y, float s, int color) {
+        // Сфера со шлейфом: точки уходят влево и вниз, как в полёте.
+        float ox = x + s * 0.22f;
+        float oy = y - s * 0.12f;
+        strokeStyle(color, s * ICON_STROKE);
+        c.drawCircle(ox, oy, s * 0.70f, pStroke);
+        strokeReset();
+        pFill.setColor(color);
+        c.drawCircle(ox, oy, s * 0.26f, pFill);
+        pFill.setColor(withAlpha(color, 150));
+        c.drawCircle(x - s * 0.80f, y + s * 0.56f, s * 0.13f, pFill);
+        pFill.setColor(withAlpha(color, 90));
+        c.drawCircle(x - s * 1.08f, y + s * 0.86f, s * 0.09f, pFill);
+    }
+
+    void iconBars(Canvas c, float x, float y, float s, int color) {
+        strokeStyle(color, s * 0.24f);
+        float base = y + s * 0.80f;
+        float[] hs = {0.70f, 1.20f, 1.65f};
+        for (int i = 0; i < 3; i++) {
+            float bx = x + (i - 1) * s * 0.62f;
+            c.drawLine(bx, base, bx, base - s * hs[i], pStroke);
+        }
+        strokeReset();
+    }
+
+    /** Раскрытая книга — правила. */
+    void iconDoc(Canvas c, float x, float y, float s, int color) {
+        strokeStyle(color, s * ICON_STROKE);
+        iconPath.reset();
+        iconPath.moveTo(x, y - s * 0.62f);
+        iconPath.quadTo(x - s * 0.45f, y - s * 0.92f, x - s * 0.98f, y - s * 0.76f);
+        iconPath.lineTo(x - s * 0.98f, y + s * 0.66f);
+        iconPath.quadTo(x - s * 0.45f, y + s * 0.50f, x, y + s * 0.82f);
+        iconPath.quadTo(x + s * 0.45f, y + s * 0.50f, x + s * 0.98f, y + s * 0.66f);
+        iconPath.lineTo(x + s * 0.98f, y - s * 0.76f);
+        iconPath.quadTo(x + s * 0.45f, y - s * 0.92f, x, y - s * 0.62f);
+        iconPath.lineTo(x, y + s * 0.82f);
+        c.drawPath(iconPath, pStroke);
+        strokeReset();
+    }
+
+    /** Четырёхлучевая вспышка: звёзды и «событие дня». */
+    void iconSpark(Canvas c, float x, float y, float s, int color) {
+        iconPath.reset();
+        iconPath.moveTo(x, y - s);
+        iconPath.quadTo(x + s * 0.12f, y - s * 0.12f, x + s, y);
+        iconPath.quadTo(x + s * 0.12f, y + s * 0.12f, x, y + s);
+        iconPath.quadTo(x - s * 0.12f, y + s * 0.12f, x - s, y);
+        iconPath.quadTo(x - s * 0.12f, y - s * 0.12f, x, y - s);
         iconPath.close();
         pFill.setColor(color);
         c.drawPath(iconPath, pFill);
     }
 
-    void iconOrb(Canvas c, float x, float y, float s, int color) {
-        // Сфера со шлейфом: точки уходят влево и вниз, как в полёте.
-        pFill.setColor(withAlpha(color, 80));
-        c.drawCircle(x - s * 1.05f, y + s * 0.58f, s * 0.14f, pFill);
-        pFill.setColor(withAlpha(color, 130));
-        c.drawCircle(x - s * 0.80f, y + s * 0.30f, s * 0.20f, pFill);
-        pStroke.setStyle(Paint.Style.STROKE);
-        pStroke.setStrokeWidth(s * 0.12f);
-        pStroke.setColor(withAlpha(color, 150));
-        c.drawCircle(x + s * 0.20f, y - s * 0.10f, s * 0.86f, pStroke);
-        pStroke.setStyle(Paint.Style.FILL);
+    /** Близкий пролёт: точка-сфера и дуга астероида рядом с ней. */
+    void iconNearMiss(Canvas c, float x, float y, float s, int color) {
         pFill.setColor(color);
-        c.drawCircle(x + s * 0.20f, y - s * 0.10f, s * 0.56f, pFill);
-        pFill.setColor(0xFFFFFFFF);
-        c.drawCircle(x + s * 0.20f, y - s * 0.10f, s * 0.22f, pFill);
+        c.drawCircle(x - s * 0.30f, y + s * 0.20f, s * 0.34f, pFill);
+        strokeStyle(color, s * ICON_STROKE * 1.1f);
+        tmpRect.set(x - s * 0.95f, y - s * 0.95f, x + s * 0.95f, y + s * 0.95f);
+        c.drawArc(tmpRect, -100f, 130f, false, pStroke);
+        strokeReset();
     }
 
-    void iconBars(Canvas c, float x, float y, float s, int color) {
-        pFill.setColor(color);
-        float w = s * 0.40f;
-        float base = y + s * 0.85f;
-        float[] hs = {0.85f, 1.35f, 1.80f};
-        for (int i = 0; i < 3; i++) {
-            float bx = x + (i - 1) * s * 0.66f;
-            tmpRect.set(bx - w / 2f, base - s * hs[i], bx + w / 2f, base);
-            c.drawRoundRect(tmpRect, w * 0.3f, w * 0.3f, pFill);
+    /** Дверь со стрелкой — выход в меню. */
+    void iconExit(Canvas c, float x, float y, float s, int color) {
+        strokeStyle(color, s * ICON_STROKE);
+        iconPath.reset();
+        iconPath.moveTo(x + s * 0.10f, y - s * 0.55f);
+        iconPath.lineTo(x + s * 0.10f, y - s * 0.90f);
+        iconPath.lineTo(x - s * 0.85f, y - s * 0.90f);
+        iconPath.lineTo(x - s * 0.85f, y + s * 0.90f);
+        iconPath.lineTo(x + s * 0.10f, y + s * 0.90f);
+        iconPath.lineTo(x + s * 0.10f, y + s * 0.55f);
+        c.drawPath(iconPath, pStroke);
+        c.drawLine(x - s * 0.30f, y, x + s * 0.95f, y, pStroke);
+        c.drawLine(x + s * 0.60f, y - s * 0.35f, x + s * 0.95f, y, pStroke);
+        c.drawLine(x + s * 0.60f, y + s * 0.35f, x + s * 0.95f, y, pStroke);
+        strokeReset();
+    }
+
+    /** Две стрелки вверх — улучшение в мастерской. */
+    void iconUpgrade(Canvas c, float x, float y, float s, int color) {
+        strokeStyle(color, s * ICON_STROKE * 1.2f);
+        for (int k = 0; k < 2; k++) {
+            float cy = y - s * 0.30f + k * s * 0.70f;
+            c.drawLine(x - s * 0.75f, cy + s * 0.40f, x, cy - s * 0.35f, pStroke);
+            c.drawLine(x, cy - s * 0.35f, x + s * 0.75f, cy + s * 0.40f, pStroke);
         }
-    }
-
-    void iconDoc(Canvas c, float x, float y, float s, int color) {
-        strokeStyle(color, s * 0.15f);
-        tmpRect.set(x - s * 0.72f, y - s, x + s * 0.72f, y + s);
-        c.drawRoundRect(tmpRect, s * 0.22f, s * 0.22f, pStroke);
-        c.drawLine(x - s * 0.36f, y - s * 0.45f, x + s * 0.36f, y - s * 0.45f, pStroke);
-        c.drawLine(x - s * 0.36f, y, x + s * 0.36f, y, pStroke);
-        c.drawLine(x - s * 0.36f, y + s * 0.45f, x + s * 0.12f, y + s * 0.45f, pStroke);
         strokeReset();
     }
 
@@ -326,9 +491,8 @@ abstract class UiKit extends GameRenderer {
         iconPath.lineTo(x - s * 0.5f, y + s * 0.32f);
         iconPath.lineTo(x - s * 0.9f, y + s * 0.32f);
         iconPath.close();
-        pFill.setColor(color);
-        c.drawPath(iconPath, pFill);
-        strokeStyle(color, s * 0.14f);
+        strokeStyle(color, s * ICON_STROKE);
+        c.drawPath(iconPath, pStroke);
         tmpRect.set(x - s * 0.35f, y - s * 0.5f, x + s * 0.55f, y + s * 0.5f);
         c.drawArc(tmpRect, -50f, 100f, false, pStroke);
         tmpRect.set(x - s * 0.55f, y - s * 0.9f, x + s * 0.95f, y + s * 0.9f);
@@ -459,12 +623,18 @@ abstract class UiKit extends GameRenderer {
 
     void textGlow(Canvas c, String s, float x, float y, float size,
                           int color, int glow, Typeface tf) {
+        textGlow(c, s, x, y, size, color, glow, tf, 0.30f);
+    }
+
+    /** Текст со свечением; spread — радиус ореола в долях кегля. */
+    void textGlow(Canvas c, String s, float x, float y, float size,
+                  int color, int glow, Typeface tf, float spread) {
         pText.setTypeface(tf);
         pText.setTextAlign(Paint.Align.CENTER);
         pText.setLetterSpacing(0.02f);
         pText.setTextSize(size);
         pText.setColor(color);
-        pText.setShadowLayer(size * 0.30f, 0f, 0f, glow);
+        pText.setShadowLayer(size * spread, 0f, 0f, glow);
         c.drawText(s, x, y, pText);
         pText.clearShadowLayer();
         pText.setLetterSpacing(0f);
