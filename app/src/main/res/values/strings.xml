@@ -8,7 +8,7 @@
     <string name="play_again">Play again</string>
     <string name="pause">Paused</string>
     <string name="tap_continue">Resume</string>
-    <string name="tap_start">Play</string>
+    <string name="tap_start">Tap to start</string>
     <string name="menu_tagline">dodge the asteroids</string>
     <string name="hint_move">Drag your finger to dodge</string>
     <string name="to_menu">Quit to menu</string>
@@ -42,7 +42,7 @@
     <string name="rule_6">Pause is the button in the top-right corner.</string>
     <string name="rule_7">After 90 seconds asteroids gradually speed up and spawn more often.</string>
     <string name="rules_multiplier">Score multiplier</string>
-    <string name="rules_multiplier_desc">Stars raise the score multiplier by +0.2 without a cap. Close fly-bys build a separate multiplier; a shield keeps both multipliers after a hit.</string>
+    <string name="rules_multiplier_desc">Stars raise the score multiplier according to the Workshop level. Close fly-bys build a separate multiplier, the boss grants a third x2 after four zones, and a shield preserves multipliers after a hit.</string>
     <string name="rules_progress">Progress</string>
     <string name="rule_progress_1">Neon is the sum of Classic/Hardcore/Daily Challenge run scores plus 300 per completed quest. Zen is training and gives no neon for score.</string>
     <string name="rule_progress_2">Every day the game offers three new quests out of seven. The Daily Challenge gives one attempt, a fixed seed and a separate record.</string>
@@ -72,7 +72,7 @@
     <string name="mode_hardcore">Hardcore</string>
     <string name="mode_zen">Zen</string>
     <string name="mode_classic_hint">Three lives, rising difficulty</string>
-    <string name="mode_hardcore_hint">One life, no hearts</string>
+    <string name="mode_hardcore_hint">One life, no hearts, x5 multiplier</string>
     <string name="mode_zen_hint">No game over, no neon for score</string>
     <string name="daily_challenge">Daily challenge</string>
     <string name="daily_short">Daily</string>
@@ -125,6 +125,16 @@
     <string name="bonus_bomb_active">Bomb cleared the field</string>
     <string name="bonus_phase_active">Phase active</string>
     <string name="bonus_double_active">Double score active</string>
+    <string name="boss_multiplier">Boss</string>
+    <string name="boss_zone">Zone</string>
+    <string name="boss_reward">Boss defeated · third multiplier x2</string>
+    <string name="hardcore_multiplier">HARDCORE x5</string>
+    <string name="workshop_title">Workshop</string>
+    <string name="workshop_level">Level</string>
+    <string name="workshop_next">Next level</string>
+    <string name="workshop_max">Maximum level reached</string>
+    <string name="workshop_buy">Upgrade</string>
+    <string name="workshop_hint">Each star adds more to the first multiplier</string>
 
     <string name="stat_dodged">Dodged</string>
     <string name="stat_combo">Best combo</string>

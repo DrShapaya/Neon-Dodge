@@ -64,6 +64,7 @@ final class Progress {
     int shieldBlocks;
     int questsDone;
     int pointsTotal;
+    int multiplierUpgradeLevel;
     float totalTime;
 
     int dailyStamp;
@@ -125,6 +126,7 @@ final class Progress {
         shieldBlocks = prefs.getInt("stat_shields", 0);
         questsDone = prefs.getInt("stat_quests", 0);
         pointsTotal = prefs.getInt("points_total", 0);
+        multiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade", 0), 0, 4);
         totalTime = prefs.getFloat("stat_time", 0f);
         achMask = prefs.getInt("ach_mask", 0);
 
@@ -547,6 +549,7 @@ final class Progress {
                 .putInt("stat_shields", shieldBlocks)
                 .putInt("stat_quests", questsDone)
                 .putInt("points_total", pointsTotal)
+                .putInt("mult_upgrade", multiplierUpgradeLevel)
                 .putFloat("stat_time", totalTime)
                 .putInt("ach_mask", achMask)
                 .putInt("challenge_date", challengeDate)
@@ -557,6 +560,32 @@ final class Progress {
             e.putInt("best_mode_" + i, bestByMode[i]);
         }
         e.apply();
+    }
+
+    int multiplierUpgradeCost() {
+        if (multiplierUpgradeLevel >= 4) {
+            return 0;
+        }
+        return 2000 + multiplierUpgradeLevel * 2500;
+    }
+
+    float starMultiplierStep() {
+        return 0.1f + multiplierUpgradeLevel * 0.1f;
+    }
+
+    boolean canUpgradeMultiplier() {
+        int cost = multiplierUpgradeCost();
+        return cost > 0 && pointsTotal >= cost;
+    }
+
+    boolean upgradeMultiplier() {
+        if (!canUpgradeMultiplier()) {
+            return false;
+        }
+        pointsTotal -= multiplierUpgradeCost();
+        multiplierUpgradeLevel++;
+        saveStats();
+        return true;
     }
 
     private void saveChallenge() {

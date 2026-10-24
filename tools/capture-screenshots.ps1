@@ -1,5 +1,5 @@
 param(
-    [string]$Apk = "dist\NeonDodge-1.7.apk",
+    [string]$Apk = "dist\NeonDodge-1.8.apk",
     [string]$PackageName = "com.isaev.neondodge",
     [string]$Avd = "NeonDodgeCapture",
     [string]$OutDir = "screenshots",

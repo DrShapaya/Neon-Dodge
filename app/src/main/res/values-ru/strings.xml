@@ -8,7 +8,7 @@
     <string name="play_again">Ещё раз</string>
     <string name="pause">Пауза</string>
     <string name="tap_continue">Продолжить</string>
-    <string name="tap_start">Играть</string>
+    <string name="tap_start">Нажмите для старта</string>
     <string name="menu_tagline">уклоняйся от астероидов</string>
     <string name="hint_move">Води пальцем, чтобы уклоняться</string>
     <string name="to_menu">Выйти в меню</string>
@@ -42,7 +42,7 @@
     <string name="rule_6">Пауза — кнопка в правом верхнем углу.</string>
     <string name="rule_7">После 90 секунд астероиды постепенно ускоряются, а интервал между ними сокращается.</string>
     <string name="rules_multiplier">Множитель очков</string>
-    <string name="rules_multiplier_desc">Звёзды повышают множитель очков на +0,2 без ограничения. Близкие пролёты дают отдельный множитель; щит сохраняет оба множителя после удара.</string>
+    <string name="rules_multiplier_desc">Звёзды повышают множитель по уровню мастерской. Близкие пролёты дают отдельный множитель, босс после четырёх зон даёт третий x2, а щит сохраняет множители после удара.</string>
     <string name="rules_progress">Прогресс</string>
     <string name="rule_progress_1">Неон — сумма очков Classic/Hardcore/испытания дня и награда +300 за задание. «Дзен» — тренировка без неона за очки.</string>
     <string name="rule_progress_2">Каждый день игра предлагает три новых задания из семи. Испытание дня — одна попытка, фиксированный seed и отдельный рекорд.</string>
@@ -72,7 +72,7 @@
     <string name="mode_hardcore">Хардкор</string>
     <string name="mode_zen">Дзен</string>
     <string name="mode_classic_hint">Три жизни, сложность растёт</string>
-    <string name="mode_hardcore_hint">Одна жизнь, без сердец</string>
+    <string name="mode_hardcore_hint">Одна жизнь, без сердец, множитель x5</string>
     <string name="mode_zen_hint">Без проигрыша и без неона за очки</string>
     <string name="daily_challenge">Испытание дня</string>
     <string name="daily_short">День</string>
@@ -125,6 +125,16 @@
     <string name="bonus_bomb_active">Бомба очистила поле</string>
     <string name="bonus_phase_active">Фаза активна</string>
     <string name="bonus_double_active">Очки x2 активны</string>
+    <string name="boss_multiplier">Босс</string>
+    <string name="boss_zone">Зона</string>
+    <string name="boss_reward">Босс побеждён · третий множитель x2</string>
+    <string name="hardcore_multiplier">ХАРДКОР x5</string>
+    <string name="workshop_title">Мастерская</string>
+    <string name="workshop_level">Уровень</string>
+    <string name="workshop_next">Следующий уровень</string>
+    <string name="workshop_max">Максимальный уровень достигнут</string>
+    <string name="workshop_buy">Улучшить</string>
+    <string name="workshop_hint">Каждая звезда даёт больше к первому множителю</string>
 
     <string name="stat_dodged">Пролёты</string>
     <string name="stat_combo">Макс. комбо</string>
