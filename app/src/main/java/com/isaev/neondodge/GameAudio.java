@@ -72,7 +72,7 @@ abstract class GameAudio extends GameResources {
                     musicTrack == 0 ? R.raw.music : R.raw.music_alt);
             if (musicPlayer != null) {
                 musicPlayer.setLooping(true);
-                musicPlayer.setVolume(0.45f, 0.45f);
+                musicPlayer.setVolume(0.45f * musicVolume, 0.45f * musicVolume);
                 if (musicOn && requestAudioFocus()) {
                     musicPlayer.start();
                 }
@@ -172,6 +172,14 @@ abstract class GameAudio extends GameResources {
         }
     }
 
+    void setMusicVolume(float value) {
+        musicVolume = clamp(value, 0f, 1f);
+        prefs.edit().putFloat("music_volume", musicVolume).apply();
+        if (musicPlayer != null) {
+            musicPlayer.setVolume(0.45f * musicVolume, 0.45f * musicVolume);
+        }
+    }
+
     void releaseMusic() {
         abandonAudioFocus();
         if (musicPlayer != null) {
@@ -202,6 +210,14 @@ abstract class GameAudio extends GameResources {
         }
     }
 
+    void setSoundVolume(float value) {
+        soundVolume = clamp(value, 0f, 1f);
+        prefs.edit().putFloat("sound_volume", soundVolume).apply();
+        if (soundOn) {
+            playSound(sndCoin, 1.1f);
+        }
+    }
+
     void toggleVibration() {
         vibOn = !vibOn;
         prefs.edit().putBoolean("vibrate", vibOn).apply();
@@ -215,7 +231,8 @@ abstract class GameAudio extends GameResources {
             return;
         }
         try {
-            soundPool.play(id, 0.55f, 0.55f, 1, 0, clamp(rate, 0.5f, 2f));
+            float volume = 0.55f * soundVolume;
+            soundPool.play(id, volume, volume, 1, 0, clamp(rate, 0.5f, 2f));
         } catch (Exception ignored) {
         }
     }

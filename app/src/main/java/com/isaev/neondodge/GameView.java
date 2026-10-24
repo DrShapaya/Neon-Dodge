@@ -84,8 +84,11 @@ public class GameView extends OverlayScreens {
                 if (pressedId == B_SLIDER) {
                     draggingOffset = true;
                     setOffsetFromX(x);
+                } else if (pressedId == B_MUSIC_VOLUME || pressedId == B_SOUND_VOLUME) {
+                    draggingAudioSlider = pressedId;
+                    setAudioSlider(pressedId, x);
                 }
-                scrollDragging = isScrollScreen() && !draggingOffset
+                scrollDragging = isScrollScreen() && !draggingOffset && draggingAudioSlider == B_NONE
                         && y >= scrollTop && y <= scrollBottom;
                 scrollVel = 0f;
                 scrollLastY = y;
@@ -98,6 +101,10 @@ public class GameView extends OverlayScreens {
                 }
                 if (draggingOffset) {
                     setOffsetFromX(x);
+                    break;
+                }
+                if (draggingAudioSlider != B_NONE) {
+                    setAudioSlider(draggingAudioSlider, x);
                     break;
                 }
                 if (!touchMoved && (Math.abs(y - touchDownY) > 16f
@@ -124,6 +131,11 @@ public class GameView extends OverlayScreens {
                     pressedId = B_NONE;
                     break;
                 }
+                if (draggingAudioSlider != B_NONE) {
+                    draggingAudioSlider = B_NONE;
+                    pressedId = B_NONE;
+                    break;
+                }
                 int id = pressedId;
                 pressedId = B_NONE;
                 boolean scrolled = scrollDragging && touchMoved;
@@ -146,6 +158,7 @@ public class GameView extends OverlayScreens {
                 pressedId = B_NONE;
                 scrollDragging = false;
                 draggingOffset = false;
+                draggingAudioSlider = B_NONE;
                 break;
 
             default:
@@ -160,12 +173,6 @@ public class GameView extends OverlayScreens {
             case B_EMPTY_PLAY:
                 startGame();
                 break;
-            case B_DAILY:
-                startDailyChallenge();
-                break;
-            case B_QUESTS:
-                go(ST_QUESTS);
-                break;
             case B_SKINS:
                 go(ST_SKINS);
                 break;
@@ -174,7 +181,7 @@ public class GameView extends OverlayScreens {
                 break;
             case B_WORKSHOP_UPGRADE:
                 if (progress.upgradeMultiplier()) {
-                    toast(sWorkshop + " · +" + fmtMult(progress.starMultiplierStep()));
+                    toast(sWorkshopStars + " · +" + fmtMult(progress.starMultiplierStep()));
                     buzz(18);
                 } else {
                     toast(sWorkshopNext + " · " + fmt(progress.multiplierUpgradeCost()));
@@ -208,8 +215,67 @@ public class GameView extends OverlayScreens {
                     buzz(10);
                 }
                 break;
+            case B_WORKSHOP_UPGRADE_DURATION:
+                if (progress.upgradeBonusDuration()) {
+                    int durPct = Math.round((progress.bonusDurationScale() - 1f) * 100f);
+                    toast(sWorkshopBonusDuration + " · " + String.format(sWorkshopBonusDurationStep, durPct));
+                    buzz(18);
+                } else {
+                    toast(sWorkshopNext + " · " + fmt(progress.bonusDurationUpgradeCost()));
+                    buzz(10);
+                }
+                break;
+            case B_WORKSHOP_UPGRADE_TEMP:
+                if (progress.upgradeTempMultiplier()) {
+                    int tempMult = (int) progress.temporaryMultiplier();
+                    toast(sWorkshopTempMultiplier + " · " + String.format(sWorkshopTempMultiplierStep, tempMult));
+                    buzz(18);
+                } else {
+                    toast(sWorkshopNext + " · " + fmt(progress.tempMultiplierUpgradeCost()));
+                    buzz(10);
+                }
+                break;
+            case B_WORKSHOP_TAB_MULT:
+                if (workshopTab != 0) {
+                    workshopTab = 0;
+                    scrollY = 0f;
+                    scrollVel = 0f;
+                }
+                break;
+            case B_WORKSHOP_TAB_BONUS:
+                if (workshopTab != 1) {
+                    workshopTab = 1;
+                    scrollY = 0f;
+                    scrollVel = 0f;
+                }
+                break;
             case B_STATS:
                 go(ST_STATS);
+                break;
+            case B_PROFILE:
+                profileReturn = state == ST_STATS ? ST_STATS : ST_MENU;
+                go(ST_PROFILE);
+                break;
+            case B_RULES_TAB_BASICS:
+                if (rulesTab != 0) {
+                    rulesTab = 0;
+                    scrollY = 0f;
+                    scrollVel = 0f;
+                }
+                break;
+            case B_RULES_TAB_ASTEROIDS:
+                if (rulesTab != 1) {
+                    rulesTab = 1;
+                    scrollY = 0f;
+                    scrollVel = 0f;
+                }
+                break;
+            case B_RULES_TAB_BONUSES:
+                if (rulesTab != 2) {
+                    rulesTab = 2;
+                    scrollY = 0f;
+                    scrollVel = 0f;
+                }
                 break;
             case B_RULES:
                 rulesReturn = ST_MENU;
@@ -244,6 +310,18 @@ public class GameView extends OverlayScreens {
                 break;
             case B_VIBRATION:
                 toggleVibration();
+                break;
+            case B_LANGUAGE_RU:
+                selectLanguage("ru");
+                break;
+            case B_LANGUAGE_EN:
+                selectLanguage("en");
+                break;
+            case B_HZ_60:
+                setTargetHz(60);
+                break;
+            case B_HZ_120:
+                setTargetHz(120);
                 break;
             case B_AGAIN:
                 if (overTime > 0.5f) {
@@ -352,9 +430,11 @@ public class GameView extends OverlayScreens {
             case ST_HISTORY:
                 go(ST_STATS);
                 return true;
+            case ST_PROFILE:
+                go(profileReturn != 0 ? profileReturn : ST_MENU);
+                return true;
             case ST_SETTINGS:
             case ST_STATS:
-            case ST_QUESTS:
             case ST_SKINS:
             case ST_WORKSHOP:
                 go(ST_MENU);
@@ -379,9 +459,36 @@ public class GameView extends OverlayScreens {
     }
 
     void setOffsetFromX(float x) {
-        float t = clamp((x - sliderX1) / (sliderX2 - sliderX1), 0f, 1f);
+        float t = clamp((x - offsetSliderX1) / (offsetSliderX2 - offsetSliderX1), 0f, 1f);
         fingerOffset = Math.round((OFFSET_MIN + t * (OFFSET_MAX - OFFSET_MIN)) / 5f) * 5f;
         fingerOffset = clamp(fingerOffset, OFFSET_MIN, OFFSET_MAX);
         prefs.edit().putFloat("finger_offset", fingerOffset).apply();
+    }
+
+    void setTargetHz(int hz) {
+        targetHz = hz == 120 ? 120 : 60;
+        prefs.edit().putInt("refresh_hz", targetHz).apply();
+        applyTargetRefreshRate();
+        lastNs = 0L;
+        toast(targetHz + " Hz");
+    }
+
+    void selectLanguage(String tag) {
+        if (tag.equals(languageTag)) {
+            return;
+        }
+        prefs.edit().putString("language", tag).apply();
+        if (getContext() instanceof MainActivity) {
+            ((MainActivity) getContext()).setLanguage(tag);
+        }
+    }
+
+    void setAudioSlider(int id, float x) {
+        float t = clamp((x - volumeSliderX1) / (volumeSliderX2 - volumeSliderX1), 0f, 1f);
+        if (id == B_MUSIC_VOLUME) {
+            setMusicVolume(t);
+        } else if (id == B_SOUND_VOLUME) {
+            setSoundVolume(t);
+        }
     }
 }

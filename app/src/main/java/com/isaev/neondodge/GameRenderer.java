@@ -42,8 +42,8 @@ abstract class GameRenderer extends GameLoop {
                     (rnd.nextFloat() - 0.5f) * shake);
         }
         boolean menuSurface = state == ST_MENU || state == ST_SETTINGS
-                || state == ST_STATS || state == ST_QUESTS || state == ST_SKINS
-                || state == ST_HISTORY || state == ST_WORKSHOP
+                || state == ST_STATS || state == ST_SKINS
+                || state == ST_HISTORY || state == ST_WORKSHOP || state == ST_PROFILE
                 || (state == ST_RULES && rulesReturn == ST_MENU);
         if (menuSurface) {
             layoutMenu();
@@ -76,12 +76,12 @@ abstract class GameRenderer extends GameLoop {
             drawMenu(c);
         } else if (state == ST_SETTINGS) {
             drawSettings(c);
+        } else if (state == ST_PROFILE) {
+            drawProfile(c);
         } else if (state == ST_STATS) {
             drawStats(c);
         } else if (state == ST_HISTORY) {
             drawHistory(c);
-        } else if (state == ST_QUESTS) {
-            drawQuests(c);
         } else if (state == ST_SKINS) {
             drawSkins(c);
         } else if (state == ST_WORKSHOP) {
@@ -123,10 +123,36 @@ abstract class GameRenderer extends GameLoop {
         }
         drawParticles(c);
         drawBombCharge(c);
+        drawBombWave(c);
         drawScorePops(c);
         if (state != ST_OVER) {
             drawPlayer(c, px, py);
         }
+    }
+
+    void drawBombWave(Canvas c) {
+        if (bombWaveTimer <= 0f) {
+            return;
+        }
+        float progress = 1f - clamp(bombWaveTimer / BOMB_WAVE_DURATION, 0f, 1f);
+        float maxR = Math.max(W, worldH) * 1.35f;
+        float curR = progress * maxR;
+        float a = 1f - progress;
+
+        strokeStyle(C_ORANGE, 18f * (1f - progress * 0.5f));
+        pStroke.setAlpha((int) (170f * a));
+        c.drawCircle(bombWaveOriginX, bombWaveOriginY, curR, pStroke);
+
+        strokeStyle(0xFFFFFFFF, 6f * (1f - progress * 0.4f));
+        pStroke.setAlpha((int) (240f * a));
+        c.drawCircle(bombWaveOriginX, bombWaveOriginY, curR, pStroke);
+
+        if (curR > 40f) {
+            strokeStyle(C_GOLD, 3f);
+            pStroke.setAlpha((int) (130f * a));
+            c.drawCircle(bombWaveOriginX, bombWaveOriginY, curR * 0.92f, pStroke);
+        }
+        strokeReset();
     }
 
     void drawBossZone(Canvas c) {
@@ -172,10 +198,35 @@ abstract class GameRenderer extends GameLoop {
         for (int i = 0; i < particles.size(); i++) {
             Particle p = particles.get(i);
             float lr = clamp(p.life / p.maxLife, 0f, 1f);
-            pFill.setColor(p.color);
             int baseA = Color.alpha(p.color);
-            pFill.setAlpha((int) (baseA * lr));
-            c.drawCircle(p.x, p.y, p.size * (0.4f + 0.6f * lr), pFill);
+            int alpha = (int) (baseA * lr);
+            if (p.style == 1) {
+                // Расширяющееся кольцо-импульс
+                pStroke.setStyle(Paint.Style.STROKE);
+                pStroke.setColor(p.color);
+                pStroke.setAlpha(alpha);
+                pStroke.setStrokeWidth(3.5f * lr);
+                float curR = p.size * (0.8f + (1f - lr) * 2.2f);
+                c.drawCircle(p.x, p.y, curR, pStroke);
+                pStroke.setStyle(Paint.Style.FILL);
+            } else if (p.style == 2) {
+                // Искрящийся штрих-след
+                pStroke.setStyle(Paint.Style.STROKE);
+                pStroke.setColor(p.color);
+                pStroke.setAlpha(alpha);
+                pStroke.setStrokeWidth(2.8f * lr);
+                c.drawLine(p.x, p.y, p.x - p.vx * 0.05f, p.y - p.vy * 0.05f, pStroke);
+                pStroke.setStyle(Paint.Style.FILL);
+            } else if (p.style == 3) {
+                // Мягкое полупрозрачное эхо
+                pFill.setColor(p.color);
+                pFill.setAlpha((int) (alpha * 0.45f));
+                c.drawCircle(p.x, p.y, p.size * (0.85f + 0.15f * lr), pFill);
+            } else {
+                pFill.setColor(p.color);
+                pFill.setAlpha(alpha);
+                c.drawCircle(p.x, p.y, p.size * (0.4f + 0.6f * lr), pFill);
+            }
         }
     }
 
@@ -189,22 +240,14 @@ abstract class GameRenderer extends GameLoop {
         int outer = SPHERE_OUTER[si];
         int inner = SPHERE_INNER[si];
 
-        if (magnetTimer > 0f && state == ST_PLAY) {
-            pStroke.setStyle(Paint.Style.STROKE);
-            pStroke.setColor(C_MAGENTA);
-            pStroke.setAlpha(38);
-            pStroke.setStrokeWidth(2.5f);
-            c.drawCircle(x, y, 330f, pStroke);
-            pStroke.setStyle(Paint.Style.FILL);
-        }
 
-        drawGlow(c, x, y, 240f, outer, (int) (155f * a));
+        drawGlow(c, x, y, 260f, outer, (int) (165f * a));
 
         pStroke.setStyle(Paint.Style.STROKE);
         pStroke.setColor(outer);
         pStroke.setAlpha((int) (110f * a));
         pStroke.setStrokeWidth(3f);
-        c.drawCircle(x, y, PLAYER_R + 13f, pStroke);
+        c.drawCircle(x, y, PLAYER_R + 8f, pStroke);
         pStroke.setStyle(Paint.Style.FILL);
 
         pFill.setColor(outer);
@@ -212,10 +255,129 @@ abstract class GameRenderer extends GameLoop {
         c.drawCircle(x, y, PLAYER_R, pFill);
 
         pFill.setColor(inner);
-        c.drawCircle(x, y, PLAYER_R * 0.62f, pFill);
+        c.drawCircle(x, y, PLAYER_R * 0.65f, pFill);
 
         pFill.setColor(0xFFFFFFFF);
-        c.drawCircle(x, y, PLAYER_R * 0.27f, pFill);
+        c.drawCircle(x, y, PLAYER_R * 0.28f, pFill);
+
+        // Уникальный визуальный стиль для каждого скина сферы
+        pStroke.setStyle(Paint.Style.STROKE);
+        switch (si) {
+            case 0: { // Циан: двойные орбитальные квантовые кольца со спутниками
+                float rAngle = time * 85f;
+                strokeStyle(outer, 2.5f);
+                pStroke.setAlpha((int) (140f * a));
+                c.save();
+                c.rotate(rAngle, x, y);
+                tmpRect.set(x - PLAYER_R - 12f, y - PLAYER_R * 0.5f, x + PLAYER_R + 12f, y + PLAYER_R * 0.5f);
+                c.drawOval(tmpRect, pStroke);
+                c.rotate(90f, x, y);
+                c.drawOval(tmpRect, pStroke);
+                c.restore();
+                strokeReset();
+                for (int k = 0; k < 2; k++) {
+                    double ang = Math.toRadians(rAngle + k * 180f);
+                    float sx = x + (float) Math.cos(ang) * (PLAYER_R + 12f);
+                    float sy = y + (float) Math.sin(ang) * (PLAYER_R * 0.5f);
+                    pFill.setColor(0xFFFFFFFF);
+                    c.drawCircle(sx, sy, 3.5f, pFill);
+                }
+                break;
+            }
+            case 1: { // Магента: вращающийся кибер-шестиугольник
+                float rot = time * 45f;
+                hexPath.reset();
+                for (int k = 0; k < 6; k++) {
+                    double ang = Math.toRadians(rot + k * 60f);
+                    float hx = x + (float) Math.cos(ang) * (PLAYER_R + 14f);
+                    float hy = y + (float) Math.sin(ang) * (PLAYER_R + 14f);
+                    if (k == 0) hexPath.moveTo(hx, hy);
+                    else hexPath.lineTo(hx, hy);
+                }
+                hexPath.close();
+                strokeStyle(outer, 3.5f);
+                pStroke.setAlpha((int) (180f * a));
+                c.drawPath(hexPath, pStroke);
+                strokeReset();
+                break;
+            }
+            case 2: { // Золото: 8 лучей солнечной короны
+                float rot = time * 30f;
+                strokeStyle(outer, 2.5f);
+                pStroke.setAlpha((int) (170f * a));
+                for (int k = 0; k < 8; k++) {
+                    double ang = Math.toRadians(rot + k * 45f);
+                    float ca = (float) Math.cos(ang);
+                    float sa = (float) Math.sin(ang);
+                    c.drawLine(x + ca * (PLAYER_R + 4f), y + sa * (PLAYER_R + 4f),
+                            x + ca * (PLAYER_R + 16f + (k % 2 == 0 ? 8f : 2f)),
+                            y + sa * (PLAYER_R + 16f + (k % 2 == 0 ? 8f : 2f)), pStroke);
+                }
+                strokeReset();
+                break;
+            }
+            case 3: { // Кислота: био-плазменные вращающиеся шипы
+                float rot = -time * 70f;
+                strokeStyle(outer, 3.5f);
+                pStroke.setAlpha((int) (190f * a));
+                for (int k = 0; k < 6; k++) {
+                    double ang = Math.toRadians(rot + k * 60f);
+                    float ca = (float) Math.cos(ang);
+                    float sa = (float) Math.sin(ang);
+                    c.drawLine(x + ca * (PLAYER_R + 3f), y + sa * (PLAYER_R + 3f),
+                            x + ca * (PLAYER_R + 16f), y + sa * (PLAYER_R + 16f), pStroke);
+                }
+                strokeReset();
+                break;
+            }
+            case 4: { // Пульсар: двойные электромагнитные спиральные дуги
+                float rot = time * 110f;
+                strokeStyle(outer, 3f);
+                pStroke.setAlpha((int) (180f * a));
+                tmpRect.set(x - PLAYER_R - 15f, y - PLAYER_R - 15f, x + PLAYER_R + 15f, y + PLAYER_R + 15f);
+                c.drawArc(tmpRect, rot, 70f, false, pStroke);
+                c.drawArc(tmpRect, rot + 180f, 70f, false, pStroke);
+                strokeReset();
+                break;
+            }
+            case 5: { // Призрак: двойные пульсирующие полупрозрачные волны
+                float wave1 = 0.5f + 0.5f * (float) Math.sin(time * 3f);
+                float wave2 = 0.5f + 0.5f * (float) Math.sin(time * 3f + 1.5f);
+                strokeStyle(0x66FFFFFF, 2.5f);
+                c.drawCircle(x, y, PLAYER_R + 10f + 8f * wave1, pStroke);
+                strokeStyle(0x33A4D8FF, 2f);
+                c.drawCircle(x, y, PLAYER_R + 16f + 12f * wave2, pStroke);
+                strokeReset();
+                break;
+            }
+            case 6: { // Закат: двойная яркая солнечная корона
+                float pulse = 0.8f + 0.2f * (float) Math.sin(time * 4f);
+                strokeStyle(0xFFFF9E4F, 4f);
+                pStroke.setAlpha((int) (190f * a));
+                c.drawCircle(x, y, PLAYER_R + 12f + 3f * pulse, pStroke);
+                strokeStyle(0xFFFF4F4F, 2.5f);
+                pStroke.setAlpha((int) (130f * a));
+                c.drawCircle(x, y, PLAYER_R + 20f + 5f * pulse, pStroke);
+                strokeReset();
+                break;
+            }
+            case 7: { // Аква: вращающиеся кристаллы и ледяное кольцо
+                float rot = time * 50f;
+                strokeStyle(outer, 2.5f);
+                pStroke.setAlpha((int) (170f * a));
+                for (int k = 0; k < 4; k++) {
+                    double ang = Math.toRadians(rot + k * 90f);
+                    float cx2 = x + (float) Math.cos(ang) * (PLAYER_R + 14f);
+                    float cy2 = y + (float) Math.sin(ang) * (PLAYER_R + 14f);
+                    pFill.setColor(0xFFFFFFFF);
+                    c.drawCircle(cx2, cy2, 3f, pFill);
+                }
+                c.drawCircle(x, y, PLAYER_R + 14f, pStroke);
+                strokeReset();
+                break;
+            }
+        }
+        pStroke.setStyle(Paint.Style.FILL);
 
         if (shieldCharges > 0) {
             float pulse = 0.65f + 0.35f * (float) Math.sin(time * 5.5f);
@@ -384,9 +546,11 @@ abstract class GameRenderer extends GameLoop {
                 break;
             }
             case T_MINE: {
-                float blink = 0.5f + 0.5f * (float) Math.sin(time * 18f);
-                pStroke.setColor(o.color);
-                pStroke.setAlpha(o.mineArmed ? 150 + (int) (100f * blink) : 150);
+                float blinkFreq = o.mineArmed ? (18f + (o.fuse / MINE_FUSE_TIME) * 35f) : 10f;
+                float blink = 0.5f + 0.5f * (float) Math.sin(time * blinkFreq);
+                int mineCol = o.mineArmed ? mix(o.color, C_RED, clamp(o.fuse / MINE_FUSE_TIME, 0f, 1f)) : o.color;
+                pStroke.setColor(mineCol);
+                pStroke.setAlpha(o.mineArmed ? 170 + (int) (85f * blink) : 150);
                 pStroke.setStrokeWidth(2.8f);
                 for (int k = 0; k < 6; k++) {
                     double ang = Math.toRadians(o.rot + k * 60f);
@@ -395,14 +559,21 @@ abstract class GameRenderer extends GameLoop {
                     c.drawLine(o.x + ca * o.r * 0.72f, o.y + sa * o.r * 0.72f,
                             o.x + ca * o.r * 1.02f, o.y + sa * o.r * 1.02f, pStroke);
                 }
-                pFill.setColor(o.mineArmed ? 0xFFFFFFFF : o.color);
-                pFill.setAlpha(o.mineArmed ? 150 + (int) (100f * blink) : 175);
-                c.drawCircle(o.x, o.y, o.r * 0.17f, pFill);
-                if (o.mineArmed && o.fuse < 0.85f) {
-                    pStroke.setColor(0xFFFF4FD8);
-                    pStroke.setAlpha(40 + (int) (90f * blink));
-                    pStroke.setStrokeWidth(2f);
-                    c.drawCircle(o.x, o.y, o.r * 1.34f, pStroke);
+                pFill.setColor(o.mineArmed ? (blink > 0.5f ? 0xFFFFFFFF : C_RED) : o.color);
+                pFill.setAlpha(o.mineArmed ? 220 : 175);
+                c.drawCircle(o.x, o.y, o.r * 0.22f, pFill);
+
+                if (o.mineArmed) {
+                    float fuseFrac = clamp(o.fuse / MINE_FUSE_TIME, 0f, 1f);
+                    pFill.setColor(withAlpha(C_RED, (int) (18f + 30f * blink * fuseFrac)));
+                    c.drawCircle(o.x, o.y, MINE_BLAST_R, pFill);
+                    pStroke.setColor(withAlpha(C_RED, (int) (90f + 140f * blink)));
+                    pStroke.setStrokeWidth(2.5f + 2f * blink);
+                    c.drawCircle(o.x, o.y, MINE_BLAST_R, pStroke);
+                    pStroke.setColor(0xFFFFE4B0);
+                    pStroke.setStrokeWidth(3.5f);
+                    tmpRect.set(o.x - 36f, o.y - 36f, o.x + 36f, o.y + 36f);
+                    c.drawArc(tmpRect, -90f, fuseFrac * 360f, false, pStroke);
                 }
                 break;
             }
@@ -616,7 +787,17 @@ abstract class GameRenderer extends GameLoop {
                 break;
             }
             case P_DOUBLE: {
-                textC(c, "×2", x, y, size * 0.78f, col, tfBlack, Paint.Align.CENTER);
+                pStroke.setStyle(Paint.Style.STROKE);
+                pStroke.setColor(col);
+                pStroke.setAlpha(alpha);
+                pStroke.setStrokeWidth(size * 0.16f);
+                c.drawCircle(x, y, size * 0.82f, pStroke);
+                pStroke.setColor(0xFFFFFFFF);
+                pStroke.setAlpha(alpha / 2);
+                pStroke.setStrokeWidth(size * 0.06f);
+                c.drawCircle(x, y, size * 0.94f, pStroke);
+                pStroke.setStyle(Paint.Style.FILL);
+                textC(c, "×" + (int) progress.temporaryMultiplier(), x, y, size * 0.72f, col, tfBlack, Paint.Align.CENTER);
                 break;
             }
             default:

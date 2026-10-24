@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.LinearGradient;
 import android.graphics.RadialGradient;
 import android.graphics.Shader;
+import android.os.Build;
 import android.view.Choreographer;
 
 /** Раскладка экрана, игровой цикл и обновление мира. */
@@ -36,7 +37,7 @@ abstract class GameLoop extends GameSpawner {
         recalcInsets();
         rebuildScrim();
         if (state == ST_MENU || state == ST_OVER || state == ST_SETTINGS
-                || state == ST_STATS || state == ST_QUESTS || state == ST_SKINS
+                || state == ST_STATS || state == ST_SKINS
                 || state == ST_WORKSHOP
                 || state == ST_HISTORY) {
             px = W / 2f;
@@ -68,7 +69,7 @@ abstract class GameLoop extends GameSpawner {
         recalcInsets();
         rebuildScrim();
         if (state == ST_MENU || state == ST_SETTINGS || state == ST_OVER
-                || state == ST_STATS || state == ST_QUESTS || state == ST_SKINS
+                || state == ST_STATS || state == ST_SKINS
                 || state == ST_HISTORY || state == ST_WORKSHOP) {
             py = groundY();
             targetY = py;
@@ -115,12 +116,8 @@ abstract class GameLoop extends GameSpawner {
         if (!running) {
             return;
         }
-        // The emulator's software GPU cannot sustain a 60 Hz animated menu
-        // with large Canvas surfaces. Throttle non-game screens to 10 fps so
-        // input events keep a responsive main thread while the game itself
-        // remains frame driven.
-        long minFrameNs = isInteractiveMenuState()
-                ? 100_000_000L : 16_000_000L;
+        // Keep menus and gameplay on the same 60 FPS frame cadence.
+        long minFrameNs = targetHz == 120 ? 8_333_333L : 16_000_000L;
         if (lastNs != 0L && frameTimeNanos - lastNs < minFrameNs) {
             Choreographer.getInstance().postFrameCallback(this);
             return;
@@ -141,18 +138,18 @@ abstract class GameLoop extends GameSpawner {
         Choreographer.getInstance().postFrameCallback(this);
     }
 
-    boolean isInteractiveMenuState() {
-        return state == ST_MENU || state == ST_SETTINGS || state == ST_STATS
-                || state == ST_QUESTS || state == ST_SKINS || state == ST_HISTORY
-                || state == ST_WORKSHOP || state == ST_RULES || state == ST_PAUSE
-                || state == ST_OVER;
-    }
-
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
+        applyTargetRefreshRate();
         startAudioInit();
         startLoop();
+    }
+
+    void applyTargetRefreshRate() {
+        if (Build.VERSION.SDK_INT >= 35) {
+            setRequestedFrameRate(targetHz);
+        }
     }
 
     @Override
@@ -171,13 +168,11 @@ abstract class GameLoop extends GameSpawner {
         pressedId = B_NONE;
         scrollDragging = false;
         progress.saveStats();
-        progress.saveDaily();
         pauseMusic();
         stopLoop();
     }
 
     public void onHostResume() {
-        progress.ensureDay();
         // Не блокируем первый кадр меню декодированием OGG; музыка стартует
         // при начале забега или возвращении из паузы.
         if (state == ST_PLAY || state == ST_PAUSE) {
@@ -228,7 +223,7 @@ abstract class GameLoop extends GameSpawner {
                 updatePlay(dt);
             }
         } else if (state == ST_MENU || state == ST_SETTINGS
-                || state == ST_STATS || state == ST_QUESTS || state == ST_SKINS
+                || state == ST_STATS || state == ST_SKINS
                 || state == ST_HISTORY) {
             updateMenu(dt);
         } else if (state == ST_OVER) {
@@ -284,7 +279,6 @@ abstract class GameLoop extends GameSpawner {
         score += dt * (70f + 120f * difficulty)
                 * (1f + 0.25f * latePressure) * scoreFactor();
         progress.totalTime += dt;
-        progress.dailyTime += dt;
         if ((int) elapsed > progress.bestTime) {
             progress.bestTime = (int) elapsed;
         }
@@ -299,8 +293,6 @@ abstract class GameLoop extends GameSpawner {
         int level = (int) (elapsed / 22.5f);
         if (level > lastLevel) {
             lastLevel = level;
-            // Улучшение уровня накапливает постоянный множитель до конца забега.
-            levelMult = Math.min(10f, levelMult + progress.levelMultiplierStep());
             if (level <= 4) {
                 announceTimer = 1.7f;
             }
@@ -311,7 +303,17 @@ abstract class GameLoop extends GameSpawner {
         }
         phaseTimer = Math.max(0f, phaseTimer - dt);
         doubleTimer = Math.max(0f, doubleTimer - dt);
+        spawnPauseTimer = Math.max(0f, spawnPauseTimer - dt);
+        if (bombWaveTimer > 0f) {
+            bombWaveTimer -= dt;
+        }
         if (bombTimer > 0f) {
+            if (bombTarget != null && obstacles.contains(bombTarget)) {
+                bombX = bombTarget.x;
+                bombY = bombTarget.y;
+            } else {
+                bombTarget = null;
+            }
             bombTimer -= dt;
             if (bombTimer <= 0f) {
                 resolveBomb();
@@ -341,18 +343,65 @@ abstract class GameLoop extends GameSpawner {
         if (trailTimer <= 0f) {
             int ti = clamp(progress.trailSkin, 0, Progress.TRAIL_COUNT - 1);
             trailTimer = TRAIL_RATE[ti];
-            addParticle(px + (rnd.nextFloat() - 0.5f) * 22f, py + PLAYER_R * 0.7f,
-                    (rnd.nextFloat() - 0.5f) * 50f,
-                    40f + rnd.nextFloat() * 80f,
-                    0.35f + rnd.nextFloat() * 0.30f,
-                    (3f + rnd.nextFloat() * 5f) * TRAIL_SIZE[ti],
-                    TRAIL_COLORS[ti], 0f);
+            float pyOffset = py + PLAYER_R * 0.65f;
+            switch (ti) {
+                case 0: // Неон: двойной неоновый поток слева и справа
+                    addParticle(px - 14f, pyOffset, (rnd.nextFloat() - 0.5f) * 20f,
+                            60f + rnd.nextFloat() * 70f, 0.40f, 6.5f, 0xCC5FF3FF, 0f, 0);
+                    addParticle(px + 14f, pyOffset, (rnd.nextFloat() - 0.5f) * 20f,
+                            60f + rnd.nextFloat() * 70f, 0.40f, 6.5f, 0xCC5FF3FF, 0f, 0);
+                    break;
+                case 1: // Искры: электрические штрихи во все стороны
+                    for (int s = 0; s < 2; s++) {
+                        float sAngle = rnd.nextFloat() * 6.28f;
+                        float sSpd = 90f + rnd.nextFloat() * 160f;
+                        addParticle(px + (rnd.nextFloat() - 0.5f) * 16f, pyOffset,
+                                (float) Math.cos(sAngle) * sSpd,
+                                50f + (float) Math.sin(sAngle) * sSpd * 0.6f,
+                                0.28f + rnd.nextFloat() * 0.20f, 8f,
+                                rnd.nextBoolean() ? 0xFFFFFFFF : 0xFFFFD75E, 0f, 2);
+                    }
+                    break;
+                case 2: // Пламя: градиент от белого к огненно-рыжему с подъёмом
+                    int flameCol = rnd.nextFloat() < 0.35f ? 0xFFFFF6D0
+                            : (rnd.nextBoolean() ? 0xFFFF9E4F : 0xFFFF4F4F);
+                    addParticle(px + (rnd.nextFloat() - 0.5f) * 18f, pyOffset,
+                            (rnd.nextFloat() - 0.5f) * 45f,
+                            50f + rnd.nextFloat() * 100f,
+                            0.45f + rnd.nextFloat() * 0.25f,
+                            7f + rnd.nextFloat() * 8f, flameCol, -60f, 0);
+                    break;
+                case 3: // Тень / Призрак: мягкие призрачные эхо-силуэты сферы
+                    addParticle(px, py, 0f, 20f, 0.55f, PLAYER_R * 0.95f, 0x55A46BFF, 0f, 3);
+                    break;
+                case 4: // Магнит: вихревые частицы электромагнитного поля
+                    float magPhase = time * 18f;
+                    float mx = px + (float) Math.sin(magPhase) * 26f;
+                    addParticle(mx, pyOffset, (float) Math.cos(magPhase) * 60f,
+                            55f + rnd.nextFloat() * 70f, 0.38f, 7f, 0xEEFF4FD8, 0f, 0);
+                    addParticle(px - (mx - px), pyOffset, -(float) Math.cos(magPhase) * 60f,
+                            55f + rnd.nextFloat() * 70f, 0.38f, 7f, 0xEE8B4FFF, 0f, 0);
+                    break;
+                case 5: // Комета: сверкающее ядро и россыпь космической пыли
+                    addParticle(px + (rnd.nextFloat() - 0.5f) * 8f, pyOffset,
+                            (rnd.nextFloat() - 0.5f) * 30f, 90f + rnd.nextFloat() * 110f,
+                            0.42f, 9f, 0xFFFFE5D0, 0f, 0);
+                    for (int ci = 0; ci < 2; ci++) {
+                        addParticle(px + (rnd.nextFloat() - 0.5f) * 24f, pyOffset + rnd.nextFloat() * 12f,
+                                (rnd.nextFloat() - 0.5f) * 110f, 60f + rnd.nextFloat() * 80f,
+                                0.32f, 3.5f, 0xDDFF7A45, 0f, 0);
+                    }
+                    break;
+                case 6: // Импульс: расходящиеся ударные звуковые кольца
+                    addParticle(px, pyOffset, 0f, 35f, 0.48f, 18f, 0xEE65E6C5, 0f, 1);
+                    break;
+            }
         }
 
         float sdt = dt * slowFactor();
 
         spawnTimer -= sdt;
-        if (spawnTimer <= 0f && elapsed > 0.7f) {
+        if (spawnTimer <= 0f && spawnPauseTimer <= 0f && elapsed > 0.7f) {
             spawnObstacle();
             float base;
             if (zenMode) {
@@ -412,7 +461,6 @@ abstract class GameLoop extends GameSpawner {
         if (saveTimer <= 0f) {
             saveTimer = 5f;
             progress.saveStats();
-            progress.saveDaily();
         }
     }
 
@@ -452,9 +500,10 @@ abstract class GameLoop extends GameSpawner {
     }
 
     float scoreFactor() {
-        return scoreMult * closeMult * bossMult * levelMult
+        float f = scoreMult * closeMult * bossMult * levelMult
                 * (hardcoreMode ? HARDCORE_MULT : 1f)
-                * (doubleTimer > 0f ? 2f : 1f);
+                * (doubleTimer > 0f ? progress.temporaryMultiplier() : 1f);
+        return Math.min(f, 25000f);
     }
 
     void updateObstacles(float dt) {
@@ -462,7 +511,10 @@ abstract class GameLoop extends GameSpawner {
         for (int i = obstacles.size() - 1; i >= 0; i--) {
             Obs o = obstacles.get(i);
 
-            if (o.boss) {
+            if (o.bombArmed && o == bombTarget && bombTimer > 0f) {
+                o.vx = 0f;
+                o.vy = 0f;
+            } else if (o.boss) {
                 float stopY = Math.max(190f, insetTop + 190f);
                 o.vy = o.y < stopY ? o.baseVy : 0f;
                 o.vx += (float) Math.sin(time * 0.7f + o.bossStage) * sdt * 35f;
@@ -478,11 +530,35 @@ abstract class GameLoop extends GameSpawner {
                 o.vy = o.baseVy;
             } else if (o.type == T_MINE) {
                 if (!o.mineArmed) {
-                    o.vy = o.baseVy * 0.55f;
+                    o.vy = o.baseVy * 0.72f;
+                    if (dist2(o.x, o.y, px, py) <= MINE_TRIGGER_R * MINE_TRIGGER_R) {
+                        o.mineArmed = true;
+                        o.fuse = 0f;
+                        buzz(16);
+                        playSound(sndPower, 1.8f);
+                    }
                 } else {
                     o.fuse += sdt;
-                    // Короткая пауза с миганием, затем резкий рывок вниз.
-                    o.vy = o.fuse < 0.85f ? 0f : o.baseVy * 2.35f;
+                    o.vy *= 0.12f;
+                    o.vx *= 0.12f;
+                    if (o.fuse >= MINE_FUSE_TIME) {
+                        explode(o.x, o.y, 32, o.color);
+                        playSound(sndHit, 0.85f);
+                        shake = Math.max(shake, 0.45f);
+                        flash = 0.25f;
+                        float blastR = MINE_BLAST_R + PLAYER_R;
+                        if (dist2(o.x, o.y, px, py) <= blastR * blastR) {
+                            hit(o);
+                        } else {
+                            float pts = 70f * scoreFactor();
+                            score += pts;
+                            addScorePop(o.x, o.y, "+" + fmt((int) pts), C_LIME);
+                            combo++;
+                            comboTimer = 1.8f;
+                        }
+                        obstacles.remove(i);
+                        continue;
+                    }
                 }
             } else {
                 o.vy = o.baseVy;
@@ -490,13 +566,6 @@ abstract class GameLoop extends GameSpawner {
 
             o.y += o.vy * sdt;
             o.x += o.vx * sdt;
-
-            if (o.type == T_MINE && !o.mineArmed && o.y >= o.stopY) {
-                o.y = o.stopY;
-                o.mineArmed = true;
-                o.fuse = 0f;
-                o.vy = 0f;
-            }
 
             if (o.type == T_SPLIT && o.canSplit && o.y >= o.splitY) {
                 obstacles.remove(i);
@@ -534,12 +603,19 @@ abstract class GameLoop extends GameSpawner {
             o.warnTimer = Math.max(0f, o.warnTimer - dt);
             o.rot += o.vrot * sdt;
 
+            if (o.bombArmed && o == bombTarget && bombTimer > 0f) {
+                // The marked meteor stays in the shown blast radius until it
+                // detonates instead of continuing through the field.
+                continue;
+            }
+
             if (!o.passed && o.y > py + PLAYER_R * 0.5f) {
                 o.passed = true;
                 runDodged++;
                 progress.dodged++;
                 float dx = Math.abs(o.x - px);
-                if (invuln <= 0f && dx < o.r + PLAYER_R + 92f) {
+                // В фазе или при обычном уклонении без урона засчитываем комбо
+                if ((phaseTimer > 0f || invuln <= 0f) && dx < o.r + PLAYER_R + 92f) {
                     combo++;
                     if (combo > runMaxCombo) {
                         runMaxCombo = combo;
@@ -571,36 +647,20 @@ abstract class GameLoop extends GameSpawner {
                 }
             }
 
-            if (invuln <= 0f && state == ST_PLAY) {
+            if (phaseTimer <= 0f && invuln <= 0f && state == ST_PLAY) {
                 float rr = o.r * 0.80f + PLAYER_R * 0.80f;
                 if (dist2(o.x, o.y, px, py) < rr * rr) {
-                    // Броня выдерживает удар щита: щит спасает сферу,
-                    // но сам астероид продолжает падать.
                     boolean survivesShield = (o.type == T_ARMOR || o.boss)
                             && shieldCharges > 0 && !zenMode;
-                    if (o.type == T_ARMOR && o.armorHits > 1 && !o.boss) {
+                    if (o.type == T_ARMOR && survivesShield) {
                         o.armorHits = GameRules.nextArmorHits(o.armorHits);
                         o.bounceFlash = 1f;
-                        explode(o.x, o.y, 16, o.color);
-                        invuln = 0.55f;
-                        shake = 14f;
-                        flash = 0.12f;
-                        toast("БРОНЯ · ТРЕЩИНА");
-                        continue;
-                    }
-                    if (o.boss) {
-                        // The boss is defeated by zones, not by ramming it.
+                        toast(sArmorCracked);
                         hit(o);
                         continue;
                     }
-                    if (o.boss && o.bossHits > 1 && !survivesShield) {
-                        o.bossHits--;
-                        o.bounceFlash = 1f;
-                        explode(o.x, o.y, 18, o.color);
-                        invuln = 0.75f;
-                        shake = 18f;
-                        flash = 0.18f;
-                        toast("BOSS · " + o.bossHits + " HP");
+                    if (o.boss) {
+                        hit(o);
                         continue;
                     }
                     if (!survivesShield) {
@@ -621,25 +681,21 @@ abstract class GameLoop extends GameSpawner {
         for (int i = pickups.size() - 1; i >= 0; i--) {
             Pickup p = pickups.get(i);
             boolean pulled = false;
-            if (p.kind == P_STAR && magnetTimer > 0f) {
+            if (magnetTimer > 0f) {
                 float dx = px - p.x;
                 float dy = py - p.y;
                 float d2 = dx * dx + dy * dy;
-                if (d2 < 620f * 620f) {
-                    float d = (float) Math.sqrt(d2);
-                    if (d < 1f) {
-                        d = 1f;
-                    }
-                    float sp = 760f + Math.min(300f, d);
-                    p.x += dx / d * sp * dt;
-                    p.y += dy / d * sp * dt;
-                    pulled = true;
-                    if (rnd.nextFloat() < dt * 14f) {
-                        addParticle(p.x, p.y, (rnd.nextFloat() - 0.5f) * 70f,
-                                (rnd.nextFloat() - 0.5f) * 70f,
-                                0.25f + rnd.nextFloat() * 0.25f,
-                                2f + rnd.nextFloat() * 2f, C_GOLD, 0f);
-                    }
+                float d = (float) Math.sqrt(Math.max(1f, d2));
+                // Медленно и плавно притягивает по всему экрану (звезды, хп, усиления)
+                float sp = 150f;
+                p.x += dx / d * sp * dt;
+                p.y += dy / d * sp * dt;
+                pulled = true;
+                if (rnd.nextFloat() < dt * 6f) {
+                    addParticle(p.x, p.y, (rnd.nextFloat() - 0.5f) * 40f,
+                            (rnd.nextFloat() - 0.5f) * 40f,
+                            0.25f + rnd.nextFloat() * 0.25f,
+                            2f + rnd.nextFloat() * 2f, C_MAGENTA, 0f);
                 }
             }
             if (!pulled) {
@@ -746,8 +802,11 @@ abstract class GameLoop extends GameSpawner {
                     }
                     bossBullets.clear();
                     score += 1000f * scoreFactor();
-                    addScorePop(px, py - 100f, "BOSS x2", C_GOLD);
+                    addScorePop(px, py - 100f, "BOSS x" + fmtMult(bossMult), C_GOLD);
                     toast(sBossReward);
+                    progress.bossesDefeated++;
+                    progress.saveStats();
+                    checkProgress();
                 }
             }
         }

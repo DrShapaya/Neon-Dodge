@@ -49,8 +49,9 @@ abstract class UiKit extends GameRenderer {
     }
 
     boolean isScrollScreen() {
-        return state == ST_STATS || state == ST_HISTORY || state == ST_QUESTS
-                || state == ST_SKINS || state == ST_WORKSHOP || state == ST_RULES || state == ST_SETTINGS;
+        return state == ST_STATS || state == ST_HISTORY
+                || state == ST_SKINS || state == ST_WORKSHOP || state == ST_RULES || state == ST_SETTINGS
+                || state == ST_PROFILE;
     }
 
     void go(int newState) {
@@ -331,19 +332,6 @@ abstract class UiKit extends GameRenderer {
         return y + 58f;
     }
 
-    void strokeStyle(int color, float width) {
-        pStroke.setStyle(Paint.Style.STROKE);
-        pStroke.setStrokeCap(Paint.Cap.ROUND);
-        pStroke.setStrokeJoin(Paint.Join.ROUND);
-        pStroke.setColor(color);
-        pStroke.setStrokeWidth(width);
-    }
-
-    void strokeReset() {
-        pStroke.setStrokeCap(Paint.Cap.BUTT);
-        pStroke.setStrokeJoin(Paint.Join.MITER);
-        pStroke.setStyle(Paint.Style.FILL);
-    }
 
     void iconPlay(Canvas c, float x, float y, float s, int color) {
         iconPath.reset();
@@ -381,6 +369,31 @@ abstract class UiKit extends GameRenderer {
         c.drawPath(iconPath, pFill);
         pFill.setColor(0x88FFFFFF);
         c.drawCircle(x - s * 0.12f, y - s * 0.30f, s * 0.16f, pFill);
+    }
+
+    void iconSkull(Canvas c, float x, float y, float s, int color) {
+        pFill.setColor(color);
+        // Лобная кость
+        c.drawCircle(x, y - s * 0.18f, s * 0.65f, pFill);
+        // Челюсть
+        tmpRect.set(x - s * 0.36f, y + s * 0.05f, x + s * 0.36f, y + s * 0.68f);
+        c.drawRoundRect(tmpRect, s * 0.12f, s * 0.12f, pFill);
+        // Глазницы
+        pFill.setColor(0xFF0C1028);
+        c.drawCircle(x - s * 0.22f, y - s * 0.08f, s * 0.17f, pFill);
+        c.drawCircle(x + s * 0.22f, y - s * 0.08f, s * 0.17f, pFill);
+        // Носовая впадина
+        iconPath.reset();
+        iconPath.moveTo(x, y + s * 0.08f);
+        iconPath.lineTo(x - s * 0.08f, y + s * 0.24f);
+        iconPath.lineTo(x + s * 0.08f, y + s * 0.24f);
+        iconPath.close();
+        c.drawPath(iconPath, pFill);
+        // Насечки зубов
+        strokeStyle(0xFF0C1028, Math.max(2f, s * 0.12f));
+        c.drawLine(x - s * 0.13f, y + s * 0.44f, x - s * 0.13f, y + s * 0.66f, pStroke);
+        c.drawLine(x + s * 0.13f, y + s * 0.44f, x + s * 0.13f, y + s * 0.66f, pStroke);
+        strokeReset();
     }
 
     // Все иконки интерфейса — контурные: линия ICON_STROKE от размера,

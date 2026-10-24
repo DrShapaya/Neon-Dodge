@@ -3,6 +3,7 @@ package com.isaev.neondodge;
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.content.Context;
 import android.graphics.Insets;
 import android.os.Build;
 import android.os.Bundle;
@@ -12,10 +13,37 @@ import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.window.OnBackInvokedDispatcher;
+import android.content.res.Configuration;
+import android.os.LocaleList;
+import java.util.Locale;
 
 public class MainActivity extends Activity {
 
     private GameView game;
+
+    @Override
+    protected void attachBaseContext(Context newBase) {
+        String tag = newBase.getSharedPreferences("neon_dodge", MODE_PRIVATE)
+                .getString("language", "ru");
+        super.attachBaseContext(withLocale(newBase, tag));
+    }
+
+    private static Context withLocale(Context context, String tag) {
+        Locale locale = Locale.forLanguageTag(tag == null || tag.isEmpty() ? "ru" : tag);
+        Configuration config = new Configuration(context.getResources().getConfiguration());
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            config.setLocales(new LocaleList(locale));
+        } else {
+            config.setLocale(locale);
+        }
+        return context.createConfigurationContext(config);
+    }
+
+    void setLanguage(String tag) {
+        getSharedPreferences("neon_dodge", MODE_PRIVATE).edit()
+                .putString("language", tag).apply();
+        recreate();
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

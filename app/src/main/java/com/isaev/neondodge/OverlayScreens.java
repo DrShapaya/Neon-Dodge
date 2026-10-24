@@ -156,15 +156,15 @@ abstract class OverlayScreens extends InfoScreens {
         text(c, offsetEnabled ? String.valueOf((int) fingerOffset) : "—", r - 36f, ry + 2f,
                 36f, offsetEnabled ? C_CYAN : UI_DIM, tfBlack, Paint.Align.RIGHT);
 
-        sliderX1 = l + 56f;
-        sliderX2 = r - 56f;
+        offsetSliderX1 = l + 56f;
+        offsetSliderX2 = r - 56f;
         float sly = ry + 66f;
-        box(c, sliderX1, sly - 5f, sliderX2, sly + 5f, 5f,
+        box(c, offsetSliderX1, sly - 5f, offsetSliderX2, sly + 5f, 5f,
                 offsetEnabled ? 0x33FFFFFF : 0x14FFFFFF, 0);
-        float kx = sliderX1 + (sliderX2 - sliderX1)
+        float kx = offsetSliderX1 + (offsetSliderX2 - offsetSliderX1)
                 * (fingerOffset - OFFSET_MIN) / (OFFSET_MAX - OFFSET_MIN);
-        if (kx > sliderX1 + 1f) {
-            box(c, sliderX1, sly - 5f, kx, sly + 5f, 5f,
+        if (kx > offsetSliderX1 + 1f) {
+            box(c, offsetSliderX1, sly - 5f, kx, sly + 5f, 5f,
                     offsetEnabled ? C_CYAN : 0x335FF3FF, 0);
         }
         if (offsetEnabled) {
@@ -173,7 +173,7 @@ abstract class OverlayScreens extends InfoScreens {
             c.drawCircle(kx, sly, draggingOffset ? 24f : 20f, pFill);
             pFill.setColor(C_CYAN);
             c.drawCircle(kx, sly, 11f, pFill);
-            addHit(B_SLIDER, sliderX1 - 40f, sly - 56f, sliderX2 + 40f, sly + 56f);
+            addHit(B_SLIDER, offsetSliderX1 - 40f, sly - 56f, offsetSliderX2 + 40f, sly + 56f);
         } else {
             pFill.setColor(0x55FFFFFF);
             c.drawCircle(kx, sly, 15f, pFill);
@@ -182,27 +182,46 @@ abstract class OverlayScreens extends InfoScreens {
                 offsetEnabled ? UI_FOG : 0xCC7CF9D0, tfMed, Paint.Align.LEFT, 34f);
         y += ch + 32f;
 
+        y = sectionLabel(c, sLanguage, y);
+        float optionH = 104f;
+        card(c, l, y, r, y + optionH, 0, false);
+        drawSettingsChoice(c, y, B_LANGUAGE_RU, B_LANGUAGE_EN, sRussian, sEnglish,
+                languageTag.equals("ru"));
+        y += optionH + 32f;
+
+        y = sectionLabel(c, sRefreshRate, y);
+        card(c, l, y, r, y + optionH, 0, false);
+        drawSettingsChoice(c, y, B_HZ_60, B_HZ_120, sHz60, sHz120, targetHz == 60);
+        y += optionH + 32f;
+
         y = sectionLabel(c, sSoundSection, y);
         float rowH = 104f;
-        card(c, l, y, r, y + rowH * 3f, 0, false);
+        card(c, l, y, r, y + rowH * 5f, 0, false);
         int[] ids = {B_MUSIC, B_SOUND, B_VIBRATION};
         String[] labels = {sMusic, sSound, sVibration};
         boolean[] on = {musicOn, soundOn, vibOn};
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 5; i++) {
             float rt = y + i * rowH;
             float rcy = rt + rowH / 2f;
             if (i > 0) {
                 pFill.setColor(UI_LINE);
                 c.drawRect(l + 36f, rt - 1f, r - 36f, rt + 1f, pFill);
             }
-            if (pressed(ids[i])) {
-                box(c, l + 4f, rt + 4f, r - 4f, rt + rowH - 4f, 24f, 0x12FFFFFF, 0);
+            if (i < 3) {
+                if (pressed(ids[i])) {
+                    box(c, l + 4f, rt + 4f, r - 4f, rt + rowH - 4f, 24f, 0x12FFFFFF, 0);
+                }
+                textC(c, labels[i], l + 36f, rcy, 29f, UI_INK, tfMed, Paint.Align.LEFT);
+                switchToggle(c, r - 84f, rcy, on[i]);
+                addHit(ids[i], l, rt, r, rt + rowH);
+            } else {
+                int sliderId = i == 3 ? B_MUSIC_VOLUME : B_SOUND_VOLUME;
+                String label = i == 3 ? sMusicVolume : sSoundVolume;
+                float value = i == 3 ? musicVolume : soundVolume;
+                drawVolumeSlider(c, sliderId, label, value, rt, l, r);
             }
-            textC(c, labels[i], l + 36f, rcy, 29f, UI_INK, tfMed, Paint.Align.LEFT);
-            switchToggle(c, r - 84f, rcy, on[i]);
-            addHit(ids[i], l, rt, r, rt + rowH);
         }
-        y += rowH * 3f + 32f;
+        y += rowH * 5f + 32f;
 
         float h = 104f;
         boolean down = pressed(B_TUTORIAL);
@@ -221,6 +240,46 @@ abstract class OverlayScreens extends InfoScreens {
             y += 40f;
         }
         endScroll(c, y);
+    }
+
+    void drawSettingsChoice(Canvas c, float y, int firstId, int secondId,
+                            String first, String second, boolean firstSelected) {
+        float l = UI_PAD + 30f;
+        float r = W - UI_PAD - 30f;
+        float h = 88f;
+        float gap = 12f;
+        float w = (r - l - gap) / 2f;
+        for (int i = 0; i < 2; i++) {
+            float sl = l + i * (w + gap);
+            float sr = sl + w;
+            boolean selected = i == 0 ? firstSelected : !firstSelected;
+            int id = i == 0 ? firstId : secondId;
+            box(c, sl, y + 8f, sr, y + 8f + h, h / 2f,
+                    selected ? 0x305FF3FF : 0x99060914,
+                    selected ? 0xCC5FF3FF : UI_LINE);
+            textC(c, i == 0 ? first : second, (sl + sr) / 2f, y + 8f + h / 2f,
+                    27f, selected ? UI_INK : UI_FOG, tfCond, Paint.Align.CENTER);
+            addHit(id, sl, y + 8f, sr, y + 8f + h);
+        }
+    }
+
+    void drawVolumeSlider(Canvas c, int id, String label, float value,
+                          float rowTop, float l, float r) {
+        textC(c, label, l + 36f, rowTop + 30f, 27f, UI_INK, tfMed, Paint.Align.LEFT);
+        textC(c, ((int) (value * 100f)) + "%", r - 36f, rowTop + 30f,
+                25f, C_CYAN, tfBlack, Paint.Align.RIGHT);
+        volumeSliderX1 = l + 56f;
+        volumeSliderX2 = r - 56f;
+        float sy = rowTop + 70f;
+        box(c, volumeSliderX1, sy - 5f, volumeSliderX2, sy + 5f, 5f, 0x33FFFFFF, 0);
+        float kx = volumeSliderX1 + (volumeSliderX2 - volumeSliderX1) * value;
+        box(c, volumeSliderX1, sy - 5f, kx, sy + 5f, 5f, C_CYAN, 0);
+        drawGlow(c, kx, sy, 90f, C_CYAN, 120);
+        pFill.setColor(0xFFFFFFFF);
+        c.drawCircle(kx, sy, 20f, pFill);
+        pFill.setColor(C_CYAN);
+        c.drawCircle(kx, sy, 11f, pFill);
+        addHit(id, volumeSliderX1 - 40f, sy - 42f, volumeSliderX2 + 40f, sy + 42f);
     }
 
     /**
@@ -242,8 +301,8 @@ abstract class OverlayScreens extends InfoScreens {
         float cx = W / 2f;
         float l = UI_PAD;
         float r = W - UI_PAD;
-        int mc = dailyChallenge ? C_MAGENTA : modeColor(mode);
-        String modeLabel = dailyChallenge ? sDailyChallenge : sModeNames[mode];
+        int mc = modeColor(mode);
+        String modeLabel = sModeNames[mode];
 
         // Фон за счётом: золотые лучи при рекорде, мягкое свечение режима иначе.
         float rcy = top + 330f;
@@ -282,7 +341,7 @@ abstract class OverlayScreens extends InfoScreens {
         textGlow(c, fmt((int) (score * count)), cx, top + 400f, 168f,
                 newRecord ? 0xFFFFF6D8 : 0xFFFFFFFF,
                 newRecord ? 0xE6FFD75E : 0xAA5FF3FF, tfDisplay, 0.2f);
-        int best = dailyChallenge ? progress.challengeBest : progress.bestForMode(mode);
+        int best = progress.bestForMode(mode);
         String under = newRecord
                 ? (runPrevBest > 0 ? String.format(sRecordWas, fmt(runPrevBest),
                 fmt((int) score - runPrevBest)) : sRecordFirst)
@@ -383,9 +442,6 @@ abstract class OverlayScreens extends InfoScreens {
     void drawRunEvent(Canvas c, RunEvent e, float l, float r, float y, float h) {
         int col;
         switch (e.kind) {
-            case RunEvent.QUEST:
-                col = C_MINT;
-                break;
             case RunEvent.ACHIEVEMENT:
                 col = C_GOLD;
                 break;
@@ -399,21 +455,15 @@ abstract class OverlayScreens extends InfoScreens {
         box(c, l, y, r, y + h, 40f, withAlpha(col, 0x16), withAlpha(col, 0x59));
         float ix = l + 30f + 39f;
         float cy = y + h / 2f;
-        if (e.kind == RunEvent.QUEST) {
-            pFill.setColor(col);
-            c.drawCircle(ix, cy, 39f, pFill);
-            iconCheck(c, ix, cy, 18f, 0xFF06231A, 7f);
+        strokeStyle(col, 5f);
+        c.drawCircle(ix, cy, 36f, pStroke);
+        strokeReset();
+        if (e.kind == RunEvent.ACHIEVEMENT) {
+            iconTrophy(c, ix, cy, 15f, col);
+        } else if (e.kind == RunEvent.SKIN) {
+            iconOrb(c, ix + 2f, cy, 14f, mix(col, 0xFFFFFFFF, 0.4f));
         } else {
-            strokeStyle(col, 5f);
-            c.drawCircle(ix, cy, 36f, pStroke);
-            strokeReset();
-            if (e.kind == RunEvent.ACHIEVEMENT) {
-                iconTrophy(c, ix, cy, 15f, col);
-            } else if (e.kind == RunEvent.SKIN) {
-                iconOrb(c, ix + 2f, cy, 14f, mix(col, 0xFFFFFFFF, 0.4f));
-            } else {
-                iconUpgrade(c, ix, cy, 14f, col);
-            }
+            iconUpgrade(c, ix, cy, 14f, col);
         }
         float tx = ix + 39f + 30f;
         float vw = e.value.length() > 0 ? measure(e.value, 33f, tfBlack) + 30f : 0f;
@@ -424,8 +474,7 @@ abstract class OverlayScreens extends InfoScreens {
         }
         textC(c, label, tx, cy, 34f, UI_INK, tfBold, Paint.Align.LEFT);
         if (vw > 0f) {
-            textC(c, e.value, r - 30f, cy, 33f, e.kind == RunEvent.QUEST ? 0xFFFFE9A6
-                    : mix(col, 0xFFFFFFFF, 0.4f), tfBlack, Paint.Align.RIGHT);
+            textC(c, e.value, r - 30f, cy, 33f, mix(col, 0xFFFFFFFF, 0.4f), tfBlack, Paint.Align.RIGHT);
         }
     }
 }

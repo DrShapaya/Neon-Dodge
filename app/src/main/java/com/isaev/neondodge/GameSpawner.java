@@ -87,7 +87,8 @@ abstract class GameSpawner extends GameAudio {
             o.canSplit = true;
             o.splitY = worldH * (0.26f + gameRnd.nextFloat() * 0.18f);
         } else if (o.type == T_MINE) {
-            o.stopY = worldH * (0.28f + gameRnd.nextFloat() * 0.30f);
+            o.mineArmed = false;
+            o.fuse = 0f;
             if (!GameRules.spawnLaneIsSafe(o.x, px, 180f)) {
                 o.x = clamp(o.x + (o.x < W / 2f ? 220f : -220f), minX, maxX);
             }
@@ -328,7 +329,7 @@ abstract class GameSpawner extends GameAudio {
                 break;
 
             case P_MAGNET:
-                magnetTimer = MAGNET_TIME;
+                magnetTimer = magnetDuration();
                 float magnetPoints = 30f * scoreFactor();
                 score += magnetPoints;
                 addScorePop(p.x, p.y - 40f, "+" + fmt((int) magnetPoints), C_MAGENTA);
@@ -339,7 +340,7 @@ abstract class GameSpawner extends GameAudio {
                 break;
 
             case P_SLOW:
-                slowTimer = SLOW_TIME;
+                slowTimer = slowDuration();
                 float slowPoints = 30f * scoreFactor();
                 score += slowPoints;
                 addScorePop(p.x, p.y - 40f, "+" + fmt((int) slowPoints), C_ICE);
@@ -350,15 +351,20 @@ abstract class GameSpawner extends GameAudio {
                 break;
 
             case P_BOMB:
+                bombWaveOriginX = p.x;
+                bombWaveOriginY = p.y;
+                bombWaveTimer = BOMB_WAVE_DURATION;
                 bombX = p.x;
                 bombY = p.y;
-                bombTimer = 0.75f;
+                bombTimer = 0f;
+                bombTarget = null;
+                resolveBomb(p.x, p.y);
                 toast(sBombActive);
+                buzz(28);
                 break;
 
             case P_PHASE:
-                phaseTimer = PHASE_TIME;
-                invuln = Math.max(invuln, PHASE_TIME);
+                phaseTimer = phaseDuration();
                 float phasePoints = 35f * scoreFactor();
                 score += phasePoints;
                 addScorePop(p.x, p.y - 40f, "+" + fmt((int) phasePoints), C_VIOLET);
@@ -368,7 +374,7 @@ abstract class GameSpawner extends GameAudio {
                 break;
 
             case P_DOUBLE:
-                doubleTimer = DOUBLE_TIME;
+                doubleTimer = doubleDuration();
                 float doublePoints = 35f * scoreFactor();
                 score += doublePoints;
                 addScorePop(p.x, p.y - 40f, "+" + fmt((int) doublePoints), C_GOLD);
@@ -384,7 +390,6 @@ abstract class GameSpawner extends GameAudio {
                 addScorePop(p.x, p.y - 40f, "+" + fmt((int) starPoints), C_GOLD);
                 runStars++;
                 progress.stars++;
-                progress.dailyStars++;
                 explode(p.x, p.y, 12, C_GOLD);
                 playSound(sndCoin, 0.95f + rnd.nextFloat() * 0.25f);
                 if (!hintStarShown) {
@@ -397,13 +402,26 @@ abstract class GameSpawner extends GameAudio {
         checkProgress();
     }
 
+    Obs nearestBombTarget(float x, float y) {
+        Obs nearest = null;
+        float nearestD2 = Float.MAX_VALUE;
+        for (int i = 0; i < obstacles.size(); i++) {
+            Obs o = obstacles.get(i);
+            float d2 = dist2(o.x, o.y, x, y);
+            if (d2 < nearestD2) {
+                nearestD2 = d2;
+                nearest = o;
+            }
+        }
+        return nearest;
+    }
+
     void gameOver() {
         setKeepScreenOn(false);
-        runPrevBest = dailyChallenge ? progress.challengeBest : progress.bestForMode(mode);
+        runPrevBest = progress.bestForMode(mode);
         newRecord = (int) score > runPrevBest;
         bankScore();
         progress.saveStats();
-        progress.saveDaily();
         checkProgress();
         collectRunEvents();
 
@@ -416,9 +434,6 @@ abstract class GameSpawner extends GameAudio {
         playSound(sndHit, 0.6f);
     }
 
-    void startGame() {
-        startGame(false);
-    }
 
     /** Битовая маска открытых скинов: сферы в младших битах, шлейфы выше. */
     int skinMask() {
@@ -460,31 +475,18 @@ abstract class GameSpawner extends GameAudio {
     }
 
     static int rankTitleIndex(int rank) {
-        if (rank >= 15) {
-            return 4;
-        }
-        if (rank >= 10) {
-            return 3;
-        }
-        if (rank >= 6) {
-            return 2;
-        }
-        return rank >= 3 ? 1 : 0;
+        return GameRules.titleIndexForRank(rank);
     }
 
     void startDailyChallenge() {
-        progress.ensureDay();
-        if (!progress.canPlayChallenge()) {
-            toast(sDailyUsed);
-            inputLock = 0.15f;
-            return;
-        }
-        // Попытка расходуется сразу: выход в меню не даёт переиграть день.
-        progress.startChallenge();
-        startGame(true);
+        startGame();
     }
 
     void startGame(boolean challenge) {
+        startGame();
+    }
+
+    void startGame() {
         setKeepScreenOn(true);
         // Чередуем два лупа между забегами, чтобы длинная сессия не звучала одинаково.
         musicTrack = (musicTrack + 1) & 1;
@@ -492,20 +494,12 @@ abstract class GameSpawner extends GameAudio {
             releaseMusic();
             initMusic();
         }
-        progress.ensureDay();
-        dailyChallenge = challenge;
-        mode = challenge ? Progress.MODE_CLASSIC : progress.mode;
-        hardcoreMode = !challenge && mode == Progress.MODE_HARDCORE;
-        zenMode = !challenge && mode == Progress.MODE_ZEN;
+        mode = progress.mode;
+        hardcoreMode = mode == Progress.MODE_HARDCORE;
+        zenMode = mode == Progress.MODE_ZEN;
         maxLives = hardcoreMode ? 1 : MAX_LIVES;
-        if (challenge) {
-            long seed = (long) progress.challengeDate * 0x9E3779B97F4A7C15L;
-            gameRnd = new Random(seed);
-            pickupRnd = new Random(seed ^ 0x5DEECE66DL);
-        } else {
-            gameRnd = new Random();
-            pickupRnd = new Random();
-        }
+        gameRnd = new Random();
+        pickupRnd = new Random();
 
         obstacles.clear();
         pickups.clear();
@@ -542,7 +536,7 @@ abstract class GameSpawner extends GameAudio {
         closeMult = 1f;
         runMaxCloseMult = 1f;
         bossMult = 1f;
-        levelMult = 1f;
+        levelMult = 1f + progress.levelMultiplierStep();
         scoreBanked = false;
         shieldCharges = 0;
         magnetTimer = 0f;
@@ -550,6 +544,8 @@ abstract class GameSpawner extends GameAudio {
         phaseTimer = 0f;
         doubleTimer = 0f;
         bombTimer = 0f;
+        spawnPauseTimer = 0f;
+        bombTarget = null;
         bossMask = 0;
         bossZonesCompleted = 0;
         bossZoneTimer = 0f;
@@ -563,7 +559,6 @@ abstract class GameSpawner extends GameAudio {
 
         progress.runs++;
         progress.saveStats();
-        progress.saveDaily();
 
         px = W / 2f;
         targetX = px;
@@ -580,7 +575,6 @@ abstract class GameSpawner extends GameAudio {
 
         state = ST_PLAY;
         playSound(sndPower, 1.35f);
-        updateQuests();
         int fresh = progress.refreshAchievements();
         toastAchievement(fresh);
     }
@@ -592,7 +586,6 @@ abstract class GameSpawner extends GameAudio {
             bankScore();
             progress.saveStats();
         }
-        dailyChallenge = false;
         mode = progress.mode;
         state = ST_MENU;
         resumeTimer = 0f;
@@ -623,7 +616,7 @@ abstract class GameSpawner extends GameAudio {
         closeMult = 1f;
         runMaxCloseMult = 1f;
         bossMult = 1f;
-        levelMult = 1f;
+        levelMult = 1f + progress.levelMultiplierStep();
         announceTimer = 0f;
         shieldCharges = 0;
         magnetTimer = 0f;
@@ -631,6 +624,8 @@ abstract class GameSpawner extends GameAudio {
         phaseTimer = 0f;
         doubleTimer = 0f;
         bombTimer = 0f;
+        spawnPauseTimer = 0f;
+        bombTarget = null;
         bossMask = 0;
         bossZonesCompleted = 0;
         bossZoneTimer = 0f;
@@ -652,24 +647,12 @@ abstract class GameSpawner extends GameAudio {
         }
         scoreBanked = true;
         int finalScore = (int) score;
-        // A run counts toward the daily quest only after meaningful play.
-        if (GameRules.meaningfulRun(elapsed, finalScore)) {
-            progress.dailyRuns++;
-        }
-        if (dailyChallenge) {
-            // Испытание дня — отдельный рекорд; забег идёт по правилам
-            // «Классики» и даёт неон, но не попадает в рекорд Classic.
-            progress.recordChallengeScore(finalScore);
+        progress.recordScore(mode, finalScore);
+        // «Дзен» — тренировка: рекорд обновляется, но неон за очки не даётся.
+        if (!zenMode) {
             progress.addNeon(finalScore);
-        } else {
-            progress.recordScore(mode, finalScore);
-            // «Дзен» — тренировка: рекорд обновляется, но неон за очки не даётся.
-            if (!zenMode) {
-                progress.addNeon(finalScore);
-            }
         }
-        progress.addRun(dailyChallenge ? Progress.RUN_DAILY : mode,
-                finalScore, Math.max(1, (int) elapsed));
+        progress.addRun(mode, finalScore, Math.max(1, (int) elapsed));
     }
 
     void bumpMultiplier() {
@@ -689,7 +672,10 @@ abstract class GameSpawner extends GameAudio {
     }
 
     String fmtMult(float m) {
-        return String.format(java.util.Locale.getDefault(), "%.1f", m);
+        if (Math.abs(m - Math.round(m * 10f) / 10f) < 0.005f) {
+            return String.format(java.util.Locale.getDefault(), "%.1f", m);
+        }
+        return String.format(java.util.Locale.getDefault(), "%.2f", m);
     }
 
     void checkProgress() {
@@ -701,7 +687,6 @@ abstract class GameSpawner extends GameAudio {
         }
         int fresh = progress.refreshAchievements();
         toastAchievement(fresh);
-        updateQuests();
     }
 
     void toastAchievement(int fresh) {
@@ -721,70 +706,18 @@ abstract class GameSpawner extends GameAudio {
         }
     }
 
-    void updateQuests() {
-        boolean changed = false;
-        for (int slot = 0; slot < 3; slot++) {
-            int id = progress.questIds[slot];
-            int value = questValue(id);
-            if (id <= Progress.QUEST_DODGE_RUN) {
-                if (value > progress.questProgress[slot]) {
-                    progress.questProgress[slot] = value;
-                    changed = true;
-                }
-            } else if (value != progress.questProgress[slot]) {
-                progress.questProgress[slot] = value;
-                changed = true;
-            }
-            if (!progress.questDone[slot]
-                    && progress.questProgress[slot] >= Progress.QUEST_TARGETS[id]) {
-                progress.questDone[slot] = true;
-                progress.questsDone++;
-                progress.addNeon(Progress.QUEST_REWARD);
-                toast(sQuestToast);
-                runEvents.add(new RunEvent(RunEvent.QUEST,
-                        String.format(sQuestDoneEvent, sQuestName[id]),
-                        "+" + fmt(Progress.QUEST_REWARD)));
-                changed = true;
-            }
-        }
-        if (changed) {
-            progress.saveDaily();
-            progress.saveStats();
-        }
-    }
-
-    int questValue(int id) {
-        switch (id) {
-            case Progress.QUEST_STARS_RUN:
-                return runStars;
-            case Progress.QUEST_SCORE_RUN:
-                return (int) score;
-            case Progress.QUEST_COMBO_RUN:
-                return runMaxCombo;
-            case Progress.QUEST_DODGE_RUN:
-                return runDodged;
-            case Progress.QUEST_RUNS_DAY:
-                return progress.dailyRuns;
-            case Progress.QUEST_STARS_DAY:
-                return progress.dailyStars;
-            case Progress.QUEST_TIME_DAY:
-                return (int) progress.dailyTime;
-            case Progress.QUEST_HARDCORE_TIME:
-                return hardcoreMode ? (int) elapsed : 0;
-            case Progress.QUEST_CHALLENGE:
-                return dailyChallenge && scoreBanked ? 1 : 0;
-            default:
-                return 0;
-        }
-    }
-
     void toast(String text) {
         toastText = text;
         toastTimer = 2.2f;
     }
 
     void addParticle(float x, float y, float vx, float vy,
-                             float life, float size, int color, float grav) {
+                     float life, float size, int color, float grav) {
+        addParticle(x, y, vx, vy, life, size, color, grav, 0);
+    }
+
+    void addParticle(float x, float y, float vx, float vy,
+                     float life, float size, int color, float grav, int style) {
         if (particles.size() > 420) {
             particles.remove(0);
         }
@@ -798,6 +731,7 @@ abstract class GameSpawner extends GameAudio {
         p.size = size;
         p.color = color;
         p.grav = grav;
+        p.style = style;
         particles.add(p);
     }
 
@@ -854,12 +788,12 @@ abstract class GameSpawner extends GameAudio {
         if (bombTimer <= 0f) {
             return;
         }
-        float frac = 1f - clamp(bombTimer / 0.75f, 0f, 1f);
+        float frac = 1f - clamp(bombTimer / BOMB_DELAY, 0f, 1f);
         pStroke.setStyle(Paint.Style.STROKE);
         pStroke.setStrokeWidth(5f);
         pStroke.setColor(C_ORANGE);
         pStroke.setAlpha(220);
-        c.drawCircle(bombX, bombY, 520f * (0.35f + 0.65f * frac), pStroke);
+        c.drawCircle(bombX, bombY, BOMB_RADIUS * (0.35f + 0.65f * frac), pStroke);
         pStroke.setColor(0xFFFFE4B0);
         pStroke.setAlpha(170);
         tmpRect.set(bombX - 42f, bombY - 42f, bombX + 42f, bombY + 42f);
@@ -868,27 +802,40 @@ abstract class GameSpawner extends GameAudio {
     }
 
     void resolveBomb() {
+        resolveBomb(bombX, bombY);
+    }
+
+    void resolveBomb(float bx, float by) {
+        bombX = bx;
+        bombY = by;
         int cleared = 0;
         for (int i = obstacles.size() - 1; i >= 0; i--) {
             Obs o = obstacles.get(i);
-            if (dist2(o.x, o.y, bombX, bombY) < 520f * 520f) {
-                if (o.boss) {
-                    // Бомба очищает обычные цели, а босса только оглушает.
-                    o.bounceFlash = 1f;
-                    o.bossShotTimer += 0.8f;
-                    toast(sBossZone + " · BOSS");
-                    continue;
-                }
-                explode(o.x, o.y, 10, o.color);
-                obstacles.remove(i);
-                cleared++;
+            if (o.boss) {
+                // Бомба оглушает босса и сбивает его выстрелы, но не уничтожает босса мгновенно
+                o.bounceFlash = 1f;
+                o.bossShotTimer = Math.max(o.bossShotTimer, 2.0f);
+                continue;
             }
+            explode(o.x, o.y, 12, o.color);
+            cleared++;
+            obstacles.remove(i);
         }
         bossBullets.clear();
-        explode(bombX, bombY, 34, C_ORANGE);
-        float points = (120f + cleared * 80f) * scoreFactor();
+        bombTarget = null;
+        spawnPauseTimer = 1.1f;
+        flash = 0.40f;
+        shake = 0.55f;
+        explode(bx, by, 40, C_ORANGE);
+        for (int k = 0; k < 12; k++) {
+            float ang = k * 30f;
+            float spd = 260f + gameRnd.nextFloat() * 320f;
+            addParticle(bx, by, (float) Math.cos(Math.toRadians(ang)) * spd,
+                    (float) Math.sin(Math.toRadians(ang)) * spd, 0.50f, 9f, C_ORANGE, 0f, 2);
+        }
+        float points = (150f + cleared * 90f) * scoreFactor();
         score += points;
-        addScorePop(bombX, bombY - 40f, "+" + fmt((int) points), C_ORANGE);
+        addScorePop(bx, by - 40f, "+" + fmt((int) points), C_ORANGE);
         playSound(sndHit, 0.7f);
     }
 }

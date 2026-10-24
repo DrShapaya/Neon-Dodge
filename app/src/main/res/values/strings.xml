@@ -17,6 +17,14 @@
     <string name="sound">Sounds</string>
     <string name="vibration">Vibration</string>
     <string name="music">Music</string>
+    <string name="language">Language</string>
+    <string name="russian">Russian</string>
+    <string name="english">English</string>
+    <string name="refresh_rate">Frame rate</string>
+    <string name="hz_60">60 Hz</string>
+    <string name="hz_120">120 Hz</string>
+    <string name="music_volume">Music volume</string>
+    <string name="sound_volume">Sound volume</string>
     <string name="settings">Settings</string>
     <string name="control_mode">Controls</string>
     <string name="control_above">Above finger</string>
@@ -42,10 +50,10 @@
     <string name="rule_6">Pause is the button in the top-right corner.</string>
     <string name="rule_7">After 90 seconds asteroids gradually speed up and spawn more often.</string>
     <string name="rules_multiplier">Score multiplier</string>
-    <string name="rules_multiplier_desc">The Workshop has four upgrade branches, each up to level 20: stars, close fly-bys, bosses and a permanent level multiplier. Close fly-bys build a separate multiplier, the boss grants its upgraded multiplier after four zones, and a shield preserves run multipliers after a hit.</string>
+    <string name="rules_multiplier_desc">The Workshop features two tabs: "Multipliers" (star impulse, neon manoeuvre, titan hunt, permanent multiplier) and "Power-ups" (power-up duration and boost multiplier x2/x3). A shield preserves run multipliers after a hit.</string>
     <string name="rules_progress">Progress</string>
-    <string name="rule_progress_1">Neon is the sum of Classic/Hardcore/Daily Challenge run scores plus 300 per completed quest. Zen is training and gives no neon for score.</string>
-    <string name="rule_progress_2">Every day the game offers three new quests out of seven. The Daily Challenge gives one attempt, a fixed seed and a separate record.</string>
+    <string name="rule_progress_1">Neon is earned from run scores in Classic and Hardcore modes (1 point = 1 neon). Zen is training mode without neon earnings.</string>
+    <string name="rule_progress_2">Your rank increases as you accumulate total earned neon.</string>
     <string name="rule_progress_3">Sphere and trail skins unlock through records, combos and dodges.</string>
     <string name="rules_scroll_hint">Drag to scroll</string>
     <string name="legend_asteroids">Asteroids</string>
@@ -54,15 +62,11 @@
     <string name="achievements">Achievements</string>
     <string name="history_title">Run history</string>
     <string name="history_empty">Your last 10 runs will show up here.</string>
-    <string name="quests_title">Quests</string>
     <string name="skins_title">Skins</string>
     <string name="back">Back</string>
     <string name="neon_points">Neon</string>
     <string name="skin_selected">Selected</string>
     <string name="skin_select">Select</string>
-    <string name="quest_done">Complete</string>
-    <string name="all_quests_done">All quests complete, new ones arrive tomorrow</string>
-    <string name="quest_reward">+%1$d neon</string>
     <string name="achievement_unlocked">Achievement</string>
     <string name="skins_sphere">Sphere</string>
     <string name="skins_trail">Trail</string>
@@ -72,13 +76,8 @@
     <string name="mode_hardcore">Hardcore</string>
     <string name="mode_zen">Zen</string>
     <string name="mode_classic_hint">Three lives, rising difficulty</string>
-    <string name="mode_hardcore_hint">One life, no hearts, x5 multiplier</string>
+    <string name="mode_hardcore_hint">One life, no hearts, x2 multiplier</string>
     <string name="mode_zen_hint">No game over, no neon for score</string>
-    <string name="daily_challenge">Daily challenge</string>
-    <string name="daily_short">Daily</string>
-    <string name="daily_hint">One attempt, the same for everyone</string>
-    <string name="daily_done">Played today</string>
-    <string name="daily_used">Today\'s attempt is already used</string>
 
     <string name="ast_green">Green</string>
     <string name="ast_blue">Blue</string>
@@ -95,7 +94,7 @@
     <string name="ast_orange_desc">Moves in bursts</string>
     <string name="ast_red_desc">Bigger than the rest</string>
     <string name="ast_split_desc">Splits into two fragments</string>
-    <string name="ast_mine_desc">Stops, blinks, then dashes down</string>
+    <string name="ast_mine_desc">Detonates in a radius with delay when close</string>
     <string name="ast_gravity_desc">Pulls the sphere when close</string>
     <string name="ast_armor_desc">Not destroyed by a shield</string>
 
@@ -107,16 +106,17 @@
     <string name="bonus_bomb">Bomb</string>
     <string name="bonus_phase">Phase</string>
     <string name="bonus_double">Double score</string>
-    <string name="bonus_star_desc">+50 points and +0.2 multiplier</string>
+    <string name="bonus_star_desc">+50 points and +0.1 multiplier</string>
     <string name="bonus_heart_desc">+1 life while below three</string>
     <string name="bonus_shield_desc">Absorbs one hit</string>
-    <string name="bonus_magnet_desc">Pulls stars for 8 seconds</string>
+    <string name="bonus_magnet_desc">Slowly pulls all items on screen</string>
     <string name="bonus_slow_desc">Slows the world for 6 seconds</string>
-    <string name="bonus_bomb_desc">Clears nearby asteroids</string>
+    <string name="bonus_bomb_desc">Full-screen shockwave destroys all enemies</string>
     <string name="bonus_phase_desc">Pass through asteroids for 6 seconds</string>
     <string name="bonus_double_desc">Doubles score for 8 seconds</string>
     <string name="bonus_shield_active">Shield active</string>
     <string name="bonus_shield_blocked">Shield absorbed the hit</string>
+    <string name="armor_cracked">ARMOR CRACKED!</string>
     <string name="hint_star">Star: points and multiplier growth</string>
     <string name="hint_shield">Shield absorbs the next collision</string>
     <string name="hint_combo">Near miss: keep the distance for a combo</string>
@@ -127,8 +127,8 @@
     <string name="bonus_double_active">Double score active</string>
     <string name="boss_multiplier">Boss</string>
     <string name="boss_zone">Zone</string>
-    <string name="boss_reward">Boss defeated · third multiplier x2</string>
-    <string name="hardcore_multiplier">HARDCORE x5</string>
+    <string name="boss_reward">Boss defeated · boss multiplier upgraded</string>
+    <string name="hardcore_multiplier">HARDCORE x2</string>
     <string name="workshop_title">Workshop</string>
     <string name="workshop_level">Level</string>
     <string name="workshop_next">Next level</string>
@@ -141,14 +141,21 @@
     <string name="workshop_ready">Upgrade ready</string>
     <string name="workshop_need">%1$s more neon needed</string>
     <string name="workshop_cost">Cost</string>
-    <string name="workshop_stars">Stars</string>
-    <string name="workshop_close">Close fly-bys</string>
-    <string name="workshop_boss">Bosses</string>
-    <string name="workshop_level_mult">Level multiplier</string>
+    <string name="workshop_stars">Star impulse</string>
+    <string name="workshop_close">Neon manoeuvre</string>
+    <string name="workshop_boss">Titan hunt</string>
+    <string name="workshop_level_mult">Permanent multiplier</string>
     <string name="workshop_close_step">+%1$s per close fly-by</string>
     <string name="workshop_boss_value">x%1$s after a boss</string>
-    <string name="workshop_level_step">+%1$s at each level</string>
+    <string name="workshop_level_step">+%1$s to permanent multiplier</string>
+    <string name="workshop_locked">Unlocks after level 5 of the previous branch</string>
     <string name="workshop_progress">Total upgrades: %1$d of %2$d</string>
+    <string name="workshop_tab_multipliers">Multipliers</string>
+    <string name="workshop_tab_bonuses">Power-ups</string>
+    <string name="workshop_bonus_duration">Power-up duration</string>
+    <string name="workshop_bonus_duration_step">+%1$d%% active duration</string>
+    <string name="workshop_temp_multiplier">Boost multiplier</string>
+    <string name="workshop_temp_multiplier_step">x%1$d during boost</string>
 
     <string name="stat_dodged">Dodged</string>
     <string name="stat_combo">Best combo</string>
@@ -169,17 +176,7 @@
     <string name="ach_survive_120">Survive 2 minutes</string>
     <string name="ach_score_10000">Score 10,000</string>
     <string name="ach_combo_50">Combo x50</string>
-    <string name="ach_challenge">Challenge complete</string>
-
-    <string name="quest_stars_run">Collect 10 stars in one run</string>
-    <string name="quest_score_run">Score 1500 in one run</string>
-    <string name="quest_combo_run">Reach combo x8 in one run</string>
-    <string name="quest_dodge_run">Dodge 80 asteroids in one run</string>
-    <string name="quest_runs_day">Play 3 runs today</string>
-    <string name="quest_stars_day">Collect 30 stars today</string>
-    <string name="quest_time_day">Play for 5 minutes today</string>
-    <string name="quest_hardcore_time">Survive 60 seconds in Hardcore</string>
-    <string name="quest_challenge">Complete the daily challenge</string>
+    <string name="ach_boss_defeated">Titan Slayer</string>
 
     <string name="skin_cyan">Cyan</string>
     <string name="skin_magenta">Magenta</string>
@@ -204,14 +201,10 @@
     <string name="unlock_dodged">Unlocks at %1$s dodged</string>
     <string name="unlock_time">Unlocks at %1$s play time</string>
     <string name="unlock_stars">Unlocks at %1$s stars</string>
-    <string name="unlock_quests">Unlocks at %1$s quests</string>
 
     <string name="records">Records</string>
     <string name="totals">All time</string>
     <string name="history_cta">Start a run</string>
-    <string name="quests_summary">%1$d of 3 complete</string>
-    <string name="quests_refresh">New quests arrive every day</string>
-    <string name="quest_toast">Quest complete: +%1$d neon</string>
     <string name="exit_confirm">Tap again to end this run</string>
     <string name="replay_tutorial">Show the hint again</string>
     <string name="tutorial_reset">The hint will appear in your next run</string>
@@ -220,13 +213,29 @@
     <string name="rank_label">Rank %1$d</string>
     <string name="rank_title_1">Cadet</string>
     <string name="rank_title_2">Pilot</string>
-    <string name="rank_title_3">Ace</string>
-    <string name="rank_title_4">Veteran</string>
-    <string name="rank_title_5">Legend</string>
+    <string name="rank_title_3">Neon Scout</string>
+    <string name="rank_title_4">Maneuver Ace</string>
+    <string name="rank_title_5">Orbit Veteran</string>
+    <string name="rank_title_6">Speed Guardian</string>
+    <string name="rank_title_7">Gravity Master</string>
+    <string name="rank_title_8">Star Titan</string>
+    <string name="rank_title_9">Void Phantom</string>
+    <string name="rank_title_10">Sphere Overlord</string>
+    <string name="rank_title_11">Absolute Legend</string>
+    <string name="profile_title">Rank Profile</string>
+    <string name="profile_max_rank">Maximum Rank</string>
+    <string name="profile_next_rank">To Rank %1$d: %2$s neon needed</string>
+    <string name="profile_total_neon">Total neon earned</string>
+    <string name="profile_ladder">Title Ladder</string>
+    <string name="profile_current">Current Title</string>
+    <string name="profile_lvl_range">Rank %1$d–%2$d</string>
+    <string name="profile_lvl_single">Rank %1$d</string>
+    <string name="rules_tab_basics">Basics</string>
+    <string name="rules_tab_asteroids">Asteroids</string>
+    <string name="rules_tab_bonuses">Power-ups</string>
     <string name="rank_to_next">%2$s neon to rank %1$d</string>
     <string name="rank_up">Rank %1$d → %2$d</string>
     <string name="rank_reached">New rank: %1$d</string>
-    <string name="daily_resets">resets in %1$s</string>
     <string name="play_record">%1$s · best %2$s</string>
     <string name="play_no_record">%1$s · no record yet</string>
     <string name="mode_no_record">no record</string>
@@ -235,7 +244,6 @@
     <string name="record_first">first record in this mode</string>
     <string name="new_record_mode">New record · %1$s</string>
     <string name="skin_unlocked">Skin unlocked: %1$s</string>
-    <string name="quest_done_event">Quest: %1$s</string>
     <string name="seconds_short">%1$ds</string>
     <string name="stat_max_mult">max multiplier</string>
 </resources>

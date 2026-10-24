@@ -22,7 +22,7 @@ abstract class HudLayer extends UiKit {
         updateShownScore();
         textGlow(c, shownScoreText, W / 2f, top + 112f, 96f,
                 0xFFF2FEFF, 0x805FF3FF, tfDisplay, 0.15f);
-        int best = dailyChallenge ? progress.challengeBest : progress.bestForMode(mode);
+        int best = progress.bestForMode(mode);
         float barW = 330f;
         float barY = top + 146f;
         box(c, W / 2f - barW / 2f, barY - 5f, W / 2f + barW / 2f, barY + 5f, 5f, 0x1AFFFFFF, 0);
@@ -38,14 +38,12 @@ abstract class HudLayer extends UiKit {
             c.drawRoundRect(tmpRect, 5f, 5f, pShade);
             pShade.setShader(null);
         }
-        if (best != hudBestValue || dailyChallenge != hudBestDaily) {
+        if (best != hudBestValue) {
             hudBestValue = best;
-            hudBestDaily = dailyChallenge;
-            hudBestText = (dailyChallenge ? sDailyChallenge + " · " : "")
-                    + sBest + " " + fmt(best);
+            hudBestText = sBest + " " + fmt(best);
         }
         text(c, hudBestText, W / 2f, top + 190f, 27f,
-                dailyChallenge ? 0xDDFF9FE9 : 0xFF93A9C2, tfBold, Paint.Align.CENTER);
+                0xFF93A9C2, tfBold, Paint.Align.CENTER);
 
         // Множители: звёзды, близкие пролёты и постоянный множитель уровня.
         int tenths = Math.round(scoreMult * 10f);
@@ -63,12 +61,17 @@ abstract class HudLayer extends UiKit {
         float mw = chipWidth(hudMultText);
         float cw = chipWidth(hudCloseText);
         float lw = chipWidth(levelText);
+        float hw = hardcoreMode ? chipWidth("x2") : 0f;
         float gap = 18f;
-        float ml = W / 2f - (mw + gap + cw + gap + lw) / 2f;
+        float total = mw + gap + cw + gap + lw + (hardcoreMode ? gap + hw : 0f);
+        float ml = W / 2f - total / 2f;
         hudChip(c, ml, my, mw, hudMultText, tenths > 10 ? C_GOLD : 0, 0);
         hudChip(c, ml + mw + gap, my, cw, hudCloseText, closeTenths > 10 ? C_MAGENTA : 0, 1);
         hudChip(c, ml + mw + gap + cw + gap, my, lw, levelText,
                 levelMult > 1.01f ? C_CYAN : 0, 2);
+        if (hardcoreMode) {
+            hudChip(c, ml + mw + gap + cw + gap + lw + gap, my, hw, "x2", C_RED, 3);
+        }
 
         float under = my + 74f;
         if (bossMult > 1.01f) {
@@ -114,31 +117,48 @@ abstract class HudLayer extends UiKit {
                 }
             }
         }
-        if (hardcoreMode) {
-            float hw = measure(sHardcoreMultiplier, 24f, tfBlack) + 40f;
-            box(c, W - UI_PAD - hw, top + 142f, W - UI_PAD, top + 190f, 24f,
-                    0x22FF4F6A, 0x88FF4F6A);
-            textC(c, sHardcoreMultiplier, W - UI_PAD - hw / 2f, top + 166f, 24f,
-                    C_RED, tfBlack, Paint.Align.CENTER);
-        }
-
-        // Активные бонусы: чипы с кольцом-таймером и названием.
+        // Активные бонусы: чипы с кольцом-таймером и названием (с переносом на новую строку при нехватке места).
         float ex = UI_PAD;
         float ey = under + (combo >= 2 ? 120f : 40f);
         if (shieldCharges > 0) {
+            float w = hudEffectWidth(P_SHIELD, 0f);
+            if (ex + w > W - UI_PAD) {
+                ex = UI_PAD;
+                ey += 100f;
+            }
             ex = hudEffect(c, P_SHIELD, ex, ey, 1f, 0f);
         }
         if (magnetTimer > 0f) {
-            ex = hudEffect(c, P_MAGNET, ex, ey, magnetTimer / MAGNET_TIME, magnetTimer);
+            float w = hudEffectWidth(P_MAGNET, magnetTimer);
+            if (ex + w > W - UI_PAD) {
+                ex = UI_PAD;
+                ey += 100f;
+            }
+            ex = hudEffect(c, P_MAGNET, ex, ey, magnetTimer / magnetDuration(), magnetTimer);
         }
         if (slowTimer > 0f) {
-            ex = hudEffect(c, P_SLOW, ex, ey, slowTimer / SLOW_TIME, slowTimer);
+            float w = hudEffectWidth(P_SLOW, slowTimer);
+            if (ex + w > W - UI_PAD) {
+                ex = UI_PAD;
+                ey += 100f;
+            }
+            ex = hudEffect(c, P_SLOW, ex, ey, slowTimer / slowDuration(), slowTimer);
         }
         if (phaseTimer > 0f) {
-            ex = hudEffect(c, P_PHASE, ex, ey, phaseTimer / PHASE_TIME, phaseTimer);
+            float w = hudEffectWidth(P_PHASE, phaseTimer);
+            if (ex + w > W - UI_PAD) {
+                ex = UI_PAD;
+                ey += 100f;
+            }
+            ex = hudEffect(c, P_PHASE, ex, ey, phaseTimer / phaseDuration(), phaseTimer);
         }
         if (doubleTimer > 0f) {
-            hudEffect(c, P_DOUBLE, ex, ey, doubleTimer / DOUBLE_TIME, doubleTimer);
+            float w = hudEffectWidth(P_DOUBLE, doubleTimer);
+            if (ex + w > W - UI_PAD) {
+                ex = UI_PAD;
+                ey += 100f;
+            }
+            hudEffect(c, P_DOUBLE, ex, ey, doubleTimer / doubleDuration(), doubleTimer);
         }
 
         float bx = pauseBtnX();
@@ -179,21 +199,42 @@ abstract class HudLayer extends UiKit {
             iconSpark(c, ix, cy, 13f, ic);
         } else if (icon == 1) {
             iconNearMiss(c, ix, cy, 13f, ic);
-        } else {
+        } else if (icon == 2) {
             iconUpgrade(c, ix, cy, 11f, ic);
+        } else {
+            iconSkull(c, ix, cy, 13f, ic);
         }
         textC(c, value, ix + 27f + 14f, cy, 32f, on ? mix(lit, 0xFFFFFFFF, 0.3f) : 0xFFA9C4D6,
                 tfBlack, Paint.Align.LEFT);
     }
 
+    float hudEffectWidth(int kind, float secs) {
+        String bonusName = kind == P_DOUBLE
+                ? "x" + (int) progress.temporaryMultiplier()
+                : sBonusName[kind];
+        String label = secs > 0f
+                ? bonusName + " " + String.format(sSecondsShort, (int) Math.ceil(secs))
+                : bonusName;
+        return 92f + 12f + measure(label, 28f, tfBold) + 28f;
+    }
+
     /** Чип бонуса: кольцо — оставшееся время, рядом название и секунды; возвращает правый край. */
     float hudEffect(Canvas c, int kind, float l, float cy, float frac, float secs) {
         int col = bonusColor(kind);
-        String label = secs > 0f
-                ? sBonusName[kind] + " " + String.format(sSecondsShort, (int) Math.ceil(secs))
+        String bonusName = kind == P_DOUBLE
+                ? "x" + (int) progress.temporaryMultiplier()
                 : sBonusName[kind];
+        String label = secs > 0f
+                ? bonusName + " " + String.format(sSecondsShort, (int) Math.ceil(secs))
+                : bonusName;
         float w = 92f + 12f + measure(label, 28f, tfBold) + 28f;
         box(c, l, cy - 46f, l + w, cy + 46f, 46f, 0xCC101634, withAlpha(col, 0x73));
+        if (kind == P_DOUBLE) {
+            strokeStyle(C_GOLD, 4f);
+            tmpRect.set(l + 8f, cy - 54f, l + w - 8f, cy + 54f);
+            c.drawRoundRect(tmpRect, 54f, 54f, pStroke);
+            strokeReset();
+        }
         float ix = l + 46f;
         strokeStyle(0x22FFFFFF, 6f);
         c.drawCircle(ix, cy, 34f, pStroke);

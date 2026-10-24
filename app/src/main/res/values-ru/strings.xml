@@ -17,6 +17,14 @@
     <string name="sound">Звуки</string>
     <string name="vibration">Вибрация</string>
     <string name="music">Музыка</string>
+    <string name="language">Язык</string>
+    <string name="russian">Русский</string>
+    <string name="english">Английский</string>
+    <string name="refresh_rate">Частота кадров</string>
+    <string name="hz_60">60 Гц</string>
+    <string name="hz_120">120 Гц</string>
+    <string name="music_volume">Громкость музыки</string>
+    <string name="sound_volume">Громкость звуков</string>
     <string name="settings">Настройки</string>
     <string name="control_mode">Управление</string>
     <string name="control_above">Над пальцем</string>
@@ -42,10 +50,10 @@
     <string name="rule_6">Пауза — кнопка в правом верхнем углу.</string>
     <string name="rule_7">После 90 секунд астероиды постепенно ускоряются, а интервал между ними сокращается.</string>
     <string name="rules_multiplier">Множитель очков</string>
-    <string name="rules_multiplier_desc">В «Мастерской» четыре ветки до 20 уровня: звёзды, близкие пролёты, боссы и постоянный множитель уровня. Пролёты накапливают отдельный множитель, после четырёх зон босс даёт улучшенный множитель, а щит сохраняет множители забега после удара.</string>
+    <string name="rules_multiplier_desc">В «Мастерской» есть две вкладки: «Множители» (звёздный импульс, неоновый манёвр, охота на титанов, постоянный множитель) и «Усиления» (длительность усилений и множитель x2/x3). Щит сохраняет множители забега после удара.</string>
     <string name="rules_progress">Прогресс</string>
-    <string name="rule_progress_1">Неон — сумма очков Classic/Hardcore/испытания дня и награда +300 за задание. «Дзен» — тренировка без неона за очки.</string>
-    <string name="rule_progress_2">Каждый день игра предлагает три новых задания из семи. Испытание дня — одна попытка, фиксированный seed и отдельный рекорд.</string>
+    <string name="rule_progress_1">Неон начисляется за набранные очки в режимах «Классика» и «Хардкор» (1 очко = 1 неон). «Дзен» — тренировочный режим без начисления неона.</string>
+    <string name="rule_progress_2">Ранг повышается по мере накопления общего количества заработанного неона.</string>
     <string name="rule_progress_3">Скины сферы и шлейфа открываются за рекорды, комбо и пролёты.</string>
     <string name="rules_scroll_hint">Проведи пальцем, чтобы прокрутить</string>
     <string name="legend_asteroids">Астероиды</string>
@@ -54,15 +62,11 @@
     <string name="achievements">Достижения</string>
     <string name="history_title">История забегов</string>
     <string name="history_empty">Здесь появятся ваши последние 10 забегов.</string>
-    <string name="quests_title">Задания</string>
     <string name="skins_title">Скины</string>
     <string name="back">Назад</string>
     <string name="neon_points">Неон</string>
     <string name="skin_selected">Выбрано</string>
     <string name="skin_select">Выбрать</string>
-    <string name="quest_done">Выполнено</string>
-    <string name="all_quests_done">Все задания выполнены, новые появятся завтра</string>
-    <string name="quest_reward">+%1$d неона</string>
     <string name="achievement_unlocked">Достижение</string>
     <string name="skins_sphere">Сфера</string>
     <string name="skins_trail">Шлейф</string>
@@ -72,13 +76,8 @@
     <string name="mode_hardcore">Хардкор</string>
     <string name="mode_zen">Дзен</string>
     <string name="mode_classic_hint">Три жизни, сложность растёт</string>
-    <string name="mode_hardcore_hint">Одна жизнь, без сердец, множитель x5</string>
+    <string name="mode_hardcore_hint">Одна жизнь, без сердец, множитель x2</string>
     <string name="mode_zen_hint">Без проигрыша и без неона за очки</string>
-    <string name="daily_challenge">Испытание дня</string>
-    <string name="daily_short">День</string>
-    <string name="daily_hint">Одна попытка, одинаковая у всех</string>
-    <string name="daily_done">Сегодня пройдено</string>
-    <string name="daily_used">Попытка на сегодня уже использована</string>
 
     <string name="ast_green">Зелёный</string>
     <string name="ast_blue">Синий</string>
@@ -95,7 +94,7 @@
     <string name="ast_orange_desc">Двигается рывками</string>
     <string name="ast_red_desc">Крупнее остальных</string>
     <string name="ast_split_desc">Распадается на два осколка</string>
-    <string name="ast_mine_desc">Замирает, мигает и резко падает</string>
+    <string name="ast_mine_desc">Взрывается в радиусе с задержкой при подлёте</string>
     <string name="ast_gravity_desc">Притягивает сферу вблизи</string>
     <string name="ast_armor_desc">Не разрушается щитом</string>
 
@@ -107,16 +106,17 @@
     <string name="bonus_bomb">Бомба</string>
     <string name="bonus_phase">Фаза</string>
     <string name="bonus_double">Очки x2</string>
-    <string name="bonus_star_desc">+50 очков и +0,2 к множителю</string>
+    <string name="bonus_star_desc">+50 очков и +0,1 к множителю</string>
     <string name="bonus_heart_desc">+1 жизнь, если их меньше трёх</string>
     <string name="bonus_shield_desc">Поглощает одно попадание</string>
-    <string name="bonus_magnet_desc">Притягивает звёзды 8 секунд</string>
+    <string name="bonus_magnet_desc">Медленно притягивает всё на экране</string>
     <string name="bonus_slow_desc">Замедляет мир на 6 секунд</string>
-    <string name="bonus_bomb_desc">Уничтожает ближайшие астероиды</string>
+    <string name="bonus_bomb_desc">Взрывная волна на весь экран уничтожает всех врагов</string>
     <string name="bonus_phase_desc">Позволяет проходить сквозь астероиды 6 секунд</string>
     <string name="bonus_double_desc">Удваивает очки на 8 секунд</string>
     <string name="bonus_shield_active">Щит активен</string>
     <string name="bonus_shield_blocked">Щит поглотил удар</string>
+    <string name="armor_cracked">БРОНЯ РАЗБИТА!</string>
     <string name="hint_star">Звезда: +очки и рост множителя</string>
     <string name="hint_shield">Щит поглощает следующее столкновение</string>
     <string name="hint_combo">Близкий пролёт: держи дистанцию для комбо</string>
@@ -127,8 +127,8 @@
     <string name="bonus_double_active">Очки x2 активны</string>
     <string name="boss_multiplier">Босс</string>
     <string name="boss_zone">Зона</string>
-    <string name="boss_reward">Босс побеждён · третий множитель x2</string>
-    <string name="hardcore_multiplier">ХАРДКОР x5</string>
+    <string name="boss_reward">Босс побеждён · множитель босса усилен</string>
+    <string name="hardcore_multiplier">ХАРДКОР x2</string>
     <string name="workshop_title">Мастерская</string>
     <string name="workshop_level">Уровень</string>
     <string name="workshop_next">Следующий уровень</string>
@@ -141,14 +141,21 @@
     <string name="workshop_ready">Можно улучшить</string>
     <string name="workshop_need">Ещё %1$s неона</string>
     <string name="workshop_cost">Стоимость</string>
-    <string name="workshop_stars">Звёзды</string>
-    <string name="workshop_close">Близкие пролёты</string>
-    <string name="workshop_boss">Боссы</string>
-    <string name="workshop_level_mult">Множитель уровня</string>
+    <string name="workshop_stars">Звёздный импульс</string>
+    <string name="workshop_close">Неоновый манёвр</string>
+    <string name="workshop_boss">Охота на титанов</string>
+    <string name="workshop_level_mult">Постоянный множитель</string>
     <string name="workshop_close_step">+%1$s за близкий пролёт</string>
     <string name="workshop_boss_value">x%1$s после босса</string>
-    <string name="workshop_level_step">+%1$s на каждом уровне</string>
+    <string name="workshop_level_step">+%1$s к постоянному множителю</string>
+    <string name="workshop_locked">Откроется после 5 уровня предыдущей ветки</string>
     <string name="workshop_progress">Всего улучшений: %1$d из %2$d</string>
+    <string name="workshop_tab_multipliers">Множители</string>
+    <string name="workshop_tab_bonuses">Усиления</string>
+    <string name="workshop_bonus_duration">Длительность усилений</string>
+    <string name="workshop_bonus_duration_step">+%1$d%% ко времени действия</string>
+    <string name="workshop_temp_multiplier">Множитель усиления</string>
+    <string name="workshop_temp_multiplier_step">x%1$d во время усиления</string>
 
     <string name="stat_dodged">Пролёты</string>
     <string name="stat_combo">Макс. комбо</string>
@@ -169,17 +176,7 @@
     <string name="ach_survive_120">Выжить 2 минуты</string>
     <string name="ach_score_10000">Счёт 10 000</string>
     <string name="ach_combo_50">Комбо x50</string>
-    <string name="ach_challenge">Испытание пройдено</string>
-
-    <string name="quest_stars_run">Собери 10 звёзд за один забег</string>
-    <string name="quest_score_run">Набери 1500 очков за один забег</string>
-    <string name="quest_combo_run">Держи комбо x8 за один забег</string>
-    <string name="quest_dodge_run">Пропусти 80 астероидов за забег</string>
-    <string name="quest_runs_day">Сыграй 3 забега за день</string>
-    <string name="quest_stars_day">Собери 30 звёзд за день</string>
-    <string name="quest_time_day">Проведи в игре 5 минут за день</string>
-    <string name="quest_hardcore_time">Выживи 60 секунд в Хардкоре</string>
-    <string name="quest_challenge">Пройди испытание дня</string>
+    <string name="ach_boss_defeated">Гроза титанов</string>
 
     <string name="skin_cyan">Циан</string>
     <string name="skin_magenta">Магента</string>
@@ -204,14 +201,10 @@
     <string name="unlock_dodged">Откроется за %1$s пролётов</string>
     <string name="unlock_time">Откроется за %1$s игры</string>
     <string name="unlock_stars">Откроется за %1$s звёзд</string>
-    <string name="unlock_quests">Откроется за %1$s заданий</string>
 
     <string name="records">Рекорды</string>
     <string name="totals">За всё время</string>
     <string name="history_cta">Начать забег</string>
-    <string name="quests_summary">Выполнено %1$d из 3</string>
-    <string name="quests_refresh">Новые задания появляются каждый день</string>
-    <string name="quest_toast">Задание выполнено: +%1$d неона</string>
     <string name="exit_confirm">Нажми ещё раз — забег завершится</string>
     <string name="replay_tutorial">Показать подсказку снова</string>
     <string name="tutorial_reset">Подсказка появится в следующем забеге</string>
@@ -220,13 +213,29 @@
     <string name="rank_label">Ранг %1$d</string>
     <string name="rank_title_1">Кадет</string>
     <string name="rank_title_2">Пилот</string>
-    <string name="rank_title_3">Ас</string>
-    <string name="rank_title_4">Ветеран</string>
-    <string name="rank_title_5">Легенда</string>
+    <string name="rank_title_3">Скаут Неона</string>
+    <string name="rank_title_4">Ас Манёвра</string>
+    <string name="rank_title_5">Ветеран Орбиты</string>
+    <string name="rank_title_6">Страж Скорости</string>
+    <string name="rank_title_7">Мастер Гравитации</string>
+    <string name="rank_title_8">Звёздный Титан</string>
+    <string name="rank_title_9">Фантом Пустоты</string>
+    <string name="rank_title_10">Повелитель Сферы</string>
+    <string name="rank_title_11">Абсолютная Легенда</string>
+    <string name="profile_title">Профиль ранга</string>
+    <string name="profile_max_rank">Максимальный ранг</string>
+    <string name="profile_next_rank">До ранга %1$d: ещё %2$s неона</string>
+    <string name="profile_total_neon">Всего заработано неона</string>
+    <string name="profile_ladder">Лестница званий</string>
+    <string name="profile_current">Текущее звание</string>
+    <string name="profile_lvl_range">Ранг %1$d–%2$d</string>
+    <string name="profile_lvl_single">Ранг %1$d</string>
+    <string name="rules_tab_basics">Основы</string>
+    <string name="rules_tab_asteroids">Астероиды</string>
+    <string name="rules_tab_bonuses">Усиления</string>
     <string name="rank_to_next">До ранга %1$d — %2$s неона</string>
     <string name="rank_up">Ранг %1$d → %2$d</string>
     <string name="rank_reached">Новый ранг: %1$d</string>
-    <string name="daily_resets">сменится через %1$s</string>
     <string name="play_record">%1$s · рекорд %2$s</string>
     <string name="play_no_record">%1$s · рекорда пока нет</string>
     <string name="mode_no_record">нет рекорда</string>
@@ -235,7 +244,6 @@
     <string name="record_first">первый рекорд режима</string>
     <string name="new_record_mode">Новый рекорд · %1$s</string>
     <string name="skin_unlocked">Открыт скин «%1$s»</string>
-    <string name="quest_done_event">Задание: %1$s</string>
     <string name="seconds_short">%1$dс</string>
     <string name="stat_max_mult">макс. множитель</string>
 </resources>

@@ -82,13 +82,16 @@ function makeCoin() {
 
 // ---------------------------------------------------------------- music loop
 function makeMusic(outputName = 'music.wav', variant = 0) {
-  const sr = 22050;
+  const sr = 44100;
   const bpm = variant ? 112 : 96;
   const beat = 60 / bpm;             // 0.625 s
   const bars = 8;
   const dur = bars * 4 * beat;       // 20 s
   const n = Math.floor(sr * dur);
-  const out = new Float32Array(n);
+  // Buffer includes extra time for natural note release tail, which is wrapped back for a seamless loop.
+  const tailSec = 2.0;
+  const totalSamples = n + Math.floor(sr * tailSec);
+  const raw = new Float32Array(totalSamples);
 
   const A2 = 110.00, C3 = 130.81, E3 = 164.81;
   const F2 = 87.31, G2 = 98.00, B2 = 123.47, D3 = 146.83;
@@ -118,17 +121,21 @@ function makeMusic(outputName = 'music.wav', variant = 0) {
     for (let b = 0; b < bars; b++) {
       const chord = chords[b];
       const start = b * barLen;
-      const end = start + barLen;
+      // Allow slight crossfade between bars for smooth transition without click
+      const crossfade = 0.25;
+      const len = barLen + crossfade;
       for (const f of chord.notes) {
-        for (const det of [-0.0016, 0.0016]) {
+        for (const det of [-0.002, 0.002]) {
           const freq = f * (1 + det);
-          const ph = (b * 1.7 + f * 0.03) % (Math.PI * 2);
-          for (let i = Math.floor(start * sr); i < Math.min(n, end * sr); i++) {
+          for (let i = Math.floor(start * sr); i < Math.min(totalSamples, (start + len) * sr); i++) {
             const t = i / sr;
             const local = t - start;
-            const env = Math.min(1, local / 0.75) * Math.min(1, (barLen - local) / 0.85 + 0.12);
-            out[i] += 0.050 * env * Math.sin(2 * Math.PI * freq * t + ph);
-            out[i] += 0.016 * env * Math.sin(2 * Math.PI * freq * 2 * t + ph * 0.7);
+            // Smooth attack and smooth release to zero
+            const attack = Math.min(1, local / 0.50);
+            const release = Math.max(0, Math.min(1, (len - local) / crossfade));
+            const env = attack * release;
+            raw[i] += 0.045 * env * Math.sin(2 * Math.PI * freq * local);
+            raw[i] += 0.012 * env * Math.sin(4 * Math.PI * freq * local);
           }
         }
       }
@@ -140,14 +147,19 @@ function makeMusic(outputName = 'music.wav', variant = 0) {
       const f = chords[b].bass;
       for (let beatIx = 0; beatIx < 4; beatIx++) {
         const start = b * barLen + beatIx * beat;
-        const len = beat * 0.92;
-        const accent = beatIx % 2 === 0 ? 1 : 0.62;
-        for (let i = Math.floor(start * sr); i < Math.min(n, (start + len) * sr); i++) {
+        const len = beat * 0.95;
+        const releaseTime = 0.06;
+        const accent = beatIx % 2 === 0 ? 1 : 0.65;
+        for (let i = Math.floor(start * sr); i < Math.min(totalSamples, (start + len) * sr); i++) {
           const t = i / sr;
           const local = t - start;
-          const env = Math.min(1, local / 0.02) * Math.exp(-local / 0.42);
-          out[i] += 0.095 * accent * env * Math.sin(2 * Math.PI * f * t);
-          out[i] += 0.022 * accent * env * Math.sin(4 * Math.PI * f * t);
+          const attack = Math.min(1, local / 0.015);
+          const decay = Math.exp(-local / 0.38);
+          const release = Math.max(0, Math.min(1, (len - local) / releaseTime));
+          const env = attack * decay * release;
+          // Zero-phase start eliminates clicks
+          raw[i] += 0.090 * accent * env * Math.sin(2 * Math.PI * f * local);
+          raw[i] += 0.018 * accent * env * Math.sin(4 * Math.PI * f * local);
         }
       }
     }
@@ -158,18 +170,23 @@ function makeMusic(outputName = 'music.wav', variant = 0) {
       const chord = chords[b];
       const pattern = variant
         ? [0, 2, 1, 2, 0, 1, 2, 1]
-        : [0, 1, 2, 1, 2, 0, 1, 2]; // eighth notes
+        : [0, 1, 2, 1, 2, 0, 1, 2];
       for (let step = 0; step < 8; step++) {
         const start = b * barLen + step * beat * 0.5;
         const idx = pattern[step] % chord.notes.length;
         const octave = step >= 4 ? 4 : 2;
         const f = chord.notes[idx] * octave;
-        for (let i = Math.floor(start * sr); i < Math.min(n, (start + 0.55) * sr); i++) {
+        const len = beat * 0.48;
+        const releaseTime = 0.04;
+        for (let i = Math.floor(start * sr); i < Math.min(totalSamples, (start + len) * sr); i++) {
           const t = i / sr;
           const local = t - start;
-          const env = Math.min(1, local / 0.006) * Math.exp(-local / 0.22);
-          out[i] += 0.052 * env * Math.sin(2 * Math.PI * f * t);
-          out[i] += 0.013 * env * Math.sin(4 * Math.PI * f * t + 0.6);
+          const attack = Math.min(1, local / 0.008);
+          const decay = Math.exp(-local / 0.18);
+          const release = Math.max(0, Math.min(1, (len - local) / releaseTime));
+          const env = attack * decay * release;
+          raw[i] += 0.048 * env * Math.sin(2 * Math.PI * f * local);
+          raw[i] += 0.010 * env * Math.sin(4 * Math.PI * f * local);
         }
       }
     }
@@ -186,13 +203,18 @@ function makeMusic(outputName = 'music.wav', variant = 0) {
           [16.25, 7, 659.25], [18.25, 8, 880.00]]),
     ];
     for (const [start, bar, f] of events) {
-      const gain = 0.030 + (bar % 2) * 0.006;
-      for (let i = Math.floor(start * sr); i < Math.min(n, (start + 1.8) * sr); i++) {
+      const gain = 0.028 + (bar % 2) * 0.005;
+      const len = 1.6;
+      const releaseTime = 0.25;
+      for (let i = Math.floor(start * sr); i < Math.min(totalSamples, (start + len) * sr); i++) {
         const t = i / sr;
         const local = t - start;
-        const env = Math.min(1, local / 0.25) * Math.exp(-local / 0.9);
-        out[i] += gain * env * Math.sin(2 * Math.PI * f * t);
-        out[i] += gain * 0.35 * env * Math.sin(2 * Math.PI * f * 2.01 * t + 0.8);
+        const attack = Math.min(1, local / 0.20);
+        const decay = Math.exp(-local / 0.75);
+        const release = Math.max(0, Math.min(1, (len - local) / releaseTime));
+        const env = attack * decay * release;
+        raw[i] += gain * env * Math.sin(2 * Math.PI * f * local);
+        raw[i] += gain * 0.28 * env * Math.sin(4 * Math.PI * f * local);
       }
     }
   }
@@ -202,22 +224,29 @@ function makeMusic(outputName = 'music.wav', variant = 0) {
   addArp();
   addShimmer();
 
-  // Gentle low-pass filter to soften the synthetic edge.
-  let lp = 0;
-  const alpha = 1 - Math.exp(-2 * Math.PI * 4200 / sr);
+  // Wrap the release tail onto the start of the loop for seamless looping
+  const out = new Float32Array(n);
   for (let i = 0; i < n; i++) {
-    lp += alpha * (out[i] - lp);
-    out[i] = lp;
+    out[i] = raw[i];
+  }
+  for (let i = n; i < totalSamples; i++) {
+    const wrapIndex = i - n;
+    if (wrapIndex < n) {
+      out[wrapIndex] += raw[i];
+    }
   }
 
-  // Short fades keep the loop click-free without an audible gap.
-  const fade = Math.floor(sr * 0.15);
-  for (let i = 0; i < fade; i++) {
-    const k = i / fade;
-    out[i] *= k;
-    out[n - 1 - i] *= k;
+  // Smooth two-pole low-pass filter to remove digital harshness
+  let lp1 = 0, lp2 = 0;
+  const cutoff = 4800;
+  const alpha = 1 - Math.exp(-2 * Math.PI * cutoff / sr);
+  for (let i = 0; i < n; i++) {
+    lp1 += alpha * (out[i] - lp1);
+    lp2 += alpha * (lp1 - lp2);
+    out[i] = lp2;
   }
-  normalize(out, 0.72);
+
+  normalize(out, 0.75);
   writeWav(path.join(SRC, outputName), out, sr);
 }
 

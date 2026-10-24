@@ -5,12 +5,10 @@ import android.content.SharedPreferences;
 import android.text.format.DateFormat;
 
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Random;
 
 /**
  * Долговременный прогресс: рекорд, суммарная статистика, достижения,
- * ежедневные задания и выбранные скины. Всё хранится только на устройстве.
+ * мастерская и выбранные скины. Всё хранится только на устройстве.
  */
 final class Progress {
 
@@ -18,21 +16,7 @@ final class Progress {
     static final int MODE_HARDCORE = 1;
     static final int MODE_ZEN = 2;
     static final int MODE_COUNT = 3;
-    static final int RUN_DAILY = 3;
     static final int HISTORY_LIMIT = 10;
-
-    static final int QUEST_STARS_RUN = 0;
-    static final int QUEST_SCORE_RUN = 1;
-    static final int QUEST_COMBO_RUN = 2;
-    static final int QUEST_DODGE_RUN = 3;
-    static final int QUEST_RUNS_DAY = 4;
-    static final int QUEST_STARS_DAY = 5;
-    static final int QUEST_TIME_DAY = 6;
-    static final int QUEST_HARDCORE_TIME = 7;
-    static final int QUEST_CHALLENGE = 8;
-    static final int QUEST_COUNT = 9;
-    static final int[] QUEST_TARGETS = {10, 1500, 8, 80, 3, 30, 300, 60, 1};
-    static final int QUEST_REWARD = 300;
 
     static final int ACH_FIRST_RUN = 0;
     static final int ACH_SCORE_1000 = 1;
@@ -46,12 +30,15 @@ final class Progress {
     static final int ACH_SURVIVE_120 = 9;
     static final int ACH_SCORE_10000 = 10;
     static final int ACH_COMBO_50 = 11;
-    static final int ACH_CHALLENGE = 12;
+    static final int ACH_BOSS_DEFEATED = 12;
     static final int ACH_COUNT = 13;
 
     static final int SPHERE_COUNT = 8;
     static final int TRAIL_COUNT = 7;
     static final int WORKSHOP_MAX_LEVEL = 20;
+    static final int WORKSHOP_MAX_LEVEL_30 = 30;
+    static final int WORKSHOP_MAX_LEVEL_TEMP = 3;
+    static final int WORKSHOP_UNLOCK_LEVEL = 5;
 
     private final SharedPreferences prefs;
 
@@ -63,7 +50,7 @@ final class Progress {
     int bestCombo;
     int bestTime;
     int shieldBlocks;
-    int questsDone;
+    int bossesDefeated;
     int pointsTotal;
     /** Весь заработанный неон, без вычета покупок: из него считается ранг. */
     long neonEarned;
@@ -71,20 +58,9 @@ final class Progress {
     int closeMultiplierUpgradeLevel;
     int bossMultiplierUpgradeLevel;
     int levelMultiplierUpgradeLevel;
+    int bonusDurationUpgradeLevel;
+    int tempMultiplierUpgradeLevel;
     float totalTime;
-
-    int dailyStamp;
-    int dailyRuns;
-    int dailyStars;
-    float dailyTime;
-    final int[] questIds = new int[3];
-    final int[] questProgress = new int[3];
-    final boolean[] questDone = new boolean[3];
-
-    int challengeDate;
-    boolean challengeDone;
-    int challengeBest;
-    int challengeScore;
 
     static final class RunRecord {
         final int type;
@@ -118,9 +94,6 @@ final class Progress {
         for (int i = 0; i < MODE_COUNT; i++) {
             bestByMode[i] = prefs.getInt("best_mode_" + i, 0);
         }
-        // Миграция со старой версии: единственный рекорд считаем рекордом
-        // «Классики». Проверяем именно наличие ключей, иначе рекорд дневного
-        // испытания при следующем запуске ошибочно попал бы в Classic.
         if (!hasModeBestKeys && best > 0) {
             bestByMode[MODE_CLASSIC] = best;
         }
@@ -130,69 +103,31 @@ final class Progress {
         bestCombo = prefs.getInt("stat_best_combo", 0);
         bestTime = prefs.getInt("stat_best_time", 0);
         shieldBlocks = prefs.getInt("stat_shields", 0);
-        questsDone = prefs.getInt("stat_quests", 0);
+        bossesDefeated = prefs.getInt("stat_bosses_defeated", 0);
         pointsTotal = prefs.getInt("points_total", 0);
-        multiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade", 0), 0, WORKSHOP_MAX_LEVEL);
+        multiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade", 0), 0, WORKSHOP_MAX_LEVEL_30);
         closeMultiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade_close", 0), 0,
-                WORKSHOP_MAX_LEVEL);
+                WORKSHOP_MAX_LEVEL_30);
         bossMultiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade_boss", 0), 0,
                 WORKSHOP_MAX_LEVEL);
         levelMultiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade_level", 0), 0,
                 WORKSHOP_MAX_LEVEL);
+        bonusDurationUpgradeLevel = clamp(prefs.getInt("bonus_duration_upgrade", 0), 0,
+                WORKSHOP_MAX_LEVEL);
+        tempMultiplierUpgradeLevel = clamp(prefs.getInt("temp_multiplier_upgrade", 0), 0,
+                WORKSHOP_MAX_LEVEL_TEMP);
         totalTime = prefs.getFloat("stat_time", 0f);
         achMask = prefs.getInt("ach_mask", 0);
         if (prefs.contains("neon_earned")) {
             neonEarned = prefs.getLong("neon_earned", 0L);
         } else {
-            // Миграция: баланс плюс неон, уже потраченный в мастерской.
-            neonEarned = pointsTotal + legacyStarSpent(multiplierUpgradeLevel)
-                    + workshopSpent(closeMultiplierUpgradeLevel, 40000)
-                    + workshopSpent(bossMultiplierUpgradeLevel, 60000)
-                    + workshopSpent(levelMultiplierUpgradeLevel, 80000);
+            neonEarned = pointsTotal;
         }
 
         int savedMode = prefs.getInt("mode", MODE_CLASSIC);
         mode = (savedMode >= 0 && savedMode < MODE_COUNT) ? savedMode : MODE_CLASSIC;
         sphereSkin = clamp(prefs.getInt("skin_sphere", 0), 0, SPHERE_COUNT - 1);
         trailSkin = clamp(prefs.getInt("skin_trail", 0), 0, TRAIL_COUNT - 1);
-
-        dailyStamp = prefs.getInt("quest_date", 0);
-        int today = todayStamp();
-        boolean needSave = false;
-        if (dailyStamp == today) {
-            dailyRuns = prefs.getInt("quest_runs", 0);
-            dailyStars = prefs.getInt("quest_stars", 0);
-            dailyTime = prefs.getFloat("quest_time", 0f);
-            for (int i = 0; i < 3; i++) {
-                questProgress[i] = prefs.getInt("quest_p" + i, 0);
-                questDone[i] = prefs.getBoolean("quest_d" + i, false);
-            }
-            // Раньше задания выбирались только по дате. Если набор уже
-            // сохранён, не пересчитываем его: добавление нового типа задания
-            // больше не сдвинет прогресс текущего дня.
-            if (!loadQuestIds()) {
-                selectQuests(dailyStamp);
-                needSave = true;
-            }
-        } else {
-            dailyStamp = today;
-            resetDaily();
-            selectQuests(today);
-            needSave = true;
-        }
-        if (needSave) {
-            saveDaily();
-        }
-
-        challengeDate = prefs.getInt("challenge_date", 0);
-        if (challengeDate == today) {
-            challengeDone = prefs.getBoolean("challenge_done", false);
-            challengeBest = prefs.getInt("challenge_best", 0);
-            challengeScore = prefs.getInt("challenge_score", 0);
-        } else {
-            resetChallenge(today);
-            saveChallenge();
-        }
 
         loadHistory();
     }
@@ -217,7 +152,7 @@ final class Progress {
                 int score = Integer.parseInt(f[1]);
                 int seconds = Integer.parseInt(f[2]);
                 long timestamp = Long.parseLong(f[3]);
-                if (type < 0 || type > RUN_DAILY || score <= 0) {
+                if (type < 0 || type >= MODE_COUNT || score <= 0) {
                     continue;
                 }
                 runHistory.add(new RunRecord(type, score, Math.max(1, seconds),
@@ -233,7 +168,7 @@ final class Progress {
         if (score <= 0) {
             return;
         }
-        if (type < 0 || type > RUN_DAILY) {
+        if (type < 0 || type >= MODE_COUNT) {
             type = MODE_CLASSIC;
         }
         runHistory.add(0, new RunRecord(type, score, Math.max(1, seconds),
@@ -257,88 +192,6 @@ final class Progress {
                     .append(r.timestamp);
         }
         prefs.edit().putString("run_history", sb.toString()).apply();
-    }
-
-    private boolean loadQuestIds() {
-        for (int i = 0; i < 3; i++) {
-            int id = prefs.getInt("quest_id_" + i, -1);
-            if (id < 0 || id >= QUEST_COUNT) {
-                return false;
-            }
-            for (int j = 0; j < i; j++) {
-                if (questIds[j] == id) {
-                    return false;
-                }
-            }
-            questIds[i] = id;
-        }
-        return true;
-    }
-
-    /** Сбрасывает дневные задания, если наступил новый день. */
-    boolean ensureDay() {
-        int today = todayStamp();
-        if (today == dailyStamp) {
-            return false;
-        }
-        dailyStamp = today;
-        resetDaily();
-        selectQuests(today);
-        saveDaily();
-        resetChallenge(today);
-        saveChallenge();
-        return true;
-    }
-
-    private void resetChallenge(int stamp) {
-        challengeDate = stamp;
-        challengeDone = false;
-        challengeBest = 0;
-        challengeScore = 0;
-    }
-
-    boolean canPlayChallenge() {
-        return !challengeDone;
-    }
-
-    /** Отмечает попытку использованной ещё до начала забега. */
-    void startChallenge() {
-        challengeDone = true;
-        challengeScore = 0;
-        saveChallenge();
-    }
-
-    /** Записывает результат испытания дня. */
-    void recordChallengeScore(int score) {
-        challengeScore = score;
-        if (score > challengeBest) {
-            challengeBest = score;
-        }
-    }
-
-    private void resetDaily() {
-        dailyRuns = 0;
-        dailyStars = 0;
-        dailyTime = 0f;
-        for (int i = 0; i < 3; i++) {
-            questProgress[i] = 0;
-            questDone[i] = false;
-        }
-    }
-
-    private void selectQuests(long stamp) {
-        int[] pool = new int[QUEST_COUNT];
-        for (int i = 0; i < QUEST_COUNT; i++) {
-            pool[i] = i;
-        }
-        Random r = new Random(stamp * 0x9E3779B97F4A7C15L);
-        for (int i = 0; i < 3; i++) {
-            int j = i + r.nextInt(QUEST_COUNT - i);
-            int t = pool[i];
-            pool[i] = pool[j];
-            pool[j] = t;
-            questIds[i] = pool[i];
-        }
     }
 
     /** Возвращает маску достижений, открывшихся с прошлой проверки. */
@@ -383,8 +236,8 @@ final class Progress {
                 return best >= 10000;
             case ACH_COMBO_50:
                 return bestCombo >= 50;
-            case ACH_CHALLENGE:
-                return challengeBest > 0;
+            case ACH_BOSS_DEFEATED:
+                return bossesDefeated >= 1;
             default:
                 return false;
         }
@@ -414,8 +267,8 @@ final class Progress {
                 return best;
             case ACH_COMBO_50:
                 return bestCombo;
-            case ACH_CHALLENGE:
-                return challengeBest > 0 ? 1 : 0;
+            case ACH_BOSS_DEFEATED:
+                return Math.min(bossesDefeated, 1);
             default:
                 return 0;
         }
@@ -447,7 +300,7 @@ final class Progress {
                 return 10000;
             case ACH_COMBO_50:
                 return 50;
-            case ACH_CHALLENGE:
+            case ACH_BOSS_DEFEATED:
                 return 1;
             default:
                 return 1;
@@ -488,9 +341,9 @@ final class Progress {
             case 3:
                 return dodged >= 500;
             case 4:
-                return questsDone >= 5;
+                return stars >= 150;
             case 5:
-                return stars >= 250;
+                return stars >= 350;
             case 6:
                 return totalTime >= 1800f;
             default:
@@ -530,9 +383,9 @@ final class Progress {
             case 3:
                 return ratio(dodged, 500);
             case 4:
-                return ratio(questsDone, 5);
+                return ratio(stars, 150);
             case 5:
-                return ratio(stars, 250);
+                return ratio(stars, 350);
             case 6:
                 return ratio((int) totalTime, 1800);
             default:
@@ -553,7 +406,6 @@ final class Progress {
         if (m >= 0 && m < MODE_COUNT && score > bestByMode[m]) {
             bestByMode[m] = score;
         }
-        // Career unlocks use only scored modes; Zen and Daily stay separate.
         if ((m == MODE_CLASSIC || m == MODE_HARDCORE) && score > best) {
             best = score;
         }
@@ -568,19 +420,17 @@ final class Progress {
                 .putInt("stat_best_combo", bestCombo)
                 .putInt("stat_best_time", bestTime)
                 .putInt("stat_shields", shieldBlocks)
-                .putInt("stat_quests", questsDone)
+                .putInt("stat_bosses_defeated", bossesDefeated)
                 .putInt("points_total", pointsTotal)
                 .putLong("neon_earned", neonEarned)
                 .putInt("mult_upgrade", multiplierUpgradeLevel)
                 .putInt("mult_upgrade_close", closeMultiplierUpgradeLevel)
                 .putInt("mult_upgrade_boss", bossMultiplierUpgradeLevel)
                 .putInt("mult_upgrade_level", levelMultiplierUpgradeLevel)
+                .putInt("bonus_duration_upgrade", bonusDurationUpgradeLevel)
+                .putInt("temp_multiplier_upgrade", tempMultiplierUpgradeLevel)
                 .putFloat("stat_time", totalTime)
-                .putInt("ach_mask", achMask)
-                .putInt("challenge_date", challengeDate)
-                .putBoolean("challenge_done", challengeDone)
-                .putInt("challenge_best", challengeBest)
-                .putInt("challenge_score", challengeScore);
+                .putInt("ach_mask", achMask);
         for (int i = 0; i < MODE_COUNT; i++) {
             e.putInt("best_mode_" + i, bestByMode[i]);
         }
@@ -588,27 +438,49 @@ final class Progress {
     }
 
     int multiplierUpgradeCost() {
-        return workshopCost(multiplierUpgradeLevel, 25000);
+        return multiplierUpgradeLevel >= WORKSHOP_MAX_LEVEL_30 ? 0
+                : workshopCost(multiplierUpgradeLevel, 1500);
     }
 
     float starMultiplierStep() {
-        return 0.1f + multiplierUpgradeLevel * 0.1f;
+        return 0.1f + multiplierUpgradeLevel * 0.05f;
     }
 
     int closeMultiplierUpgradeCost() {
-        return workshopCost(closeMultiplierUpgradeLevel, 40000);
+        return closeMultiplierUpgradeLevel >= WORKSHOP_MAX_LEVEL_30 ? 0
+                : workshopCost(closeMultiplierUpgradeLevel, 2000);
     }
 
     int bossMultiplierUpgradeCost() {
-        return workshopCost(bossMultiplierUpgradeLevel, 60000);
+        return bossMultiplierUpgradeLevel >= WORKSHOP_MAX_LEVEL ? 0
+                : workshopCost(bossMultiplierUpgradeLevel, 3500);
     }
 
     int levelMultiplierUpgradeCost() {
-        return workshopCost(levelMultiplierUpgradeLevel, 80000);
+        return levelMultiplierUpgradeLevel >= WORKSHOP_MAX_LEVEL ? 0
+                : workshopCost(levelMultiplierUpgradeLevel, 4000);
+    }
+
+    int bonusDurationUpgradeCost() {
+        return bonusDurationUpgradeLevel >= WORKSHOP_MAX_LEVEL ? 0
+                : workshopCost(bonusDurationUpgradeLevel, 2500);
+    }
+
+    int tempMultiplierUpgradeCost() {
+        return tempMultiplierUpgradeLevel >= WORKSHOP_MAX_LEVEL_TEMP ? 0
+                : workshopCost(tempMultiplierUpgradeLevel, 3000);
+    }
+
+    float bonusDurationScale() {
+        return 1f + bonusDurationUpgradeLevel * 0.1f;
+    }
+
+    float temporaryMultiplier() {
+        return 2f + tempMultiplierUpgradeLevel;
     }
 
     float closeMultiplierStep() {
-        return 0.1f + closeMultiplierUpgradeLevel * 0.025f;
+        return 0.10f + closeMultiplierUpgradeLevel * 0.025f;
     }
 
     float bossMultiplier() {
@@ -616,7 +488,7 @@ final class Progress {
     }
 
     float levelMultiplierStep() {
-        return 0.05f + levelMultiplierUpgradeLevel * 0.01f;
+        return 0.1f * levelMultiplierUpgradeLevel;
     }
 
     int workshopTotalLevel() {
@@ -624,29 +496,56 @@ final class Progress {
                 + bossMultiplierUpgradeLevel + levelMultiplierUpgradeLevel;
     }
 
-    boolean canUpgradeCloseMultiplier() {
-        int cost = closeMultiplierUpgradeCost();
-        return cost > 0 && pointsTotal >= cost;
+    boolean canUpgradeLevelMultiplier() {
+        int cost = levelMultiplierUpgradeCost();
+        return isLevelMultiplierUnlocked() && cost > 0 && pointsTotal >= cost;
     }
 
     boolean canUpgradeBossMultiplier() {
         int cost = bossMultiplierUpgradeCost();
-        return cost > 0 && pointsTotal >= cost;
+        return isBossMultiplierUnlocked() && cost > 0 && pointsTotal >= cost;
     }
 
-    boolean canUpgradeLevelMultiplier() {
-        int cost = levelMultiplierUpgradeCost();
-        return cost > 0 && pointsTotal >= cost;
+    boolean canUpgradeCloseMultiplier() {
+        int cost = closeMultiplierUpgradeCost();
+        return isCloseMultiplierUnlocked() && cost > 0 && pointsTotal >= cost;
+    }
+
+    boolean isLevelMultiplierUnlocked() {
+        return true;
+    }
+
+    boolean isBossMultiplierUnlocked() {
+        return levelMultiplierUpgradeLevel >= WORKSHOP_UNLOCK_LEVEL;
+    }
+
+    boolean isCloseMultiplierUnlocked() {
+        return bossMultiplierUpgradeLevel >= WORKSHOP_UNLOCK_LEVEL;
+    }
+
+    boolean isStarMultiplierUnlocked() {
+        return closeMultiplierUpgradeLevel >= WORKSHOP_UNLOCK_LEVEL;
     }
 
     boolean canUpgradeAnyWorkshop() {
         return canUpgradeMultiplier() || canUpgradeCloseMultiplier()
-                || canUpgradeBossMultiplier() || canUpgradeLevelMultiplier();
+                || canUpgradeBossMultiplier() || canUpgradeLevelMultiplier()
+                || canUpgradeBonusDuration() || canUpgradeTempMultiplier();
+    }
+
+    boolean canUpgradeBonusDuration() {
+        int cost = bonusDurationUpgradeCost();
+        return cost > 0 && pointsTotal >= cost;
+    }
+
+    boolean canUpgradeTempMultiplier() {
+        int cost = tempMultiplierUpgradeCost();
+        return cost > 0 && pointsTotal >= cost;
     }
 
     boolean canUpgradeMultiplier() {
         int cost = multiplierUpgradeCost();
-        return cost > 0 && pointsTotal >= cost;
+        return isStarMultiplierUnlocked() && cost > 0 && pointsTotal >= cost;
     }
 
     boolean upgradeMultiplier() {
@@ -689,68 +588,45 @@ final class Progress {
         return true;
     }
 
-    /** Начисление неона: растут и баланс, и счётчик для ранга. */
+    boolean upgradeBonusDuration() {
+        if (!canUpgradeBonusDuration()) {
+            return false;
+        }
+        pointsTotal -= bonusDurationUpgradeCost();
+        bonusDurationUpgradeLevel++;
+        saveStats();
+        return true;
+    }
+
+    boolean upgradeTempMultiplier() {
+        if (!canUpgradeTempMultiplier()) {
+            return false;
+        }
+        pointsTotal -= tempMultiplierUpgradeCost();
+        tempMultiplierUpgradeLevel++;
+        saveStats();
+        return true;
+    }
+
+    /** Начисление неона: растут и баланс, и счётчик для ранга с защитой от переполнения. */
     void addNeon(int amount) {
         if (amount <= 0) {
             return;
         }
-        pointsTotal += amount;
-        neonEarned += amount;
+        pointsTotal = (int) Math.min(Integer.MAX_VALUE, (long) pointsTotal + amount);
+        neonEarned = Math.min(Long.MAX_VALUE - amount, neonEarned + amount);
     }
 
     int rank() {
         return GameRules.rankForNeon(neonEarned);
     }
 
-    /**
-     * Сколько неона ушло на звёздную ветку: первые четыре уровня в 1.8 стоили
-     * 2 000 + 2 500·уровень, дальше действуют новые цены.
-     */
-    private static long legacyStarSpent(int level) {
-        long sum = 0L;
-        for (int i = 0; i < level; i++) {
-            sum += i < 4 ? 2000L + 2500L * i : workshopCost(i, 25000);
-        }
-        return sum;
-    }
-
-    private static long workshopSpent(int level, int base) {
-        long sum = 0L;
-        for (int i = 0; i < level; i++) {
-            sum += workshopCost(i, base);
-        }
-        return sum;
-    }
-
     private static int workshopCost(int level, int base) {
-        if (level >= WORKSHOP_MAX_LEVEL) {
+        if (level >= WORKSHOP_MAX_LEVEL_30) {
             return 0;
         }
-        double value = base * Math.pow(1.5, level);
+        double value = base * Math.pow(1.45, level);
         return (int) Math.min(Integer.MAX_VALUE, Math.round(value));
-    }
-
-    private void saveChallenge() {
-        prefs.edit()
-                .putInt("challenge_date", challengeDate)
-                .putBoolean("challenge_done", challengeDone)
-                .putInt("challenge_best", challengeBest)
-                .putInt("challenge_score", challengeScore)
-                .apply();
-    }
-
-    void saveDaily() {
-        SharedPreferences.Editor e = prefs.edit()
-                .putInt("quest_date", dailyStamp)
-                .putInt("quest_runs", dailyRuns)
-                .putInt("quest_stars", dailyStars)
-                .putFloat("quest_time", dailyTime);
-        for (int i = 0; i < 3; i++) {
-            e.putInt("quest_id_" + i, questIds[i]);
-            e.putInt("quest_p" + i, questProgress[i]);
-            e.putBoolean("quest_d" + i, questDone[i]);
-        }
-        e.apply();
     }
 
     void saveMode() {
@@ -762,13 +638,6 @@ final class Progress {
                 .putInt("skin_sphere", sphereSkin)
                 .putInt("skin_trail", trailSkin)
                 .apply();
-    }
-
-    private static int todayStamp() {
-        Calendar cal = Calendar.getInstance();
-        return cal.get(Calendar.YEAR) * 10000
-                + (cal.get(Calendar.MONTH) + 1) * 100
-                + cal.get(Calendar.DAY_OF_MONTH);
     }
 
     private static int clamp(int v, int lo, int hi) {

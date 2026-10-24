@@ -15,6 +15,7 @@ import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.SoundPool;
+import android.os.Build;
 import android.os.Vibrator;
 import android.view.Choreographer;
 import android.view.MotionEvent;
@@ -42,10 +43,10 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     static final int ST_SETTINGS = 4;
     static final int ST_RULES = 5;
     static final int ST_STATS = 6;
-    static final int ST_QUESTS = 7;
     static final int ST_SKINS = 8;
     static final int ST_HISTORY = 9;
     static final int ST_WORKSHOP = 10;
+    static final int ST_PROFILE = 11;
 
     static final int C_CYAN = 0xFF5FF3FF;
     static final int C_MAGENTA = 0xFFFF4FD8;
@@ -73,14 +74,31 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     static final float SLOW_SCALE = 0.45f;
     static final float PHASE_TIME = 6f;
     static final float DOUBLE_TIME = 8f;
+    static final float BOMB_DELAY = 0.75f;
+    static final float BOMB_RADIUS = 520f;
     static final int MAX_LIVES = 3;
+
+    float magnetDuration() {
+        return MAGNET_TIME * progress.bonusDurationScale();
+    }
+
+    float slowDuration() {
+        return SLOW_TIME * progress.bonusDurationScale();
+    }
+
+    float phaseDuration() {
+        return PHASE_TIME * progress.bonusDurationScale();
+    }
+
+    float doubleDuration() {
+        return DOUBLE_TIME * progress.bonusDurationScale();
+    }
 
     static final int CONTROL_ABOVE = 0;
     static final int CONTROL_AT = 1;
 
     static final float MULT_STEP = 0.1f;
-    static final float HARDCORE_MULT = 5f;
-    static final float BOSS_MULT = 2f;
+    static final float HARDCORE_MULT = 2f;
     static final float BOSS_ZONE_RADIUS = 150f;
     static final float BOSS_ZONE_FILL_TIME = 2.8f;
 
@@ -130,6 +148,8 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     int state = ST_MENU;
     int rulesReturn = ST_MENU;
     int skinTab = 0;
+    int workshopTab = 0;
+    int rulesTab = 0;
     float time;
     float elapsed;
     float difficulty;
@@ -142,7 +162,6 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     int maxLives = MAX_LIVES;
     boolean hardcoreMode;
     boolean zenMode;
-    boolean dailyChallenge;
     boolean hintStarShown;
     boolean hintShieldShown;
     boolean hintComboShown;
@@ -168,9 +187,14 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     boolean soundOn = true;
     boolean vibOn = true;
     boolean musicOn = true;
+    float soundVolume = 1f;
+    float musicVolume = 1f;
+    int targetHz = 60;
+    String languageTag = "ru";
     boolean tutorialDone;
     float fingerOffset = OFFSET_DEFAULT;
     boolean draggingOffset;
+    int draggingAudioSlider = B_NONE;
     int controlMode = CONTROL_ABOVE;
     int combo;
     float comboTimer;
@@ -186,6 +210,16 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     float bombTimer;
     float bombX;
     float bombY;
+    float bombWaveTimer;
+    static final float BOMB_WAVE_DURATION = 0.65f;
+    float bombWaveOriginX;
+    float bombWaveOriginY;
+    static final float MINE_TRIGGER_R = 250f;
+    static final float MINE_BLAST_R = 220f;
+    static final float MINE_FUSE_TIME = 0.65f;
+    int profileReturn;
+    float spawnPauseTimer;
+    Obs bombTarget;
     float specialTimer;
     float checkTimer;
     float saveTimer;
@@ -244,8 +278,6 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     final Paint pShade = new Paint(Paint.ANTI_ALIAS_FLAG);
     final Path podPath = new Path();
     final android.graphics.Matrix shaderMatrix = new android.graphics.Matrix();
-    final android.graphics.DashPathEffect dailyDash =
-            new android.graphics.DashPathEffect(new float[]{18f, 12f}, 0f);
     Shader planetShader;
     float planetShaderTop = -1f;
     Shader playShader;
@@ -255,7 +287,6 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
 
     /** Событие забега для ленты наград на экране итога. */
     static final class RunEvent {
-        static final int QUEST = 0;
         static final int ACHIEVEMENT = 1;
         static final int SKIN = 2;
         static final int RANK = 3;
@@ -308,6 +339,14 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     String sSound;
     String sVibration;
     String sMusic;
+    String sLanguage;
+    String sRussian;
+    String sEnglish;
+    String sRefreshRate;
+    String sHz60;
+    String sHz120;
+    String sMusicVolume;
+    String sSoundVolume;
     String sOn;
     String sOff;
     String sTutorial;
@@ -335,18 +374,15 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     String sAchievements;
     String sHistory;
     String sHistoryEmpty;
-    String sQuests;
     String sSkins;
     String sBack;
     String sNeon;
     String sSelected;
     String sSelect;
-    String sQuestDone;
-    String sAllQuestsDone;
-    String sQuestReward;
     String sAchievementUnlocked;
     String sShieldActive;
     String sShieldBlocked;
+    String sArmorCracked;
     String sHintStar;
     String sHintShield;
     String sHintCombo;
@@ -370,6 +406,7 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     String sWorkshopLevelOf;
     String sWorkshopReady;
     String sWorkshopNeed;
+    String sWorkshopLocked;
     String sWorkshopCost;
     String sWorkshopStars;
     String sWorkshopClose;
@@ -379,20 +416,18 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     String sWorkshopBossValue;
     String sWorkshopLevelStep;
     String sWorkshopProgress;
+    String sWorkshopTabMultipliers;
+    String sWorkshopTabBonuses;
+    String sWorkshopBonusDuration;
+    String sWorkshopBonusDurationStep;
+    String sWorkshopTempMultiplier;
+    String sWorkshopTempMultiplierStep;
     String sSphere;
     String sTrail;
     String sZen;
-    String sDailyChallenge;
-    String sDailyShort;
-    String sDailyHint;
-    String sDailyDone;
-    String sDailyUsed;
     String sRecords;
     String sTotals;
     String sHistoryCta;
-    String sQuestsSummary;
-    String sQuestsRefresh;
-    String sQuestToast;
     String sExitConfirm;
     String sReplayTutorial;
     String sTutorialReset;
@@ -404,12 +439,22 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     final String[] sAstName = new String[9];
     final String[] sAstDesc = new String[9];
     final String[] sBonusName = new String[8];
-    final String[] sRankTitle = new String[5];
+    final String[] sRankTitle = new String[GameRules.TITLES_COUNT];
+    String sProfileTitle;
+    String sProfileMaxRank;
+    String sProfileNextRank;
+    String sProfileTotalNeon;
+    String sProfileLadder;
+    String sProfileCurrent;
+    String sProfileLvlRange;
+    String sProfileLvlSingle;
+    String sRulesTabBasics;
+    String sRulesTabAsteroids;
+    String sRulesTabBonuses;
     String sRankLabel;
     String sRankToNext;
     String sRankUp;
     String sRankReached;
-    String sDailyResets;
     String sPlayRecord;
     String sPlayNoRecord;
     String sModeNoRecord;
@@ -418,13 +463,11 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     String sRecordFirst;
     String sNewRecordMode;
     String sSkinUnlocked;
-    String sQuestDoneEvent;
     String sSecondsShort;
     String sStatMaxMult;
     final String[] sBonusDesc = new String[8];
     final String[] sStatName = new String[6];
     final String[] sAchName = new String[Progress.ACH_COUNT];
-    final String[] sQuestName = new String[Progress.QUEST_COUNT];
     final String[] sSphereName = new String[Progress.SPHERE_COUNT];
     final String[] sTrailName = new String[Progress.TRAIL_COUNT];
     final String[] sSphereCond = new String[Progress.SPHERE_COUNT];
@@ -457,6 +500,10 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
         soundOn = prefs.getBoolean("sound", true);
         vibOn = prefs.getBoolean("vibrate", true);
         musicOn = prefs.getBoolean("music", true);
+        soundVolume = clamp(prefs.getFloat("sound_volume", 1f), 0f, 1f);
+        musicVolume = clamp(prefs.getFloat("music_volume", 1f), 0f, 1f);
+        targetHz = prefs.getInt("refresh_hz", 60) == 120 ? 120 : 60;
+        languageTag = prefs.getString("language", "ru");
         tutorialDone = prefs.getBoolean("tutorial_done", false);
         hintStarShown = prefs.getBoolean("hint_star", false);
         hintShieldShown = prefs.getBoolean("hint_shield", false);
@@ -506,8 +553,6 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
 
     static final int B_NONE = -1;
     static final int B_PLAY = 1;
-    static final int B_DAILY = 2;
-    static final int B_QUESTS = 3;
     static final int B_SKINS = 4;
     static final int B_STATS = 5;
     static final int B_RULES = 6;
@@ -531,6 +576,20 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     static final int B_WORKSHOP_UPGRADE_CLOSE = 24;
     static final int B_WORKSHOP_UPGRADE_BOSS = 25;
     static final int B_WORKSHOP_UPGRADE_LEVEL = 26;
+    static final int B_WORKSHOP_UPGRADE_DURATION = 27;
+    static final int B_WORKSHOP_UPGRADE_TEMP = 28;
+    static final int B_PROFILE = 29;
+    static final int B_WORKSHOP_TAB_MULT = 80;
+    static final int B_WORKSHOP_TAB_BONUS = 81;
+    static final int B_RULES_TAB_BASICS = 82;
+    static final int B_RULES_TAB_ASTEROIDS = 83;
+    static final int B_RULES_TAB_BONUSES = 84;
+    static final int B_LANGUAGE_RU = 70;
+    static final int B_LANGUAGE_EN = 71;
+    static final int B_HZ_60 = 72;
+    static final int B_HZ_120 = 73;
+    static final int B_MUSIC_VOLUME = 74;
+    static final int B_SOUND_VOLUME = 75;
     static final int B_MODE = 30;     // + индекс режима
     static final int B_CONTROL = 40;  // + тип управления
     static final int B_TAB = 50;      // + вкладка скинов
@@ -564,6 +623,10 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
 
     float sliderX1 = 170f;
     float sliderX2 = 910f;
+    float offsetSliderX1 = 170f;
+    float offsetSliderX2 = 910f;
+    float volumeSliderX1 = 170f;
+    float volumeSliderX2 = 910f;
     float exitArmed;
     float resumeTimer;
 
@@ -574,7 +637,6 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     float mSegCy;
     float mInfoY;
     float mPlayCy;
-    float mDailyCy;
     float mNavCy;
     float mFootY;
     float mPodScale = 1f;
@@ -583,7 +645,6 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     float mOrbitRy = 200f;
 
     int hudBestValue = -1;
-    boolean hudBestDaily;
     String hudBestText = "";
     int hudMultTenths = -1;
     String hudMultText = "x1.0";
@@ -634,6 +695,20 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
         return nf.format(v).replace('\u00A0', ' ');
     }
 
+    void strokeStyle(int color, float width) {
+        pStroke.setStyle(Paint.Style.STROKE);
+        pStroke.setStrokeCap(Paint.Cap.ROUND);
+        pStroke.setStrokeJoin(Paint.Join.ROUND);
+        pStroke.setColor(color);
+        pStroke.setStrokeWidth(width);
+    }
+
+    void strokeReset() {
+        pStroke.setStrokeCap(Paint.Cap.BUTT);
+        pStroke.setStrokeJoin(Paint.Join.MITER);
+        pStroke.setStyle(Paint.Style.FILL);
+    }
+
     static class Obs {
         int type;
         float x;
@@ -654,6 +729,7 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
         boolean mineArmed;
         boolean canSplit;
         boolean boss;
+        boolean bombArmed;
         int bossStage;
         int bossHits;
         float bossShotTimer;
@@ -695,6 +771,7 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
         float size;
         float grav;
         int color;
+        int style;
     }
 
     static class ScorePop {
@@ -732,8 +809,6 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     /** См. {@link UiKit}. */
     abstract void textC(Canvas c, String s, float x, float cy, float size, int color, Typeface tf, Paint.Align align);
 
-    /** См. {@link UiKit}. */
-    abstract void strokeReset();
 
     /** См. {@link UiKit}. */
     abstract String formatTime(int totalSec);
@@ -766,6 +841,9 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     abstract void drawWorkshop(Canvas c);
 
     /** См. {@link InfoScreens}. */
+    abstract void drawProfile(Canvas c);
+
+    /** См. {@link InfoScreens}. */
     abstract void drawStats(Canvas c);
 
     /** См. {@link InfoScreens}. */
@@ -773,9 +851,6 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
 
     /** См. {@link InfoScreens}. */
     abstract int historyColor(int type);
-
-    /** См. {@link InfoScreens}. */
-    abstract void drawQuests(Canvas c);
 
     /** См. {@link InfoScreens}. */
     abstract void drawSkins(Canvas c);
