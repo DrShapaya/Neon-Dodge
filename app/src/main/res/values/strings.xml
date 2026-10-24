@@ -140,6 +140,9 @@
     <string name="ach_time_10">10 minutes played</string>
     <string name="ach_shield">Shield save</string>
     <string name="ach_survive_120">Survive 2 minutes</string>
+    <string name="ach_score_10000">Score 10,000</string>
+    <string name="ach_combo_50">Combo x50</string>
+    <string name="ach_challenge">Challenge complete</string>
 
     <string name="quest_stars_run">Collect 10 stars in one run</string>
     <string name="quest_score_run">Score 1500 in one run</string>
@@ -148,6 +151,8 @@
     <string name="quest_runs_day">Play 3 runs today</string>
     <string name="quest_stars_day">Collect 30 stars today</string>
     <string name="quest_time_day">Play for 5 minutes today</string>
+    <string name="quest_hardcore_time">Survive 60 seconds in Hardcore</string>
+    <string name="quest_challenge">Complete the daily challenge</string>
 
     <string name="skin_cyan">Cyan</string>
     <string name="skin_magenta">Magenta</string>

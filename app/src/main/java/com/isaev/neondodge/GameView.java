@@ -16,10 +16,13 @@ import android.graphics.RectF;
 import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.SoundPool;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.os.Build;
 import android.view.Choreographer;
 import android.view.MotionEvent;
 import android.view.View;
@@ -121,6 +124,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
 
     // ---------- world / view ----------
     private float scale = 1f;
+    private float viewOffsetX;
     private float worldH = 1920f;
     private int insetTopPx;
     private int insetBottomPx;
@@ -178,6 +182,9 @@ public class GameView extends View implements Choreographer.FrameCallback {
     private float slowTimer;
     private float phaseTimer;
     private float doubleTimer;
+    private float bombTimer;
+    private float bombX;
+    private float bombY;
     private float specialTimer;
     private float checkTimer;
     private float saveTimer;
@@ -205,6 +212,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
     private final ArrayList<Obs> obstacles = new ArrayList<>();
     private final ArrayList<Pickup> pickups = new ArrayList<>();
     private final ArrayList<Particle> particles = new ArrayList<>();
+    private final ArrayList<ScorePop> scorePops = new ArrayList<>();
 
     // ---------- background ----------
     private final float[] starX = new float[120];
@@ -343,6 +351,9 @@ public class GameView extends View implements Choreographer.FrameCallback {
     private SharedPreferences prefs;
     private SoundPool soundPool;
     private MediaPlayer musicPlayer;
+    private AudioManager audioManager;
+    private AudioFocusRequest audioFocusRequest;
+    private boolean audioFocusHeld;
     private int musicTrack;
     private int sndCoin;
     private int sndHit;
@@ -537,6 +548,9 @@ public class GameView extends View implements Choreographer.FrameCallback {
         sAchName[Progress.ACH_TIME_10] = context.getString(R.string.ach_time_10);
         sAchName[Progress.ACH_SHIELD] = context.getString(R.string.ach_shield);
         sAchName[Progress.ACH_SURVIVE_120] = context.getString(R.string.ach_survive_120);
+        sAchName[Progress.ACH_SCORE_10000] = context.getString(R.string.ach_score_10000);
+        sAchName[Progress.ACH_COMBO_50] = context.getString(R.string.ach_combo_50);
+        sAchName[Progress.ACH_CHALLENGE] = context.getString(R.string.ach_challenge);
 
         sQuestName[Progress.QUEST_STARS_RUN] = context.getString(R.string.quest_stars_run);
         sQuestName[Progress.QUEST_SCORE_RUN] = context.getString(R.string.quest_score_run);
@@ -545,6 +559,8 @@ public class GameView extends View implements Choreographer.FrameCallback {
         sQuestName[Progress.QUEST_RUNS_DAY] = context.getString(R.string.quest_runs_day);
         sQuestName[Progress.QUEST_STARS_DAY] = context.getString(R.string.quest_stars_day);
         sQuestName[Progress.QUEST_TIME_DAY] = context.getString(R.string.quest_time_day);
+        sQuestName[Progress.QUEST_HARDCORE_TIME] = context.getString(R.string.quest_hardcore_time);
+        sQuestName[Progress.QUEST_CHALLENGE] = context.getString(R.string.quest_challenge);
 
         sSphereName[0] = context.getString(R.string.skin_cyan);
         sSphereName[1] = context.getString(R.string.skin_magenta);
@@ -663,7 +679,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
             if (musicPlayer != null) {
                 musicPlayer.setLooping(true);
                 musicPlayer.setVolume(0.45f, 0.45f);
-                if (musicOn) {
+                if (musicOn && requestAudioFocus()) {
                     musicPlayer.start();
                 }
             }
@@ -672,8 +688,60 @@ public class GameView extends View implements Choreographer.FrameCallback {
         }
     }
 
+    private boolean requestAudioFocus() {
+        if (audioManager == null) {
+            audioManager = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+        }
+        if (audioManager == null) {
+            return true;
+        }
+        int result;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (audioFocusRequest == null) {
+                audioFocusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                        .setAudioAttributes(new AudioAttributes.Builder()
+                                .setUsage(AudioAttributes.USAGE_GAME)
+                                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                .build())
+                        .setOnAudioFocusChangeListener(change -> {
+                            if (change == AudioManager.AUDIOFOCUS_LOSS
+                                    || change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+                                pauseMusic();
+                            } else if (change == AudioManager.AUDIOFOCUS_GAIN && musicOn) {
+                                startMusicIfEnabled();
+                            }
+                        })
+                        .build();
+            }
+            result = audioManager.requestAudioFocus(audioFocusRequest);
+        } else {
+            result = audioManager.requestAudioFocus(change -> {
+                if (change <= 0) {
+                    pauseMusic();
+                } else if (musicOn) {
+                    startMusicIfEnabled();
+                }
+            }, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+        }
+        audioFocusHeld = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
+        return audioFocusHeld;
+    }
+
+    private void abandonAudioFocus() {
+        if (!audioFocusHeld || audioManager == null) {
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && audioFocusRequest != null) {
+            audioManager.abandonAudioFocusRequest(audioFocusRequest);
+        }
+        audioFocusHeld = false;
+    }
+
     private void startMusicIfEnabled() {
         if (!musicOn) {
+            return;
+        }
+        if (!requestAudioFocus()) {
             return;
         }
         if (musicPlayer == null) {
@@ -711,6 +779,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
     }
 
     private void releaseMusic() {
+        abandonAudioFocus();
         if (musicPlayer != null) {
             try {
                 musicPlayer.stop();
@@ -741,7 +810,11 @@ public class GameView extends View implements Choreographer.FrameCallback {
         if (w <= 0 || h <= 0) {
             return;
         }
-        scale = w / W;
+        // Keep the portrait game field readable on tablets and landscape
+        // windows: letterbox the 1080xvariable-height world instead of
+        // stretching the menu into a narrow strip.
+        scale = Math.min(w / W, h / 1920f);
+        viewOffsetX = (w - W * scale) * 0.5f;
         worldH = h / scale;
 
         bgShader = new LinearGradient(0f, 0f, 0f, worldH,
@@ -926,6 +999,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
 
         updateStars(dt);
         updateParticles(dt);
+        updateScorePops(dt);
 
         if (state == ST_PLAY) {
             if (resumeTimer > 0f) {
@@ -1016,6 +1090,12 @@ public class GameView extends View implements Choreographer.FrameCallback {
         }
         phaseTimer = Math.max(0f, phaseTimer - dt);
         doubleTimer = Math.max(0f, doubleTimer - dt);
+        if (bombTimer > 0f) {
+            bombTimer -= dt;
+            if (bombTimer <= 0f) {
+                resolveBomb();
+            }
+        }
 
         // Mini-bosses arrive at 2, 4 and 6 minutes and create a clear tempo spike.
         int minute = (int) (elapsed / 60f);
@@ -1227,6 +1307,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
             if (o.bounceFlash > 0f) {
                 o.bounceFlash = Math.max(0f, o.bounceFlash - dt * 3.5f);
             }
+            o.warnTimer = Math.max(0f, o.warnTimer - dt);
             o.rot += o.vrot * sdt;
 
             if (!o.passed && o.y > py + PLAYER_R * 0.5f) {
@@ -1246,7 +1327,9 @@ public class GameView extends View implements Choreographer.FrameCallback {
                     comboPop = 1f;
                     closeMult = Math.min(999f, closeMult + MULT_STEP);
                     runMaxCloseMult = Math.max(runMaxCloseMult, closeMult);
-                    score += 5f * combo * scoreFactor();
+                    float comboPoints = 5f * combo * scoreFactor();
+                    score += comboPoints;
+                    addScorePop(o.x, py - 70f, "+" + fmt((int) comboPoints), C_GOLD);
                     for (int k = 0; k < 3; k++) {
                         addParticle(o.x + (rnd.nextFloat() - 0.5f) * o.r,
                                 py - 10f + (rnd.nextFloat() - 0.5f) * 30f,
@@ -1266,6 +1349,16 @@ public class GameView extends View implements Choreographer.FrameCallback {
                     // но сам астероид продолжает падать.
                     boolean survivesShield = (o.type == T_ARMOR || o.boss)
                             && shieldCharges > 0 && !zenMode;
+                    if (o.type == T_ARMOR && o.armorHits > 1 && !o.boss) {
+                        o.armorHits = GameRules.nextArmorHits(o.armorHits);
+                        o.bounceFlash = 1f;
+                        explode(o.x, o.y, 16, o.color);
+                        invuln = 0.55f;
+                        shake = 14f;
+                        flash = 0.12f;
+                        toast("БРОНЯ · ТРЕЩИНА");
+                        continue;
+                    }
                     if (o.boss && o.bossHits > 1 && !survivesShield) {
                         o.bossHits--;
                         o.bounceFlash = 1f;
@@ -1364,6 +1457,9 @@ public class GameView extends View implements Choreographer.FrameCallback {
     private void spawnObstacle() {
         Obs o = new Obs();
         o.type = pickObstacleType();
+        for (int retry = 0; retry < 4 && o.type == T_GRAVITY && countType(T_GRAVITY) >= 2; retry++) {
+            o.type = pickObstacleType();
+        }
         o.color = OBS_COLORS[o.type];
 
         o.r = 26f + gameRnd.nextFloat() * 20f;
@@ -1375,9 +1471,16 @@ public class GameView extends View implements Choreographer.FrameCallback {
             o.r *= 0.86f;
         } else if (o.type == T_ARMOR) {
             o.r *= 1.10f;
+            o.armorHits = 2;
         }
 
-        o.x = o.r + 30f + gameRnd.nextFloat() * (W - 2f * o.r - 60f);
+        float minX = o.r + 30f;
+        float maxX = W - o.r - 30f;
+        o.x = minX + gameRnd.nextFloat() * Math.max(1f, maxX - minX);
+        // Never drop a new obstacle directly on the player's current lane.
+        for (int attempt = 0; attempt < 8 && !GameRules.spawnLaneIsSafe(o.x, px, 150f); attempt++) {
+            o.x = minX + gameRnd.nextFloat() * Math.max(1f, maxX - minX);
+        }
         o.y = -o.r - 50f;
 
         float base = (430f + 400f * difficulty) * (1f + 0.30f * latePressure)
@@ -1425,6 +1528,14 @@ public class GameView extends View implements Choreographer.FrameCallback {
             o.splitY = worldH * (0.26f + gameRnd.nextFloat() * 0.18f);
         } else if (o.type == T_MINE) {
             o.stopY = worldH * (0.28f + gameRnd.nextFloat() * 0.30f);
+            if (!GameRules.spawnLaneIsSafe(o.x, px, 180f)) {
+                o.x = clamp(o.x + (o.x < W / 2f ? 220f : -220f), minX, maxX);
+            }
+        }
+
+        if (o.type == T_GRAVITY || o.type == T_MINE || o.type == T_SPLIT
+                || o.type == T_ARMOR) {
+            o.warnTimer = 0.85f;
         }
 
         o.burstPhase = gameRnd.nextFloat() * 1.05f;
@@ -1513,6 +1624,16 @@ public class GameView extends View implements Choreographer.FrameCallback {
         return T_ARMOR;
     }
 
+    private int countType(int type) {
+        int count = 0;
+        for (int i = 0; i < obstacles.size(); i++) {
+            if (obstacles.get(i).type == type) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     private void bounceOff(Obs o) {
         if (o.bounceFlash > 0.5f) {
             return;
@@ -1560,21 +1681,8 @@ public class GameView extends View implements Choreographer.FrameCallback {
     }
 
     private void hit(Obs o) {
-        if (zenMode) {
-            combo = 0;
-            comboTimer = 0f;
-            comboPop = 0f;
-            resetMultipliers();
-            shake = 18f;
-            flash = 0.45f;
-            invuln = 1.2f;
-            explode(px, py, 10, C_CYAN);
-            explode(o.x, o.y, 10, o.color);
-            playSound(sndHit, 1.2f);
-            buzz(22);
-            return;
-        }
-
+        // В «Дзене» щит всё равно расходуется: он поглощает столкновение,
+        // поэтому предмет не превращается в вечное декоративное кольцо.
         if (shieldCharges > 0) {
             shieldCharges = 0;
             progress.shieldBlocks++;
@@ -1587,6 +1695,20 @@ public class GameView extends View implements Choreographer.FrameCallback {
             buzz(35);
             toast(sShieldBlocked);
             checkProgress();
+            return;
+        }
+        if (zenMode) {
+            combo = 0;
+            comboTimer = 0f;
+            comboPop = 0f;
+            resetMultipliers();
+            shake = 18f;
+            flash = 0.45f;
+            invuln = 1.2f;
+            explode(px, py, 10, C_CYAN);
+            explode(o.x, o.y, 10, o.color);
+            playSound(sndHit, 1.2f);
+            buzz(22);
             return;
         }
 
@@ -1615,7 +1737,9 @@ public class GameView extends View implements Choreographer.FrameCallback {
                     lives++;
                     playSound(sndPower, 1f);
                 } else {
-                    score += 60f * scoreFactor();
+                    float points = 60f * scoreFactor();
+                    score += points;
+                    addScorePop(p.x, p.y - 40f, "+" + fmt((int) points), C_GOLD);
                     playSound(sndCoin, 1.25f);
                 }
                 explode(p.x, p.y, 16, C_RED);
@@ -1624,7 +1748,9 @@ public class GameView extends View implements Choreographer.FrameCallback {
 
             case P_SHIELD:
                 shieldCharges = 1;
-                score += 25f * scoreFactor();
+                float shieldPoints = 25f * scoreFactor();
+                score += shieldPoints;
+                addScorePop(p.x, p.y - 40f, "+" + fmt((int) shieldPoints), C_MINT);
                 explode(p.x, p.y, 18, C_MINT);
                 playSound(sndPower, 1.05f);
                 buzz(20);
@@ -1633,7 +1759,9 @@ public class GameView extends View implements Choreographer.FrameCallback {
 
             case P_MAGNET:
                 magnetTimer = MAGNET_TIME;
-                score += 30f * scoreFactor();
+                float magnetPoints = 30f * scoreFactor();
+                score += magnetPoints;
+                addScorePop(p.x, p.y - 40f, "+" + fmt((int) magnetPoints), C_MAGENTA);
                 explode(p.x, p.y, 18, C_MAGENTA);
                 playSound(sndPower, 1.15f);
                 buzz(20);
@@ -1642,7 +1770,9 @@ public class GameView extends View implements Choreographer.FrameCallback {
 
             case P_SLOW:
                 slowTimer = SLOW_TIME;
-                score += 30f * scoreFactor();
+                float slowPoints = 30f * scoreFactor();
+                score += slowPoints;
+                addScorePop(p.x, p.y - 40f, "+" + fmt((int) slowPoints), C_ICE);
                 explode(p.x, p.y, 18, C_ICE);
                 playSound(sndPower, 0.85f);
                 buzz(20);
@@ -1650,25 +1780,18 @@ public class GameView extends View implements Choreographer.FrameCallback {
                 break;
 
             case P_BOMB:
-                int cleared = 0;
-                for (int i = obstacles.size() - 1; i >= 0; i--) {
-                    Obs o = obstacles.get(i);
-                    if (dist2(o.x, o.y, p.x, p.y) < 520f * 520f) {
-                        explode(o.x, o.y, 10, o.color);
-                        obstacles.remove(i);
-                        cleared++;
-                    }
-                }
-                score += (120f + cleared * 80f) * scoreFactor();
-                explode(p.x, p.y, 34, C_ORANGE);
-                playSound(sndHit, 0.7f);
+                bombX = p.x;
+                bombY = p.y;
+                bombTimer = 0.75f;
                 toast(sBombActive);
                 break;
 
             case P_PHASE:
                 phaseTimer = PHASE_TIME;
                 invuln = Math.max(invuln, PHASE_TIME);
-                score += 35f * scoreFactor();
+                float phasePoints = 35f * scoreFactor();
+                score += phasePoints;
+                addScorePop(p.x, p.y - 40f, "+" + fmt((int) phasePoints), C_VIOLET);
                 explode(p.x, p.y, 18, C_VIOLET);
                 playSound(sndPower, 1.25f);
                 toast(sPhaseActive);
@@ -1676,7 +1799,9 @@ public class GameView extends View implements Choreographer.FrameCallback {
 
             case P_DOUBLE:
                 doubleTimer = DOUBLE_TIME;
-                score += 35f * scoreFactor();
+                float doublePoints = 35f * scoreFactor();
+                score += doublePoints;
+                addScorePop(p.x, p.y - 40f, "+" + fmt((int) doublePoints), C_GOLD);
                 explode(p.x, p.y, 18, C_GOLD);
                 playSound(sndPower, 1.4f);
                 toast(sDoubleActive);
@@ -1684,7 +1809,9 @@ public class GameView extends View implements Choreographer.FrameCallback {
 
             default:
                 bumpMultiplier();
-                score += 50f * scoreFactor();
+                float starPoints = 50f * scoreFactor();
+                score += starPoints;
+                addScorePop(p.x, p.y - 40f, "+" + fmt((int) starPoints), C_GOLD);
                 runStars++;
                 progress.stars++;
                 progress.dailyStars++;
@@ -1756,6 +1883,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
         obstacles.clear();
         pickups.clear();
         particles.clear();
+        scorePops.clear();
 
         elapsed = 0f;
         difficulty = 0f;
@@ -1787,6 +1915,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
         slowTimer = 0f;
         phaseTimer = 0f;
         doubleTimer = 0f;
+        bombTimer = 0f;
         bossMask = 0;
         toastTimer = 0f;
         toastText = "";
@@ -1836,6 +1965,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
         obstacles.clear();
         pickups.clear();
         particles.clear();
+        scorePops.clear();
         elapsed = 0f;
         difficulty = 0f;
         latePressure = 0f;
@@ -1860,6 +1990,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
         slowTimer = 0f;
         phaseTimer = 0f;
         doubleTimer = 0f;
+        bombTimer = 0f;
         bossMask = 0;
         toastTimer = 0f;
         px = W / 2f;
@@ -1878,7 +2009,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
         scoreBanked = true;
         int finalScore = (int) score;
         // A run counts toward the daily quest only after meaningful play.
-        if (elapsed >= 10f || finalScore >= 300) {
+        if (GameRules.meaningfulRun(elapsed, finalScore)) {
             progress.dailyRuns++;
         }
         if (dailyChallenge) {
@@ -1986,6 +2117,10 @@ public class GameView extends View implements Choreographer.FrameCallback {
                 return progress.dailyStars;
             case Progress.QUEST_TIME_DAY:
                 return (int) progress.dailyTime;
+            case Progress.QUEST_HARDCORE_TIME:
+                return hardcoreMode ? (int) elapsed : 0;
+            case Progress.QUEST_CHALLENGE:
+                return dailyChallenge && scoreBanked ? 1 : 0;
             default:
                 return 0;
         }
@@ -2027,6 +2162,76 @@ public class GameView extends View implements Choreographer.FrameCallback {
         }
     }
 
+    private void addScorePop(float x, float y, String text, int color) {
+        if (scorePops.size() >= 28) {
+            scorePops.remove(0);
+        }
+        ScorePop pop = new ScorePop();
+        pop.x = x;
+        pop.y = y;
+        pop.text = text;
+        pop.color = color;
+        pop.life = 0.95f;
+        pop.maxLife = pop.life;
+        scorePops.add(pop);
+    }
+
+    private void updateScorePops(float dt) {
+        for (int i = scorePops.size() - 1; i >= 0; i--) {
+            ScorePop pop = scorePops.get(i);
+            pop.life -= dt;
+            pop.y -= 58f * dt;
+            if (pop.life <= 0f) {
+                scorePops.remove(i);
+            }
+        }
+    }
+
+    private void drawScorePops(Canvas c) {
+        for (int i = 0; i < scorePops.size(); i++) {
+            ScorePop pop = scorePops.get(i);
+            float a = clamp(pop.life / pop.maxLife, 0f, 1f);
+            text(c, pop.text, pop.x, pop.y, 28f,
+                    Color.argb((int) (255f * a), Color.red(pop.color),
+                            Color.green(pop.color), Color.blue(pop.color)),
+                    tfBlack, Paint.Align.CENTER);
+        }
+    }
+
+    private void drawBombCharge(Canvas c) {
+        if (bombTimer <= 0f) {
+            return;
+        }
+        float frac = 1f - clamp(bombTimer / 0.75f, 0f, 1f);
+        pStroke.setStyle(Paint.Style.STROKE);
+        pStroke.setStrokeWidth(5f);
+        pStroke.setColor(C_ORANGE);
+        pStroke.setAlpha(220);
+        c.drawCircle(bombX, bombY, 520f * (0.35f + 0.65f * frac), pStroke);
+        pStroke.setColor(0xFFFFE4B0);
+        pStroke.setAlpha(170);
+        tmpRect.set(bombX - 42f, bombY - 42f, bombX + 42f, bombY + 42f);
+        c.drawArc(tmpRect, -90f, frac * 360f, false, pStroke);
+        pStroke.setStyle(Paint.Style.FILL);
+    }
+
+    private void resolveBomb() {
+        int cleared = 0;
+        for (int i = obstacles.size() - 1; i >= 0; i--) {
+            Obs o = obstacles.get(i);
+            if (dist2(o.x, o.y, bombX, bombY) < 520f * 520f) {
+                explode(o.x, o.y, 10, o.color);
+                obstacles.remove(i);
+                cleared++;
+            }
+        }
+        explode(bombX, bombY, 34, C_ORANGE);
+        float points = (120f + cleared * 80f) * scoreFactor();
+        score += points;
+        addScorePop(bombX, bombY - 40f, "+" + fmt((int) points), C_ORANGE);
+        playSound(sndHit, 0.7f);
+    }
+
     // ==================================================================
     //  drawing
     // ==================================================================
@@ -2038,6 +2243,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
             return;
         }
         c.save();
+        c.translate(viewOffsetX, 0f);
         c.scale(scale, scale);
         hitCount = 0;
         hitState = state;
@@ -2134,6 +2340,8 @@ public class GameView extends View implements Choreographer.FrameCallback {
             drawObs(c, obstacles.get(i));
         }
         drawParticles(c);
+        drawBombCharge(c);
+        drawScorePops(c);
         if (state != ST_OVER) {
             drawPlayer(c, px, py);
         }
@@ -2211,6 +2419,18 @@ public class GameView extends View implements Choreographer.FrameCallback {
     }
 
     private void drawObs(Canvas c, Obs o) {
+        if (o.warnTimer > 0f && o.y < 80f) {
+            float a = clamp(o.warnTimer / 0.85f, 0f, 1f);
+            float wy = insetTop + 92f;
+            pStroke.setStyle(Paint.Style.STROKE);
+            pStroke.setColor(o.color);
+            pStroke.setAlpha((int) (220f * a));
+            pStroke.setStrokeWidth(4f);
+            c.drawLine(o.x, wy - 25f, o.x, wy + 18f, pStroke);
+            c.drawLine(o.x, wy + 18f, o.x - 10f, wy + 4f, pStroke);
+            c.drawLine(o.x, wy + 18f, o.x + 10f, wy + 4f, pStroke);
+            pStroke.setStyle(Paint.Style.FILL);
+        }
         if (o.boss) {
             float pulse = 0.85f + 0.15f * (float) Math.sin(time * 4f);
             drawGlow(c, o.x, o.y, o.r * 3.6f, o.color, 190);
@@ -2407,6 +2627,17 @@ public class GameView extends View implements Choreographer.FrameCallback {
                     c.drawCircle(o.x + (float) Math.cos(ang) * o.r * 0.34f,
                             o.y + (float) Math.sin(ang) * o.r * 0.34f,
                             2.6f, pFill);
+                }
+                if (o.armorHits <= 1) {
+                    pStroke.setColor(0xFFFFF1B0);
+                    pStroke.setAlpha(220);
+                    pStroke.setStrokeWidth(3.4f);
+                    c.drawLine(o.x - o.r * 0.45f, o.y - o.r * 0.50f,
+                            o.x - o.r * 0.05f, o.y + o.r * 0.08f, pStroke);
+                    c.drawLine(o.x - o.r * 0.05f, o.y + o.r * 0.08f,
+                            o.x + o.r * 0.38f, o.y - o.r * 0.18f, pStroke);
+                    c.drawLine(o.x - o.r * 0.05f, o.y + o.r * 0.08f,
+                            o.x + o.r * 0.18f, o.y + o.r * 0.48f, pStroke);
                 }
                 break;
             }
@@ -4434,7 +4665,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
         if (scale <= 0f) {
             return true;
         }
-        float x = e.getX() / scale;
+        float x = (e.getX() - viewOffsetX) / scale;
         float y = e.getY() / scale;
         int action = e.getActionMasked();
 
@@ -4465,7 +4696,7 @@ public class GameView extends View implements Choreographer.FrameCallback {
                 if (pointerIndex < 0) {
                     return true;
                 }
-                x = e.getX(pointerIndex) / scale;
+                x = (e.getX(pointerIndex) - viewOffsetX) / scale;
                 y = e.getY(pointerIndex) / scale;
                 float ny = touchTargetY(y);
                 if (!tutorialDone
@@ -4843,6 +5074,8 @@ public class GameView extends View implements Choreographer.FrameCallback {
         boolean boss;
         int bossStage;
         int bossHits;
+        int armorHits;
+        float warnTimer;
     }
 
     private static class Pickup {
@@ -4863,6 +5096,15 @@ public class GameView extends View implements Choreographer.FrameCallback {
         float maxLife;
         float size;
         float grav;
+        int color;
+    }
+
+    private static class ScorePop {
+        float x;
+        float y;
+        float life;
+        float maxLife;
+        String text;
         int color;
     }
 }

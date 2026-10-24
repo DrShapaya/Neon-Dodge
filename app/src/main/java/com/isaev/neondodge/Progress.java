@@ -28,8 +28,10 @@ final class Progress {
     static final int QUEST_RUNS_DAY = 4;
     static final int QUEST_STARS_DAY = 5;
     static final int QUEST_TIME_DAY = 6;
-    static final int QUEST_COUNT = 7;
-    static final int[] QUEST_TARGETS = {10, 1500, 8, 80, 3, 30, 300};
+    static final int QUEST_HARDCORE_TIME = 7;
+    static final int QUEST_CHALLENGE = 8;
+    static final int QUEST_COUNT = 9;
+    static final int[] QUEST_TARGETS = {10, 1500, 8, 80, 3, 30, 300, 60, 1};
     static final int QUEST_REWARD = 300;
 
     static final int ACH_FIRST_RUN = 0;
@@ -42,7 +44,10 @@ final class Progress {
     static final int ACH_TIME_10 = 7;
     static final int ACH_SHIELD = 8;
     static final int ACH_SURVIVE_120 = 9;
-    static final int ACH_COUNT = 10;
+    static final int ACH_SCORE_10000 = 10;
+    static final int ACH_COMBO_50 = 11;
+    static final int ACH_CHALLENGE = 12;
+    static final int ACH_COUNT = 13;
 
     static final int SPHERE_COUNT = 8;
     static final int TRAIL_COUNT = 7;
@@ -351,6 +356,12 @@ final class Progress {
                 return shieldBlocks >= 1;
             case ACH_SURVIVE_120:
                 return bestTime >= 120;
+            case ACH_SCORE_10000:
+                return best >= 10000;
+            case ACH_COMBO_50:
+                return bestCombo >= 50;
+            case ACH_CHALLENGE:
+                return challengeBest > 0;
             default:
                 return false;
         }
@@ -376,6 +387,12 @@ final class Progress {
                 return shieldBlocks;
             case ACH_SURVIVE_120:
                 return bestTime;
+            case ACH_SCORE_10000:
+                return best;
+            case ACH_COMBO_50:
+                return bestCombo;
+            case ACH_CHALLENGE:
+                return challengeBest > 0 ? 1 : 0;
             default:
                 return 0;
         }
@@ -403,6 +420,12 @@ final class Progress {
                 return 1;
             case ACH_SURVIVE_120:
                 return 120;
+            case ACH_SCORE_10000:
+                return 10000;
+            case ACH_COMBO_50:
+                return 50;
+            case ACH_CHALLENGE:
+                return 1;
             default:
                 return 1;
         }

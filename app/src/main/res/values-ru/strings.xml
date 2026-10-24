@@ -140,6 +140,9 @@
     <string name="ach_time_10">10 минут в игре</string>
     <string name="ach_shield">Щит спас</string>
     <string name="ach_survive_120">Выжить 2 минуты</string>
+    <string name="ach_score_10000">Счёт 10 000</string>
+    <string name="ach_combo_50">Комбо x50</string>
+    <string name="ach_challenge">Испытание пройдено</string>
 
     <string name="quest_stars_run">Собери 10 звёзд за один забег</string>
     <string name="quest_score_run">Набери 1500 очков за один забег</string>
@@ -148,6 +151,8 @@
     <string name="quest_runs_day">Сыграй 3 забега за день</string>
     <string name="quest_stars_day">Собери 30 звёзд за день</string>
     <string name="quest_time_day">Проведи в игре 5 минут за день</string>
+    <string name="quest_hardcore_time">Выживи 60 секунд в Хардкоре</string>
+    <string name="quest_challenge">Пройди испытание дня</string>
 
     <string name="skin_cyan">Циан</string>
     <string name="skin_magenta">Магента</string>
