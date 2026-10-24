@@ -151,6 +151,9 @@ public class GameView extends View implements Choreographer.FrameCallback {
     private boolean hardcoreMode;
     private boolean zenMode;
     private boolean dailyChallenge;
+    private boolean hintStarShown;
+    private boolean hintShieldShown;
+    private boolean hintComboShown;
     private Random gameRnd = new Random();
     private Random pickupRnd = new Random();
     private int runStars;
@@ -308,6 +311,9 @@ public class GameView extends View implements Choreographer.FrameCallback {
     private String sAchievementUnlocked;
     private String sShieldActive;
     private String sShieldBlocked;
+    private String sHintStar;
+    private String sHintShield;
+    private String sHintCombo;
     private String sMagnetActive;
     private String sSlowActive;
     private String sBombActive;
@@ -376,6 +382,9 @@ public class GameView extends View implements Choreographer.FrameCallback {
         vibOn = prefs.getBoolean("vibrate", true);
         musicOn = prefs.getBoolean("music", true);
         tutorialDone = prefs.getBoolean("tutorial_done", false);
+        hintStarShown = prefs.getBoolean("hint_star", false);
+        hintShieldShown = prefs.getBoolean("hint_shield", false);
+        hintComboShown = prefs.getBoolean("hint_combo", false);
         fingerOffset = clamp(prefs.getFloat("finger_offset", OFFSET_DEFAULT),
                 OFFSET_MIN, OFFSET_MAX);
         controlMode = prefs.getInt("control_mode", CONTROL_ABOVE);
@@ -453,6 +462,9 @@ public class GameView extends View implements Choreographer.FrameCallback {
         sAchievementUnlocked = context.getString(R.string.achievement_unlocked);
         sShieldActive = context.getString(R.string.bonus_shield_active);
         sShieldBlocked = context.getString(R.string.bonus_shield_blocked);
+        sHintStar = context.getString(R.string.hint_star);
+        sHintShield = context.getString(R.string.hint_shield);
+        sHintCombo = context.getString(R.string.hint_combo);
         sMagnetActive = context.getString(R.string.bonus_magnet_active);
         sSlowActive = context.getString(R.string.bonus_slow_active);
         sBombActive = context.getString(R.string.bonus_bomb_active);
@@ -1325,6 +1337,11 @@ public class GameView extends View implements Choreographer.FrameCallback {
                     }
                     comboTimer = 2.2f;
                     comboPop = 1f;
+                    if (!hintComboShown) {
+                        hintComboShown = true;
+                        prefs.edit().putBoolean("hint_combo", true).apply();
+                        toast(sHintCombo);
+                    }
                     closeMult = Math.min(999f, closeMult + MULT_STEP);
                     runMaxCloseMult = Math.max(runMaxCloseMult, closeMult);
                     float comboPoints = 5f * combo * scoreFactor();
@@ -1755,6 +1772,11 @@ public class GameView extends View implements Choreographer.FrameCallback {
                 playSound(sndPower, 1.05f);
                 buzz(20);
                 toast(sShieldActive);
+                if (!hintShieldShown) {
+                    hintShieldShown = true;
+                    prefs.edit().putBoolean("hint_shield", true).apply();
+                    toast(sHintShield);
+                }
                 break;
 
             case P_MAGNET:
@@ -1817,6 +1839,11 @@ public class GameView extends View implements Choreographer.FrameCallback {
                 progress.dailyStars++;
                 explode(p.x, p.y, 12, C_GOLD);
                 playSound(sndCoin, 0.95f + rnd.nextFloat() * 0.25f);
+                if (!hintStarShown) {
+                    hintStarShown = true;
+                    prefs.edit().putBoolean("hint_star", true).apply();
+                    toast(sHintStar);
+                }
                 break;
         }
         checkProgress();

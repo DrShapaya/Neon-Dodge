@@ -117,6 +117,9 @@
     <string name="bonus_double_desc">Удваивает очки на 8 секунд</string>
     <string name="bonus_shield_active">Щит активен</string>
     <string name="bonus_shield_blocked">Щит поглотил удар</string>
+    <string name="hint_star">Звезда: +очки и рост множителя</string>
+    <string name="hint_shield">Щит поглощает следующее столкновение</string>
+    <string name="hint_combo">Близкий пролёт: держи дистанцию для комбо</string>
     <string name="bonus_magnet_active">Магнит активен</string>
     <string name="bonus_slow_active">Время замедлено</string>
     <string name="bonus_bomb_active">Бомба очистила поле</string>

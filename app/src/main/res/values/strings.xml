@@ -117,6 +117,9 @@
     <string name="bonus_double_desc">Doubles score for 8 seconds</string>
     <string name="bonus_shield_active">Shield active</string>
     <string name="bonus_shield_blocked">Shield absorbed the hit</string>
+    <string name="hint_star">Star: points and multiplier growth</string>
+    <string name="hint_shield">Shield absorbs the next collision</string>
+    <string name="hint_combo">Near miss: keep the distance for a combo</string>
     <string name="bonus_magnet_active">Magnet active</string>
     <string name="bonus_slow_active">Time slowed</string>
     <string name="bonus_bomb_active">Bomb cleared the field</string>
