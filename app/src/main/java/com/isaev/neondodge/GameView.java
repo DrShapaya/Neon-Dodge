@@ -375,7 +375,8 @@ public class GameView extends View implements Choreographer.FrameCallback {
 
     // ---------- audio ----------
     private SharedPreferences prefs;
-    private SoundPool soundPool;
+    private volatile SoundPool soundPool;
+    private volatile boolean audioInitStarted;
     private MediaPlayer musicPlayer;
     private AudioManager audioManager;
     private AudioFocusRequest audioFocusRequest;
@@ -422,7 +423,6 @@ public class GameView extends View implements Choreographer.FrameCallback {
 
         initPaints();
         initStars();
-        initAudio();
         resetMenu();
     }
 
@@ -689,18 +689,25 @@ public class GameView extends View implements Choreographer.FrameCallback {
     }
 
     private void initAudio() {
+        if (soundPool != null) {
+            return;
+        }
         try {
             AudioAttributes attrs = new AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_GAME)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build();
-            soundPool = new SoundPool.Builder()
+            SoundPool pool = new SoundPool.Builder()
                     .setMaxStreams(6)
                     .setAudioAttributes(attrs)
                     .build();
-            sndCoin = soundPool.load(getContext(), R.raw.coin, 1);
-            sndHit = soundPool.load(getContext(), R.raw.hit, 1);
-            sndPower = soundPool.load(getContext(), R.raw.power, 1);
+            int coin = pool.load(getContext(), R.raw.coin, 1);
+            int hit = pool.load(getContext(), R.raw.hit, 1);
+            int power = pool.load(getContext(), R.raw.power, 1);
+            soundPool = pool;
+            sndCoin = coin;
+            sndHit = hit;
+            sndPower = power;
         } catch (Exception e) {
             soundPool = null;
         }
@@ -709,6 +716,22 @@ public class GameView extends View implements Choreographer.FrameCallback {
         } catch (Exception e) {
             vibrator = null;
         }
+    }
+
+    /** Загрузка коротких звуков не должна блокировать первый кадр меню. */
+    private void startAudioInit() {
+        if (audioInitStarted || soundPool != null) {
+            return;
+        }
+        audioInitStarted = true;
+        Thread thread = new Thread(() -> {
+            try {
+                initAudio();
+            } finally {
+                audioInitStarted = false;
+            }
+        }, "neon-audio-init");
+        thread.start();
     }
 
     private void initMusic() {
@@ -877,7 +900,9 @@ public class GameView extends View implements Choreographer.FrameCallback {
             py = groundY();
             targetY = py;
         }
-    }    private float touchTargetY(float touchY) {
+    }
+
+    private float touchTargetY(float touchY) {
         return clamp(touchY - effectiveFingerOffset(), playerMinY(), playerMaxY());
     }
 
@@ -950,6 +975,16 @@ public class GameView extends View implements Choreographer.FrameCallback {
         if (!running) {
             return;
         }
+        // The emulator's software GPU cannot sustain a 60 Hz animated menu
+        // with large Canvas surfaces. Throttle non-game screens to 10 fps so
+        // input events keep a responsive main thread while the game itself
+        // remains frame driven.
+        long minFrameNs = isInteractiveMenuState()
+                ? 100_000_000L : 16_000_000L;
+        if (lastNs != 0L && frameTimeNanos - lastNs < minFrameNs) {
+            Choreographer.getInstance().postFrameCallback(this);
+            return;
+        }
         if (lastNs == 0L) {
             lastNs = frameTimeNanos;
         }
@@ -966,12 +1001,17 @@ public class GameView extends View implements Choreographer.FrameCallback {
         Choreographer.getInstance().postFrameCallback(this);
     }
 
+    private boolean isInteractiveMenuState() {
+        return state == ST_MENU || state == ST_SETTINGS || state == ST_STATS
+                || state == ST_QUESTS || state == ST_SKINS || state == ST_HISTORY
+                || state == ST_WORKSHOP || state == ST_RULES || state == ST_PAUSE
+                || state == ST_OVER;
+    }
+
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
-        if (soundPool == null) {
-            initAudio();
-        }
+        startAudioInit();
         startLoop();
     }
 
@@ -4970,9 +5010,9 @@ public class GameView extends View implements Choreographer.FrameCallback {
     private void textGlow(Canvas c, String s, float x, float y, float size,
                           int color, int glow, Typeface tf) {
         pText.setTypeface(tf);
-        pText.setTextSize(size);
         pText.setTextAlign(Paint.Align.CENTER);
         pText.setLetterSpacing(0.02f);
+        pText.setTextSize(size);
         pText.setColor(color);
         pText.setShadowLayer(size * 0.30f, 0f, 0f, glow);
         c.drawText(s, x, y, pText);
