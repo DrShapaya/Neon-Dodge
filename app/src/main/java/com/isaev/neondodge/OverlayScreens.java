@@ -1,5 +1,9 @@
 package com.isaev.neondodge;
 
+import android.graphics.Shader;
+import android.graphics.RadialGradient;
+import android.graphics.LinearGradient;
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -27,7 +31,7 @@ abstract class OverlayScreens extends InfoScreens {
 
         float cx = W / 2f;
         float y = pt + 116f;
-        text(c, sPause, cx, y, 64f, UI_INK, tfBlack, Paint.Align.CENTER);
+        text(c, sPause, cx, y, 58f, UI_INK, tfDisplay, Paint.Align.CENTER);
         y += 50f;
         updateShownScore();
         text(c, sScore + " " + shownScoreText + "   ·   " + formatTime((int) elapsed),
@@ -219,91 +223,209 @@ abstract class OverlayScreens extends InfoScreens {
         endScroll(c, y);
     }
 
+    /**
+     * Итог забега на весь экран: бейдж режима (или рекорда), крупный счёт,
+     * прогресс ранга, три плитки статистики, лента наград и кнопки внизу,
+     * под большим пальцем. При рекорде за счётом вращаются золотые лучи.
+     */
     void drawOver(Canvas c) {
         float appear = clamp(overTime / 0.45f, 0f, 1f);
         float ease = 1f - (1f - appear) * (1f - appear) * (1f - appear);
-        pFill.setColor(Color.argb((int) (0xCC * ease), 5, 8, 18));
+        pFill.setColor(Color.argb((int) (0xEB * ease), 6, 8, 22));
         c.drawRect(-100f, -100f, W + 100f, worldH + 100f, pFill);
-
-        float l = UI_PAD;
-        float r = W - UI_PAD;
-        float pw = r - l;
-        float inner = pw - 96f;
-        float panelH = 1000f;
-        float pt = Math.max(insetTop + 30f, (worldH - panelH) / 2f) + (1f - ease) * 80f;
         int saved = ease < 1f
                 ? c.saveLayerAlpha(-100f, -100f, W + 100f, worldH + 100f, (int) (255 * ease))
                 : c.save();
-        box(c, l, pt, r, pt + panelH, 44f, 0xF00E1630, newRecord ? 0x88FFD75E : UI_LINE);
-        int accent = newRecord ? C_GOLD : (dailyChallenge ? C_MAGENTA : modeColor(mode));
-        tube(c, W / 2f - 90f, pt, W / 2f + 90f, pt, accent, 4f);
+        c.translate(0f, (1f - ease) * 60f);
 
+        float top = insetTop;
         float cx = W / 2f;
-        float y = pt + 100f;
-        if (newRecord) {
-            float pulse = 0.75f + 0.25f * (float) Math.sin(time * 5f);
-            textGlow(c, sNewRecord, cx, y, 60f, 0xFFFFF2C4,
-                    Color.argb((int) (230f * pulse), 255, 215, 94), tfBlack);
-        } else {
-            text(c, sGameOver, cx, y, 54f, UI_INK, tfBlack, Paint.Align.CENTER);
-        }
-        y += 58f;
-
-        String modeLabel = dailyChallenge ? sDailyChallenge : sModeNames[mode];
+        float l = UI_PAD;
+        float r = W - UI_PAD;
         int mc = dailyChallenge ? C_MAGENTA : modeColor(mode);
-        float mw = measure(modeLabel, 24f, tfCond) + 74f;
-        box(c, cx - mw / 2f, y - 24f, cx + mw / 2f, y + 24f, 24f, withAlpha(mc, 0x22), 0);
-        pFill.setColor(mc);
-        c.drawCircle(cx - mw / 2f + 28f, y, 7f, pFill);
-        textC(c, modeLabel, cx + 12f, y, 24f, UI_INK, tfCond, Paint.Align.CENTER);
-        y += 170f;
+        String modeLabel = dailyChallenge ? sDailyChallenge : sModeNames[mode];
 
-        // Счёт «досчитывается» за первую секунду — единственная анимация экрана.
+        // Фон за счётом: золотые лучи при рекорде, мягкое свечение режима иначе.
+        float rcy = top + 330f;
+        if (newRecord) {
+            float rot = ValueAnimator.areAnimatorsEnabled() ? time * 9f : 0f;
+            pShade.setShader(new RadialGradient(cx, rcy, 440f,
+                    new int[]{0x38FFD75E, 0x00FFD75E}, null, Shader.TileMode.CLAMP));
+            tmpRect.set(cx - 440f, rcy - 440f, cx + 440f, rcy + 440f);
+            for (int k = 0; k < 20; k++) {
+                c.drawArc(tmpRect, rot + k * 18f, 6f, true, pShade);
+            }
+            pShade.setShader(null);
+        } else {
+            drawGlow(c, cx, rcy, 760f, mc, 55);
+        }
+
+        // Бейдж: рекорд — золото с кубком, иначе точка и название режима.
+        float py = top + 178f;
+        String badge = newRecord ? String.format(sNewRecordMode, modeLabel) : modeLabel;
+        float bw = measure(badge, 32f, tfBlack) + 110f;
+        int bc = newRecord ? C_GOLD : mc;
+        box(c, cx - bw / 2f, py - 42f, cx + bw / 2f, py + 42f, 42f,
+                withAlpha(bc, 0x29), withAlpha(bc, 0x99));
+        if (newRecord) {
+            iconTrophy(c, cx - bw / 2f + 50f, py, 17f, C_GOLD);
+        } else {
+            pFill.setColor(mc);
+            c.drawCircle(cx - bw / 2f + 50f, py, 10f, pFill);
+        }
+        textC(c, badge, cx - bw / 2f + 80f, py, 32f, newRecord ? 0xFFFFE9A6 : UI_INK, tfBlack,
+                Paint.Align.LEFT);
+
+        // Счёт «досчитывается» за первую секунду.
         float count = clamp((overTime - 0.15f) / 0.85f, 0f, 1f);
         count = 1f - (1f - count) * (1f - count);
-        textGlow(c, fmt((int) (score * count)), cx, y, 156f, 0xFFFFFFFF,
-                newRecord ? 0xCCFFD75E : 0xAA5FF3FF, tfBlack);
-        y += 58f;
+        textGlow(c, fmt((int) (score * count)), cx, top + 400f, 168f,
+                newRecord ? 0xFFFFF6D8 : 0xFFFFFFFF,
+                newRecord ? 0xE6FFD75E : 0xAA5FF3FF, tfDisplay, 0.2f);
         int best = dailyChallenge ? progress.challengeBest : progress.bestForMode(mode);
-        text(c, sBest + "  " + fmt(best), cx, y, 28f, UI_FOG, tfMed, Paint.Align.CENTER);
-        y += 46f;
+        String under = newRecord
+                ? (runPrevBest > 0 ? String.format(sRecordWas, fmt(runPrevBest),
+                fmt((int) score - runPrevBest)) : sRecordFirst)
+                : sBest + "  " + fmt(best);
+        text(c, under, cx, top + 462f, 34f, newRecord ? 0xFFC9B98A : UI_FOG, tfBold,
+                Paint.Align.CENTER);
 
-        String[] values = {
-                fmt(runStars),
-                fmt(runDodged),
-                formatTime((int) elapsed),
-                "x" + runMaxCombo,
-                "x" + fmtMult(runMaxMult) + " · x" + fmtMult(runMaxCloseMult),
-                zenMode ? "—" : "+" + fmt((int) score)
-        };
-        String[] labels = {sStatName[3], sStatName[0], sStatName[2],
-                sCombo, sMultiplier, sNeon};
-        float gap = 14f;
-        float tw = (inner - gap * 2f) / 3f;
-        float th = 120f;
-        float gl = cx - inner / 2f;
-        // Сетка итогов без плашек: колонки разделены тонкими линиями.
-        pFill.setColor(UI_LINE);
-        for (int k = 1; k < 3; k++) {
-            float sx = gl + k * (tw + gap) - gap / 2f;
-            c.drawRect(sx - 1f, y + 20f, sx + 1f, y + th * 2f + gap - 20f, pFill);
-        }
-        c.drawRect(gl + 20f, y + th + gap / 2f - 1f, gl + inner - 20f, y + th + gap / 2f + 1f,
-                pFill);
-        for (int i = 0; i < 6; i++) {
-            float tl = gl + (i % 3) * (tw + gap);
-            float tt = y + (i / 3) * (th + gap);
-            boolean neon = i == 5;
-            text(c, values[i], tl + tw / 2f, tt + 60f, 36f,
-                    neon && !zenMode ? 0xFFFFE9A6 : UI_INK, tfBlack, Paint.Align.CENTER);
-            text(c, labels[i], tl + tw / 2f, tt + 96f, 21f, UI_FOG, tfMed,
-                    Paint.Align.CENTER);
-        }
-        y += th * 2f + gap + 34f + 66f;
+        float y = top + 514f;
+        y = drawRankCard(c, l, r, y) + 26f;
 
-        primaryButton(c, B_AGAIN, cx, y, inner, 132f, sPlayAgain, C_CYAN, 0.5f);
-        y += 66f + 20f + 56f;
-        secondaryButton(c, B_MENU, cx, y, inner, 112f, sToMenu, C_CYAN, UI_INK);
+        // Три плитки статистики.
+        float gap = 22f;
+        float tw = (r - l - gap * 2f) / 3f;
+        float th = 250f;
+        String[] values = {formatTime((int) elapsed), fmt(runDodged), "x" + fmtMult(runMaxMult)};
+        String[] labels = {sStatName[2], sStatName[0], sStatMaxMult};
+        for (int i = 0; i < 3; i++) {
+            float tl = l + i * (tw + gap);
+            box(c, tl, y, tl + tw, y + th, 44f, 0xBF101634, 0x12FFFFFF);
+            float tcx = tl + tw / 2f;
+            if (i == 0) {
+                iconClock(c, tcx, y + 62f, 20f, UI_FOG);
+            } else if (i == 1) {
+                iconNearMiss(c, tcx, y + 62f, 20f, 0xFFFF8FE6);
+            } else {
+                iconSpark(c, tcx, y + 62f, 20f, C_GOLD);
+            }
+            text(c, values[i], tcx, y + 152f, 54f, UI_INK, tfDisplay, Paint.Align.CENTER);
+            text(c, labels[i], tcx, y + 204f, 28f, UI_FOG, tfBold, Paint.Align.CENTER);
+        }
+        y += th + 34f;
+
+        // Кнопки — снизу вверх, под большим пальцем.
+        float menuH = 150f;
+        float menuCy = worldH - insetBottom - 40f - menuH / 2f - (1f - ease) * 60f;
+        float againH = 184f;
+        float againCy = menuCy - menuH / 2f - 22f - againH / 2f;
+
+        // Лента наград: сколько поместится между плитками и кнопками.
+        float rowH = 122f;
+        float limit = againCy - againH / 2f - 30f;
+        for (int i = 0; i < runEvents.size() && y + rowH <= limit; i++) {
+            drawRunEvent(c, runEvents.get(i), l, r, y, rowH);
+            y += rowH + 20f;
+        }
+
+        primaryButton(c, B_AGAIN, cx, againCy, r - l, againH, sPlayAgain, C_CYAN, 1f);
+        secondaryButton(c, B_MENU, cx, menuCy, r - l, menuH, sToMenu, 0xFFFFFFFF, UI_INK);
         c.restoreToCount(saved);
+    }
+
+    /** Карточка ранга: что было, сколько неона принёс забег, сколько до следующего. */
+    float drawRankCard(Canvas c, float l, float r, float y) {
+        float h = 236f;
+        box(c, l, y, r, y + h, 50f, 0xD1101634, 0x14FFFFFF);
+        int rank = progress.rank();
+        boolean up = rank > runRankBefore;
+        String title = up ? String.format(sRankUp, runRankBefore, rank)
+                : String.format(sRankLabel, rank);
+        text(c, title, l + 44f, y + 66f, 36f, UI_INK, tfDisplayBold, Paint.Align.LEFT);
+        if (runNeonGained > 0) {
+            String gain = "+" + fmt((int) Math.min(runNeonGained, Integer.MAX_VALUE));
+            float gw = measure(gain, 36f, tfBlack);
+            text(c, gain, r - 44f, y + 66f, 36f, 0xFFFFE9A6, tfBlack, Paint.Align.RIGHT);
+            iconDiamond(c, r - 44f - gw - 26f, y + 54f, 14f, C_GOLD);
+        }
+
+        long lo = GameRules.rankThreshold(rank);
+        long hi = GameRules.rankThreshold(rank + 1);
+        float span = Math.max(1f, hi - lo);
+        float after = clamp((progress.neonEarned - lo) / span, 0f, 1f);
+        float before = up ? 0f : clamp((runNeonBefore - lo) / span, 0f, 1f);
+        float bl = l + 44f;
+        float br = r - 44f;
+        float by = y + 112f;
+        box(c, bl, by - 11f, br, by + 11f, 11f, 0x14FFFFFF, 0);
+        if (before > 0.005f) {
+            box(c, bl, by - 11f, bl + (br - bl) * before, by + 11f, 11f, C_CYAN, 0);
+        }
+        if (after > before + 0.005f) {
+            float gs = bl + (br - bl) * before;
+            float ge = bl + (br - bl) * after;
+            drawGlow(c, (gs + ge) / 2f, by, Math.max(80f, ge - gs), C_GOLD, 70);
+            pShade.setShader(new LinearGradient(gs, 0f, ge, 0f, C_GOLD, 0xFFFFB13D,
+                    Shader.TileMode.CLAMP));
+            tmpRect.set(gs, by - 11f, Math.max(ge, gs + 22f), by + 11f);
+            c.drawRoundRect(tmpRect, 11f, 11f, pShade);
+            pShade.setShader(null);
+        }
+        String note = zenMode ? sModeHints[Progress.MODE_ZEN]
+                : String.format(sRankToNext, rank + 1,
+                fmt((int) Math.min(hi - progress.neonEarned, Integer.MAX_VALUE)));
+        text(c, note, l + 44f, y + 182f, 30f, UI_FOG, tfBold, Paint.Align.LEFT);
+        return y + h;
+    }
+
+    /** Строка ленты наград: значок по типу события, текст и значение справа. */
+    void drawRunEvent(Canvas c, RunEvent e, float l, float r, float y, float h) {
+        int col;
+        switch (e.kind) {
+            case RunEvent.QUEST:
+                col = C_MINT;
+                break;
+            case RunEvent.ACHIEVEMENT:
+                col = C_GOLD;
+                break;
+            case RunEvent.SKIN:
+                col = C_VIOLET;
+                break;
+            default:
+                col = C_CYAN;
+                break;
+        }
+        box(c, l, y, r, y + h, 40f, withAlpha(col, 0x16), withAlpha(col, 0x59));
+        float ix = l + 30f + 39f;
+        float cy = y + h / 2f;
+        if (e.kind == RunEvent.QUEST) {
+            pFill.setColor(col);
+            c.drawCircle(ix, cy, 39f, pFill);
+            iconCheck(c, ix, cy, 18f, 0xFF06231A, 7f);
+        } else {
+            strokeStyle(col, 5f);
+            c.drawCircle(ix, cy, 36f, pStroke);
+            strokeReset();
+            if (e.kind == RunEvent.ACHIEVEMENT) {
+                iconTrophy(c, ix, cy, 15f, col);
+            } else if (e.kind == RunEvent.SKIN) {
+                iconOrb(c, ix + 2f, cy, 14f, mix(col, 0xFFFFFFFF, 0.4f));
+            } else {
+                iconUpgrade(c, ix, cy, 14f, col);
+            }
+        }
+        float tx = ix + 39f + 30f;
+        float vw = e.value.length() > 0 ? measure(e.value, 33f, tfBlack) + 30f : 0f;
+        String label = e.text;
+        float maxW = r - 30f - vw - tx;
+        while (label.length() > 4 && measure(label, 34f, tfBold) > maxW) {
+            label = label.substring(0, label.length() - 2) + "…";
+        }
+        textC(c, label, tx, cy, 34f, UI_INK, tfBold, Paint.Align.LEFT);
+        if (vw > 0f) {
+            textC(c, e.value, r - 30f, cy, 33f, e.kind == RunEvent.QUEST ? 0xFFFFE9A6
+                    : mix(col, 0xFFFFFFFF, 0.4f), tfBlack, Paint.Align.RIGHT);
+        }
     }
 }

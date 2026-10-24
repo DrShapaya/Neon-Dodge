@@ -1,10 +1,13 @@
 package com.isaev.neondodge;
 
-import android.graphics.Path;
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.LinearGradient;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.RectF;
+import android.graphics.Shader;
 import android.graphics.Typeface;
 
 /** UI-кит: палитра, зоны нажатия, прокрутка, примитивы, текст и иконки. */
@@ -178,47 +181,97 @@ abstract class UiKit extends GameRenderer {
         return pText.measureText(s);
     }
 
-    /**
-     * Главная кнопка — горящая неоновая трубка: стеклянная капсула с цветным
-     * контуром и светящейся подписью. Нажатие «заливает» её светом.
-     */
     void primaryButton(Canvas c, int id, float cx, float cy, float w, float h,
                                String label, int color, float breathe) {
+        primaryButton(c, id, cx, cy, w, h, label, null, color, breathe);
+    }
+
+    /**
+     * Главная кнопка: градиентная капсула (циан → фиолетовый, золото для
+     * улучшений) с внутренним бликом. У «Играть» и «Ещё раз» по ней раз в
+     * несколько секунд пробегает световая полоса; sub — вторая строка.
+     */
+    void primaryButton(Canvas c, int id, float cx, float cy, float w, float h,
+                       String label, String sub, int color, float breathe) {
         boolean down = pressed(id);
-        float in = down ? 4f : 0f;
-        tmpRect.set(cx - w / 2f + in, cy - h / 2f + in, cx + w / 2f - in, cy + h / 2f - in);
-        float rad = tmpRect.height() / 2f;
-        pFill.setColor(withAlpha(color, down ? 0x48 : 0x1A));
-        c.drawRoundRect(tmpRect, rad, rad, pFill);
-        strokeStyle(withAlpha(color, (int) ((down ? 0x50 : 0x22) + 0x16 * breathe)), 16f);
-        c.drawRoundRect(tmpRect, rad, rad, pStroke);
-        strokeStyle(color, 3.5f);
-        c.drawRoundRect(tmpRect, rad, rad, pStroke);
-        strokeStyle(withAlpha(mix(color, 0xFFFFFFFF, 0.8f), 0xCC), 1.2f);
+        float in = down ? 5f : 0f;
+        float l = cx - w / 2f + in;
+        float t = cy - h / 2f + in;
+        float r = cx + w / 2f - in;
+        float b = cy + h / 2f - in;
+        float rad = Math.min(60f, (b - t) / 2f);
+        int[] grad = color == C_GOLD
+                ? new int[]{0xFFFFE9A6, 0xFFFFD75E, 0xFFFFB13D}
+                : (color == C_CYAN ? new int[]{0xFF36E6FF, 0xFF5FF3FF, 0xFF9C8BFF}
+                : new int[]{mix(color, 0xFFFFFFFF, 0.35f), color, mix(color, 0xFF000000, 0.25f)});
+
+        // Мягкий ореол под кнопкой.
+        c.save();
+        c.scale(w / h * 0.55f, 1f, cx, cy + h * 0.15f);
+        drawGlow(c, cx, cy + h * 0.15f, h * 2.6f, grad[1], (int) (60f + 30f * breathe));
+        c.restore();
+
+        tmpRect.set(l, t, r, b);
+        pShade.setShader(new LinearGradient(l, 0f, r, 0f, grad, new float[]{0f, 0.45f, 1f},
+                Shader.TileMode.CLAMP));
+        c.drawRoundRect(tmpRect, rad, rad, pShade);
+        pShade.setShader(null);
+        if (down) {
+            pFill.setColor(0x33000000);
+            c.drawRoundRect(tmpRect, rad, rad, pFill);
+        }
+        boolean sweep = (id == B_PLAY || id == B_AGAIN) && ValueAnimator.areAnimatorsEnabled();
+        if (sweep) {
+            float phase = (time % 3.4f) / 3.4f;
+            if (phase < 0.6f) {
+                float sx = l - 200f + (r - l + 400f) * (phase / 0.6f);
+                iconPath.reset();
+                iconPath.addRoundRect(tmpRect, rad, rad, Path.Direction.CW);
+                c.save();
+                c.clipPath(iconPath);
+                c.skew(-0.36f, 0f);
+                pShade.setShader(new LinearGradient(sx + cy * 0.36f - 100f, 0f,
+                        sx + cy * 0.36f + 100f, 0f,
+                        new int[]{0x00FFFFFF, 0x8CFFFFFF, 0x00FFFFFF}, null,
+                        Shader.TileMode.CLAMP));
+                c.drawRect(sx + cy * 0.36f - 100f, t, sx + cy * 0.36f + 100f, b, pShade);
+                pShade.setShader(null);
+                c.restore();
+            }
+        }
+        strokeStyle(0x59FFFFFF, 2f);
+        tmpRect.set(l + 1f, t + 1f, r - 1f, b - 1f);
         c.drawRoundRect(tmpRect, rad, rad, pStroke);
         strokeReset();
 
-        int ink = mix(color, 0xFFFFFFFF, 0.72f);
-        float size = Math.min(46f, h * 0.33f);
-        float tw = measure(label, size, tfBlack);
-        float tri = size * 0.40f;
-        float tx = cx;
-        if (id == B_PLAY || id == B_AGAIN || id == B_EMPTY_PLAY || id == B_CONTINUE) {
-            float gap = size * 0.45f;
-            float total = tri * 1.3f + gap + tw;
-            float ix = cx - total / 2f + tri * 0.55f;
-            iconPlay(c, ix, cy, tri, ink);
-            tx = cx - total / 2f + tri * 1.3f + gap + tw / 2f;
+        int ink = UI_ON_ACCENT;
+        boolean twoLines = sub != null && sub.length() > 0;
+        float size = Math.min(60f, h * (twoLines ? 0.33f : 0.32f));
+        float tw = measure(label, size, tfDisplay);
+        float subSize = size * 0.55f;
+        if (twoLines) {
+            tw = Math.max(tw, measure(sub, subSize, tfBlack));
         }
-        pText.setTypeface(tfBlack);
-        pText.setTextSize(size);
-        pText.setTextAlign(Paint.Align.CENTER);
-        pText.setLetterSpacing(0.02f);
-        pText.setColor(ink);
-        pText.setShadowLayer(size * 0.35f, 0f, 0f, withAlpha(color, 0xCC));
-        c.drawText(label, tx, cy + size * 0.36f, pText);
-        pText.clearShadowLayer();
-        pText.setLetterSpacing(0f);
+        boolean play = id == B_PLAY || id == B_AGAIN || id == B_EMPTY_PLAY || id == B_CONTINUE;
+        float tri = size * 0.42f;
+        float gap = play ? size * 0.42f : 0f;
+        float total = (play ? tri * 1.3f : 0f) + gap + tw;
+        float x0 = cx - total / 2f;
+        if (play) {
+            if (id == B_AGAIN) {
+                iconReplay(c, x0 + tri * 0.65f, cy, tri * 1.1f, ink);
+            } else {
+                iconPlay(c, x0 + tri * 0.55f, cy, tri, ink);
+            }
+        }
+        float tx = x0 + (play ? tri * 1.3f : 0f) + gap;
+        if (twoLines) {
+            text(c, label, tx, cy + size * 0.10f, size, ink, tfDisplay, Paint.Align.LEFT);
+            text(c, sub, tx, cy + size * 0.10f + subSize * 1.35f, subSize, 0xFF0B3346, tfBlack,
+                    Paint.Align.LEFT);
+        } else {
+            textC(c, label, tx, cy, size, ink, tfDisplay, Paint.Align.LEFT);
+        }
         addHit(id, cx - w / 2f, cy - h / 2f, cx + w / 2f, cy + h / 2f);
     }
 
@@ -459,6 +512,35 @@ abstract class UiKit extends GameRenderer {
             c.drawLine(x - s * 0.75f, cy + s * 0.40f, x, cy - s * 0.35f, pStroke);
             c.drawLine(x, cy - s * 0.35f, x + s * 0.75f, cy + s * 0.40f, pStroke);
         }
+        strokeReset();
+    }
+
+    /** Кубок — рекорд и достижения. */
+    void iconTrophy(Canvas c, float x, float y, float s, int color) {
+        strokeStyle(color, s * ICON_STROKE * 1.2f);
+        iconPath.reset();
+        iconPath.moveTo(x - s * 0.62f, y - s * 0.85f);
+        iconPath.lineTo(x + s * 0.62f, y - s * 0.85f);
+        iconPath.lineTo(x + s * 0.62f, y - s * 0.20f);
+        iconPath.quadTo(x + s * 0.62f, y + s * 0.42f, x, y + s * 0.42f);
+        iconPath.quadTo(x - s * 0.62f, y + s * 0.42f, x - s * 0.62f, y - s * 0.20f);
+        iconPath.close();
+        c.drawPath(iconPath, pStroke);
+        tmpRect.set(x + s * 0.40f, y - s * 0.70f, x + s * 1.05f, y - s * 0.05f);
+        c.drawArc(tmpRect, -90f, 180f, false, pStroke);
+        tmpRect.set(x - s * 1.05f, y - s * 0.70f, x - s * 0.40f, y - s * 0.05f);
+        c.drawArc(tmpRect, 90f, 180f, false, pStroke);
+        c.drawLine(x, y + s * 0.42f, x, y + s * 0.82f, pStroke);
+        c.drawLine(x - s * 0.45f, y + s * 0.95f, x + s * 0.45f, y + s * 0.95f, pStroke);
+        strokeReset();
+    }
+
+    /** Часы — время забега. */
+    void iconClock(Canvas c, float x, float y, float s, int color) {
+        strokeStyle(color, s * ICON_STROKE * 1.1f);
+        c.drawCircle(x, y, s * 0.9f, pStroke);
+        c.drawLine(x, y, x, y - s * 0.5f, pStroke);
+        c.drawLine(x, y, x + s * 0.38f, y + s * 0.25f, pStroke);
         strokeReset();
     }
 

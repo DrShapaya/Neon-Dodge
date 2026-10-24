@@ -89,12 +89,41 @@ abstract class GameResources extends GameCore {
         sWorkshopMax = context.getString(R.string.workshop_max);
         sWorkshopBuy = context.getString(R.string.workshop_buy);
         sWorkshopHint = context.getString(R.string.workshop_hint);
+        sRankLabel = context.getString(R.string.rank_label);
+        sRankTitle[0] = context.getString(R.string.rank_title_1);
+        sRankTitle[1] = context.getString(R.string.rank_title_2);
+        sRankTitle[2] = context.getString(R.string.rank_title_3);
+        sRankTitle[3] = context.getString(R.string.rank_title_4);
+        sRankTitle[4] = context.getString(R.string.rank_title_5);
+        sRankToNext = context.getString(R.string.rank_to_next);
+        sRankUp = context.getString(R.string.rank_up);
+        sRankReached = context.getString(R.string.rank_reached);
+        sDailyResets = context.getString(R.string.daily_resets);
+        sPlayRecord = context.getString(R.string.play_record);
+        sPlayNoRecord = context.getString(R.string.play_no_record);
+        sModeNoRecord = context.getString(R.string.mode_no_record);
+        sModeNoLose = context.getString(R.string.mode_no_lose);
+        sRecordWas = context.getString(R.string.record_was);
+        sRecordFirst = context.getString(R.string.record_first);
+        sNewRecordMode = context.getString(R.string.new_record_mode);
+        sSkinUnlocked = context.getString(R.string.skin_unlocked);
+        sQuestDoneEvent = context.getString(R.string.quest_done_event);
+        sSecondsShort = context.getString(R.string.seconds_short);
+        sStatMaxMult = context.getString(R.string.stat_max_mult);
         sWorkshopStat = context.getString(R.string.workshop_stat);
         sWorkshopStep = context.getString(R.string.workshop_star_step);
         sWorkshopLevelOf = context.getString(R.string.workshop_level_of);
         sWorkshopReady = context.getString(R.string.workshop_ready);
         sWorkshopNeed = context.getString(R.string.workshop_need);
         sWorkshopCost = context.getString(R.string.workshop_cost);
+        sWorkshopStars = context.getString(R.string.workshop_stars);
+        sWorkshopClose = context.getString(R.string.workshop_close);
+        sWorkshopBoss = context.getString(R.string.workshop_boss);
+        sWorkshopLevelMult = context.getString(R.string.workshop_level_mult);
+        sWorkshopCloseStep = context.getString(R.string.workshop_close_step);
+        sWorkshopBossValue = context.getString(R.string.workshop_boss_value);
+        sWorkshopLevelStep = context.getString(R.string.workshop_level_step);
+        sWorkshopProgress = context.getString(R.string.workshop_progress);
         sSphere = context.getString(R.string.skins_sphere);
         sTrail = context.getString(R.string.skins_trail);
         sZen = context.getString(R.string.zen_hud);
@@ -242,6 +271,14 @@ abstract class GameResources extends GameCore {
         tfBold = Typeface.create("sans-serif", Typeface.BOLD);
         tfMed = Typeface.create("sans-serif-medium", Typeface.NORMAL);
         tfCond = Typeface.create("sans-serif-condensed", Typeface.BOLD);
+        try {
+            tfDisplay = getResources().getFont(R.font.unbounded_black);
+            tfDisplayBold = getResources().getFont(R.font.unbounded_bold);
+        } catch (RuntimeException e) {
+            // Шрифт не загрузился — интерфейс остаётся рабочим на системном.
+            tfDisplay = tfBlack;
+            tfDisplayBold = tfBold;
+        }
         pText.setFontFeatureSettings("tnum");
 
         glowBmp = Bitmap.createBitmap(128, 128, Bitmap.Config.ARGB_8888);

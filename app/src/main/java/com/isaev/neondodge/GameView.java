@@ -181,6 +181,33 @@ public class GameView extends OverlayScreens {
                     buzz(10);
                 }
                 break;
+            case B_WORKSHOP_UPGRADE_CLOSE:
+                if (progress.upgradeCloseMultiplier()) {
+                    toast(sWorkshopClose + " · +" + fmtMult(progress.closeMultiplierStep()));
+                    buzz(18);
+                } else {
+                    toast(sWorkshopNext + " · " + fmt(progress.closeMultiplierUpgradeCost()));
+                    buzz(10);
+                }
+                break;
+            case B_WORKSHOP_UPGRADE_BOSS:
+                if (progress.upgradeBossMultiplier()) {
+                    toast(sWorkshopBoss + " · x" + fmtMult(progress.bossMultiplier()));
+                    buzz(18);
+                } else {
+                    toast(sWorkshopNext + " · " + fmt(progress.bossMultiplierUpgradeCost()));
+                    buzz(10);
+                }
+                break;
+            case B_WORKSHOP_UPGRADE_LEVEL:
+                if (progress.upgradeLevelMultiplier()) {
+                    toast(sWorkshopLevelMult + " · +" + fmtMult(progress.levelMultiplierStep()));
+                    buzz(18);
+                } else {
+                    toast(sWorkshopNext + " · " + fmt(progress.levelMultiplierUpgradeCost()));
+                    buzz(10);
+                }
+                break;
             case B_STATS:
                 go(ST_STATS);
                 break;

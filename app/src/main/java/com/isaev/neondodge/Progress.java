@@ -51,6 +51,7 @@ final class Progress {
 
     static final int SPHERE_COUNT = 8;
     static final int TRAIL_COUNT = 7;
+    static final int WORKSHOP_MAX_LEVEL = 20;
 
     private final SharedPreferences prefs;
 
@@ -64,7 +65,12 @@ final class Progress {
     int shieldBlocks;
     int questsDone;
     int pointsTotal;
+    /** Весь заработанный неон, без вычета покупок: из него считается ранг. */
+    long neonEarned;
     int multiplierUpgradeLevel;
+    int closeMultiplierUpgradeLevel;
+    int bossMultiplierUpgradeLevel;
+    int levelMultiplierUpgradeLevel;
     float totalTime;
 
     int dailyStamp;
@@ -126,9 +132,24 @@ final class Progress {
         shieldBlocks = prefs.getInt("stat_shields", 0);
         questsDone = prefs.getInt("stat_quests", 0);
         pointsTotal = prefs.getInt("points_total", 0);
-        multiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade", 0), 0, 4);
+        multiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade", 0), 0, WORKSHOP_MAX_LEVEL);
+        closeMultiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade_close", 0), 0,
+                WORKSHOP_MAX_LEVEL);
+        bossMultiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade_boss", 0), 0,
+                WORKSHOP_MAX_LEVEL);
+        levelMultiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade_level", 0), 0,
+                WORKSHOP_MAX_LEVEL);
         totalTime = prefs.getFloat("stat_time", 0f);
         achMask = prefs.getInt("ach_mask", 0);
+        if (prefs.contains("neon_earned")) {
+            neonEarned = prefs.getLong("neon_earned", 0L);
+        } else {
+            // Миграция: баланс плюс неон, уже потраченный в мастерской.
+            neonEarned = pointsTotal + legacyStarSpent(multiplierUpgradeLevel)
+                    + workshopSpent(closeMultiplierUpgradeLevel, 40000)
+                    + workshopSpent(bossMultiplierUpgradeLevel, 60000)
+                    + workshopSpent(levelMultiplierUpgradeLevel, 80000);
+        }
 
         int savedMode = prefs.getInt("mode", MODE_CLASSIC);
         mode = (savedMode >= 0 && savedMode < MODE_COUNT) ? savedMode : MODE_CLASSIC;
@@ -549,7 +570,11 @@ final class Progress {
                 .putInt("stat_shields", shieldBlocks)
                 .putInt("stat_quests", questsDone)
                 .putInt("points_total", pointsTotal)
+                .putLong("neon_earned", neonEarned)
                 .putInt("mult_upgrade", multiplierUpgradeLevel)
+                .putInt("mult_upgrade_close", closeMultiplierUpgradeLevel)
+                .putInt("mult_upgrade_boss", bossMultiplierUpgradeLevel)
+                .putInt("mult_upgrade_level", levelMultiplierUpgradeLevel)
                 .putFloat("stat_time", totalTime)
                 .putInt("ach_mask", achMask)
                 .putInt("challenge_date", challengeDate)
@@ -563,14 +588,60 @@ final class Progress {
     }
 
     int multiplierUpgradeCost() {
-        if (multiplierUpgradeLevel >= 4) {
-            return 0;
-        }
-        return 2000 + multiplierUpgradeLevel * 2500;
+        return workshopCost(multiplierUpgradeLevel, 25000);
     }
 
     float starMultiplierStep() {
         return 0.1f + multiplierUpgradeLevel * 0.1f;
+    }
+
+    int closeMultiplierUpgradeCost() {
+        return workshopCost(closeMultiplierUpgradeLevel, 40000);
+    }
+
+    int bossMultiplierUpgradeCost() {
+        return workshopCost(bossMultiplierUpgradeLevel, 60000);
+    }
+
+    int levelMultiplierUpgradeCost() {
+        return workshopCost(levelMultiplierUpgradeLevel, 80000);
+    }
+
+    float closeMultiplierStep() {
+        return 0.1f + closeMultiplierUpgradeLevel * 0.025f;
+    }
+
+    float bossMultiplier() {
+        return 2f + bossMultiplierUpgradeLevel * 0.2f;
+    }
+
+    float levelMultiplierStep() {
+        return 0.05f + levelMultiplierUpgradeLevel * 0.01f;
+    }
+
+    int workshopTotalLevel() {
+        return multiplierUpgradeLevel + closeMultiplierUpgradeLevel
+                + bossMultiplierUpgradeLevel + levelMultiplierUpgradeLevel;
+    }
+
+    boolean canUpgradeCloseMultiplier() {
+        int cost = closeMultiplierUpgradeCost();
+        return cost > 0 && pointsTotal >= cost;
+    }
+
+    boolean canUpgradeBossMultiplier() {
+        int cost = bossMultiplierUpgradeCost();
+        return cost > 0 && pointsTotal >= cost;
+    }
+
+    boolean canUpgradeLevelMultiplier() {
+        int cost = levelMultiplierUpgradeCost();
+        return cost > 0 && pointsTotal >= cost;
+    }
+
+    boolean canUpgradeAnyWorkshop() {
+        return canUpgradeMultiplier() || canUpgradeCloseMultiplier()
+                || canUpgradeBossMultiplier() || canUpgradeLevelMultiplier();
     }
 
     boolean canUpgradeMultiplier() {
@@ -586,6 +657,77 @@ final class Progress {
         multiplierUpgradeLevel++;
         saveStats();
         return true;
+    }
+
+    boolean upgradeCloseMultiplier() {
+        if (!canUpgradeCloseMultiplier()) {
+            return false;
+        }
+        pointsTotal -= closeMultiplierUpgradeCost();
+        closeMultiplierUpgradeLevel++;
+        saveStats();
+        return true;
+    }
+
+    boolean upgradeBossMultiplier() {
+        if (!canUpgradeBossMultiplier()) {
+            return false;
+        }
+        pointsTotal -= bossMultiplierUpgradeCost();
+        bossMultiplierUpgradeLevel++;
+        saveStats();
+        return true;
+    }
+
+    boolean upgradeLevelMultiplier() {
+        if (!canUpgradeLevelMultiplier()) {
+            return false;
+        }
+        pointsTotal -= levelMultiplierUpgradeCost();
+        levelMultiplierUpgradeLevel++;
+        saveStats();
+        return true;
+    }
+
+    /** Начисление неона: растут и баланс, и счётчик для ранга. */
+    void addNeon(int amount) {
+        if (amount <= 0) {
+            return;
+        }
+        pointsTotal += amount;
+        neonEarned += amount;
+    }
+
+    int rank() {
+        return GameRules.rankForNeon(neonEarned);
+    }
+
+    /**
+     * Сколько неона ушло на звёздную ветку: первые четыре уровня в 1.8 стоили
+     * 2 000 + 2 500·уровень, дальше действуют новые цены.
+     */
+    private static long legacyStarSpent(int level) {
+        long sum = 0L;
+        for (int i = 0; i < level; i++) {
+            sum += i < 4 ? 2000L + 2500L * i : workshopCost(i, 25000);
+        }
+        return sum;
+    }
+
+    private static long workshopSpent(int level, int base) {
+        long sum = 0L;
+        for (int i = 0; i < level; i++) {
+            sum += workshopCost(i, base);
+        }
+        return sum;
+    }
+
+    private static int workshopCost(int level, int base) {
+        if (level >= WORKSHOP_MAX_LEVEL) {
+            return 0;
+        }
+        double value = base * Math.pow(1.5, level);
+        return (int) Math.min(Integer.MAX_VALUE, Math.round(value));
     }
 
     private void saveChallenge() {

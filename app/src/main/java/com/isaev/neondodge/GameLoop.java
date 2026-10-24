@@ -76,7 +76,7 @@ abstract class GameLoop extends GameSpawner {
     }
 
     void rebuildScrim() {
-        float h = Math.max(240f, insetTop + 220f);
+        float h = Math.max(340f, insetTop + 320f);
         hudScrimH = h;
         hudScrim = new LinearGradient(0f, 0f, 0f, h,
                 new int[]{0xCC05070F, 0x8005070F, 0x0005070F},
@@ -299,6 +299,8 @@ abstract class GameLoop extends GameSpawner {
         int level = (int) (elapsed / 22.5f);
         if (level > lastLevel) {
             lastLevel = level;
+            // Улучшение уровня накапливает постоянный множитель до конца забега.
+            levelMult = Math.min(10f, levelMult + progress.levelMultiplierStep());
             if (level <= 4) {
                 announceTimer = 1.7f;
             }
@@ -450,7 +452,7 @@ abstract class GameLoop extends GameSpawner {
     }
 
     float scoreFactor() {
-        return scoreMult * closeMult * bossMult
+        return scoreMult * closeMult * bossMult * levelMult
                 * (hardcoreMode ? HARDCORE_MULT : 1f)
                 * (doubleTimer > 0f ? 2f : 1f);
     }
@@ -552,7 +554,7 @@ abstract class GameLoop extends GameSpawner {
                         prefs.edit().putBoolean("hint_combo", true).apply();
                         toast(sHintCombo);
                     }
-                    closeMult = Math.min(999f, closeMult + MULT_STEP);
+                    closeMult = Math.min(999f, closeMult + progress.closeMultiplierStep());
                     runMaxCloseMult = Math.max(runMaxCloseMult, closeMult);
                     float comboPoints = 5f * combo * scoreFactor();
                     score += comboPoints;
@@ -735,7 +737,7 @@ abstract class GameLoop extends GameSpawner {
                 bossZoneTimer = 0.75f;
                 toast(sBossZone + " " + bossZonesCompleted + "/4");
                 if (bossZonesCompleted >= 4) {
-                    bossMult = BOSS_MULT;
+                    bossMult = progress.bossMultiplier();
                     for (int i = obstacles.size() - 1; i >= 0; i--) {
                         if (obstacles.get(i).boss) {
                             explode(obstacles.get(i).x, obstacles.get(i).y, 55, obstacles.get(i).color);

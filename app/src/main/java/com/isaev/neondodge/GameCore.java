@@ -163,6 +163,7 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     float closeMult = 1f;
     float runMaxCloseMult = 1f;
     float bossMult = 1f;
+    float levelMult = 1f;
 
     boolean soundOn = true;
     boolean vibOn = true;
@@ -239,9 +240,45 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     final RectF tmpRect = new RectF();
     final HashMap<Integer, PorterDuffColorFilter> filters = new HashMap<>();
     final HashMap<String, Path> neonPaths = new HashMap<>();
+    final Path hexPath = new Path();
+    final Paint pShade = new Paint(Paint.ANTI_ALIAS_FLAG);
+    final Path podPath = new Path();
+    final android.graphics.Matrix shaderMatrix = new android.graphics.Matrix();
+    final android.graphics.DashPathEffect dailyDash =
+            new android.graphics.DashPathEffect(new float[]{18f, 12f}, 0f);
+    Shader planetShader;
+    float planetShaderTop = -1f;
+    Shader playShader;
+    float playShaderKey = -1f;
+
+    // ---------- итоги забега ----------
+
+    /** Событие забега для ленты наград на экране итога. */
+    static final class RunEvent {
+        static final int QUEST = 0;
+        static final int ACHIEVEMENT = 1;
+        static final int SKIN = 2;
+        static final int RANK = 3;
+
+        final int kind;
+        final String text;
+        final String value;
+
+        RunEvent(int kind, String text, String value) {
+            this.kind = kind;
+            this.text = text;
+            this.value = value;
+        }
+    }
+
+    final ArrayList<RunEvent> runEvents = new ArrayList<>();
+    long runNeonBefore;
+    long runNeonGained;
+    int runRankBefore = 1;
+    int runPrevBest;
+    int runSkinMask;
     final Paint pNeon = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-    final Path hexPath = new Path();
     final Path starPath = new Path();
     final Path heartPath = new Path();
     final Path shieldPath = new Path();
@@ -251,6 +288,9 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     Typeface tfBold;
     Typeface tfMed;
     Typeface tfCond;
+    /** Unbounded: вывеска, заголовки, крупные числа и главные кнопки. */
+    Typeface tfDisplay;
+    Typeface tfDisplayBold;
 
     String sScore;
     String sBest;
@@ -331,6 +371,14 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     String sWorkshopReady;
     String sWorkshopNeed;
     String sWorkshopCost;
+    String sWorkshopStars;
+    String sWorkshopClose;
+    String sWorkshopBoss;
+    String sWorkshopLevelMult;
+    String sWorkshopCloseStep;
+    String sWorkshopBossValue;
+    String sWorkshopLevelStep;
+    String sWorkshopProgress;
     String sSphere;
     String sTrail;
     String sZen;
@@ -356,6 +404,23 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     final String[] sAstName = new String[9];
     final String[] sAstDesc = new String[9];
     final String[] sBonusName = new String[8];
+    final String[] sRankTitle = new String[5];
+    String sRankLabel;
+    String sRankToNext;
+    String sRankUp;
+    String sRankReached;
+    String sDailyResets;
+    String sPlayRecord;
+    String sPlayNoRecord;
+    String sModeNoRecord;
+    String sModeNoLose;
+    String sRecordWas;
+    String sRecordFirst;
+    String sNewRecordMode;
+    String sSkinUnlocked;
+    String sQuestDoneEvent;
+    String sSecondsShort;
+    String sStatMaxMult;
     final String[] sBonusDesc = new String[8];
     final String[] sStatName = new String[6];
     final String[] sAchName = new String[Progress.ACH_COUNT];
@@ -434,6 +499,8 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     static final int UI_LINE = 0x1FFFFFFF;
     static final int UI_ON_ACCENT = 0xFF061018;
     static final float UI_PAD = 48f;
+    static final float ORBIT_TILT = -8f;
+    static final float PLANET_R = 1100f;
     static final float UI_RADIUS = 28f;
     static final float ICON_STROKE = 0.15f;
 
@@ -461,6 +528,9 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     static final int B_EMPTY_PLAY = 21;
     static final int B_WORKSHOP = 22;
     static final int B_WORKSHOP_UPGRADE = 23;
+    static final int B_WORKSHOP_UPGRADE_CLOSE = 24;
+    static final int B_WORKSHOP_UPGRADE_BOSS = 25;
+    static final int B_WORKSHOP_UPGRADE_LEVEL = 26;
     static final int B_MODE = 30;     // + индекс режима
     static final int B_CONTROL = 40;  // + тип управления
     static final int B_TAB = 50;      // + вкладка скинов
@@ -506,6 +576,9 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     float mPlayCy;
     float mDailyCy;
     float mNavCy;
+    float mFootY;
+    float mPodScale = 1f;
+    float mPlanetTop = 1400f;
     float mOrbitRx = 360f;
     float mOrbitRy = 200f;
 

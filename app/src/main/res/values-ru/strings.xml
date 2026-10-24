@@ -42,7 +42,7 @@
     <string name="rule_6">Пауза — кнопка в правом верхнем углу.</string>
     <string name="rule_7">После 90 секунд астероиды постепенно ускоряются, а интервал между ними сокращается.</string>
     <string name="rules_multiplier">Множитель очков</string>
-    <string name="rules_multiplier_desc">Звёзды повышают множитель по уровню мастерской. Близкие пролёты дают отдельный множитель, босс после четырёх зон даёт третий x2, а щит сохраняет множители после удара.</string>
+    <string name="rules_multiplier_desc">В «Мастерской» четыре ветки до 20 уровня: звёзды, близкие пролёты, боссы и постоянный множитель уровня. Пролёты накапливают отдельный множитель, после четырёх зон босс даёт улучшенный множитель, а щит сохраняет множители забега после удара.</string>
     <string name="rules_progress">Прогресс</string>
     <string name="rule_progress_1">Неон — сумма очков Classic/Hardcore/испытания дня и награда +300 за задание. «Дзен» — тренировка без неона за очки.</string>
     <string name="rule_progress_2">Каждый день игра предлагает три новых задания из семи. Испытание дня — одна попытка, фиксированный seed и отдельный рекорд.</string>
@@ -141,6 +141,14 @@
     <string name="workshop_ready">Можно улучшить</string>
     <string name="workshop_need">Ещё %1$s неона</string>
     <string name="workshop_cost">Стоимость</string>
+    <string name="workshop_stars">Звёзды</string>
+    <string name="workshop_close">Близкие пролёты</string>
+    <string name="workshop_boss">Боссы</string>
+    <string name="workshop_level_mult">Множитель уровня</string>
+    <string name="workshop_close_step">+%1$s за близкий пролёт</string>
+    <string name="workshop_boss_value">x%1$s после босса</string>
+    <string name="workshop_level_step">+%1$s на каждом уровне</string>
+    <string name="workshop_progress">Всего улучшений: %1$d из %2$d</string>
 
     <string name="stat_dodged">Пролёты</string>
     <string name="stat_combo">Макс. комбо</string>
@@ -208,4 +216,26 @@
     <string name="replay_tutorial">Показать подсказку снова</string>
     <string name="tutorial_reset">Подсказка появится в следующем забеге</string>
     <string name="sound_section">Звук и вибрация</string>
+
+    <string name="rank_label">Ранг %1$d</string>
+    <string name="rank_title_1">Кадет</string>
+    <string name="rank_title_2">Пилот</string>
+    <string name="rank_title_3">Ас</string>
+    <string name="rank_title_4">Ветеран</string>
+    <string name="rank_title_5">Легенда</string>
+    <string name="rank_to_next">До ранга %1$d — %2$s неона</string>
+    <string name="rank_up">Ранг %1$d → %2$d</string>
+    <string name="rank_reached">Новый ранг: %1$d</string>
+    <string name="daily_resets">сменится через %1$s</string>
+    <string name="play_record">%1$s · рекорд %2$s</string>
+    <string name="play_no_record">%1$s · рекорда пока нет</string>
+    <string name="mode_no_record">нет рекорда</string>
+    <string name="mode_no_lose">без проигрыша</string>
+    <string name="record_was">было %1$s · +%2$s</string>
+    <string name="record_first">первый рекорд режима</string>
+    <string name="new_record_mode">Новый рекорд · %1$s</string>
+    <string name="skin_unlocked">Открыт скин «%1$s»</string>
+    <string name="quest_done_event">Задание: %1$s</string>
+    <string name="seconds_short">%1$dс</string>
+    <string name="stat_max_mult">макс. множитель</string>
 </resources>

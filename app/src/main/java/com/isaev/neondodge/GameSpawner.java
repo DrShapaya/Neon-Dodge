@@ -399,13 +399,13 @@ abstract class GameSpawner extends GameAudio {
 
     void gameOver() {
         setKeepScreenOn(false);
-        newRecord = dailyChallenge
-                ? (int) score > progress.challengeBest
-                : (int) score > progress.bestForMode(mode);
+        runPrevBest = dailyChallenge ? progress.challengeBest : progress.bestForMode(mode);
+        newRecord = (int) score > runPrevBest;
         bankScore();
         progress.saveStats();
         progress.saveDaily();
         checkProgress();
+        collectRunEvents();
 
         state = ST_OVER;
         overTime = 0f;
@@ -418,6 +418,58 @@ abstract class GameSpawner extends GameAudio {
 
     void startGame() {
         startGame(false);
+    }
+
+    /** Битовая маска открытых скинов: сферы в младших битах, шлейфы выше. */
+    int skinMask() {
+        int mask = 0;
+        for (int i = 0; i < Progress.SPHERE_COUNT; i++) {
+            if (progress.sphereUnlocked(i)) {
+                mask |= 1 << i;
+            }
+        }
+        for (int i = 0; i < Progress.TRAIL_COUNT; i++) {
+            if (progress.trailUnlocked(i)) {
+                mask |= 1 << (16 + i);
+            }
+        }
+        return mask;
+    }
+
+    /** Новые скины и ранг за забег — в ленту наград итога. */
+    void collectRunEvents() {
+        runNeonGained = Math.max(0L, progress.neonEarned - runNeonBefore);
+        int fresh = skinMask() & ~runSkinMask;
+        for (int i = 0; i < Progress.SPHERE_COUNT; i++) {
+            if ((fresh & (1 << i)) != 0) {
+                runEvents.add(new RunEvent(RunEvent.SKIN,
+                        String.format(sSkinUnlocked, sSphereName[i]), ""));
+            }
+        }
+        for (int i = 0; i < Progress.TRAIL_COUNT; i++) {
+            if ((fresh & (1 << (16 + i))) != 0) {
+                runEvents.add(new RunEvent(RunEvent.SKIN,
+                        String.format(sSkinUnlocked, sTrailName[i]), ""));
+            }
+        }
+        int rank = progress.rank();
+        if (rank > runRankBefore) {
+            runEvents.add(0, new RunEvent(RunEvent.RANK,
+                    String.format(sRankReached, rank), sRankTitle[rankTitleIndex(rank)]));
+        }
+    }
+
+    static int rankTitleIndex(int rank) {
+        if (rank >= 15) {
+            return 4;
+        }
+        if (rank >= 10) {
+            return 3;
+        }
+        if (rank >= 6) {
+            return 2;
+        }
+        return rank >= 3 ? 1 : 0;
     }
 
     void startDailyChallenge() {
@@ -459,6 +511,11 @@ abstract class GameSpawner extends GameAudio {
         pickups.clear();
         particles.clear();
         scorePops.clear();
+        runEvents.clear();
+        runNeonBefore = progress.neonEarned;
+        runNeonGained = 0L;
+        runRankBefore = progress.rank();
+        runSkinMask = skinMask();
 
         elapsed = 0f;
         difficulty = 0f;
@@ -485,6 +542,7 @@ abstract class GameSpawner extends GameAudio {
         closeMult = 1f;
         runMaxCloseMult = 1f;
         bossMult = 1f;
+        levelMult = 1f;
         scoreBanked = false;
         shieldCharges = 0;
         magnetTimer = 0f;
@@ -565,6 +623,7 @@ abstract class GameSpawner extends GameAudio {
         closeMult = 1f;
         runMaxCloseMult = 1f;
         bossMult = 1f;
+        levelMult = 1f;
         announceTimer = 0f;
         shieldCharges = 0;
         magnetTimer = 0f;
@@ -601,12 +660,12 @@ abstract class GameSpawner extends GameAudio {
             // Испытание дня — отдельный рекорд; забег идёт по правилам
             // «Классики» и даёт неон, но не попадает в рекорд Classic.
             progress.recordChallengeScore(finalScore);
-            progress.pointsTotal += finalScore;
+            progress.addNeon(finalScore);
         } else {
             progress.recordScore(mode, finalScore);
             // «Дзен» — тренировка: рекорд обновляется, но неон за очки не даётся.
             if (!zenMode) {
-                progress.pointsTotal += finalScore;
+                progress.addNeon(finalScore);
             }
         }
         progress.addRun(dailyChallenge ? Progress.RUN_DAILY : mode,
@@ -649,10 +708,15 @@ abstract class GameSpawner extends GameAudio {
         if (fresh == 0) {
             return;
         }
+        boolean toasted = false;
         for (int i = 0; i < Progress.ACH_COUNT; i++) {
             if ((fresh & (1 << i)) != 0) {
-                toast(sAchievementUnlocked + " · " + sAchName[i]);
-                return;
+                if (!toasted) {
+                    toast(sAchievementUnlocked + " · " + sAchName[i]);
+                    toasted = true;
+                }
+                runEvents.add(new RunEvent(RunEvent.ACHIEVEMENT,
+                        sAchievementUnlocked + " · " + sAchName[i], ""));
             }
         }
     }
@@ -675,8 +739,11 @@ abstract class GameSpawner extends GameAudio {
                     && progress.questProgress[slot] >= Progress.QUEST_TARGETS[id]) {
                 progress.questDone[slot] = true;
                 progress.questsDone++;
-                progress.pointsTotal += Progress.QUEST_REWARD;
+                progress.addNeon(Progress.QUEST_REWARD);
                 toast(sQuestToast);
+                runEvents.add(new RunEvent(RunEvent.QUEST,
+                        String.format(sQuestDoneEvent, sQuestName[id]),
+                        "+" + fmt(Progress.QUEST_REWARD)));
                 changed = true;
             }
         }

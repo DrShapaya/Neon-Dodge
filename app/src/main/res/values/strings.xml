@@ -42,7 +42,7 @@
     <string name="rule_6">Pause is the button in the top-right corner.</string>
     <string name="rule_7">After 90 seconds asteroids gradually speed up and spawn more often.</string>
     <string name="rules_multiplier">Score multiplier</string>
-    <string name="rules_multiplier_desc">Stars raise the score multiplier according to the Workshop level. Close fly-bys build a separate multiplier, the boss grants a third x2 after four zones, and a shield preserves multipliers after a hit.</string>
+    <string name="rules_multiplier_desc">The Workshop has four upgrade branches, each up to level 20: stars, close fly-bys, bosses and a permanent level multiplier. Close fly-bys build a separate multiplier, the boss grants its upgraded multiplier after four zones, and a shield preserves run multipliers after a hit.</string>
     <string name="rules_progress">Progress</string>
     <string name="rule_progress_1">Neon is the sum of Classic/Hardcore/Daily Challenge run scores plus 300 per completed quest. Zen is training and gives no neon for score.</string>
     <string name="rule_progress_2">Every day the game offers three new quests out of seven. The Daily Challenge gives one attempt, a fixed seed and a separate record.</string>
@@ -141,6 +141,14 @@
     <string name="workshop_ready">Upgrade ready</string>
     <string name="workshop_need">%1$s more neon needed</string>
     <string name="workshop_cost">Cost</string>
+    <string name="workshop_stars">Stars</string>
+    <string name="workshop_close">Close fly-bys</string>
+    <string name="workshop_boss">Bosses</string>
+    <string name="workshop_level_mult">Level multiplier</string>
+    <string name="workshop_close_step">+%1$s per close fly-by</string>
+    <string name="workshop_boss_value">x%1$s after a boss</string>
+    <string name="workshop_level_step">+%1$s at each level</string>
+    <string name="workshop_progress">Total upgrades: %1$d of %2$d</string>
 
     <string name="stat_dodged">Dodged</string>
     <string name="stat_combo">Best combo</string>
@@ -208,4 +216,26 @@
     <string name="replay_tutorial">Show the hint again</string>
     <string name="tutorial_reset">The hint will appear in your next run</string>
     <string name="sound_section">Sound and vibration</string>
+
+    <string name="rank_label">Rank %1$d</string>
+    <string name="rank_title_1">Cadet</string>
+    <string name="rank_title_2">Pilot</string>
+    <string name="rank_title_3">Ace</string>
+    <string name="rank_title_4">Veteran</string>
+    <string name="rank_title_5">Legend</string>
+    <string name="rank_to_next">%2$s neon to rank %1$d</string>
+    <string name="rank_up">Rank %1$d → %2$d</string>
+    <string name="rank_reached">New rank: %1$d</string>
+    <string name="daily_resets">resets in %1$s</string>
+    <string name="play_record">%1$s · best %2$s</string>
+    <string name="play_no_record">%1$s · no record yet</string>
+    <string name="mode_no_record">no record</string>
+    <string name="mode_no_lose">no game over</string>
+    <string name="record_was">was %1$s · +%2$s</string>
+    <string name="record_first">first record in this mode</string>
+    <string name="new_record_mode">New record · %1$s</string>
+    <string name="skin_unlocked">Skin unlocked: %1$s</string>
+    <string name="quest_done_event">Quest: %1$s</string>
+    <string name="seconds_short">%1$ds</string>
+    <string name="stat_max_mult">max multiplier</string>
 </resources>
