@@ -109,7 +109,6 @@ abstract class GameSpawner extends GameAudio {
         Obs o = new Obs();
         o.boss = true;
         o.bossStage = minute / 2;
-        o.bossHits = 3 + o.bossStage;
         o.type = T_ARMOR;
         o.color = minute == 2 ? C_MAGENTA : (minute == 4 ? C_ORANGE : C_GOLD);
         o.r = 82f + o.bossStage * 8f;
@@ -126,7 +125,7 @@ abstract class GameSpawner extends GameAudio {
         bossZoneTimer = 1.0f;
         bossBullets.clear();
         obstacles.add(o);
-        toast("MINI-BOSS · " + minute + ":00");
+        toast(String.format(sMiniBossToast, minute));
     }
 
     void spawnSplitFragments(Obs parent) {
@@ -145,7 +144,6 @@ abstract class GameSpawner extends GameAudio {
             f.vrot = (side > 0 ? 1f : -1f) * (90f + 40f * difficulty);
             f.canSplit = false;
             f.splitY = Float.MAX_VALUE;
-            f.stopY = Float.MAX_VALUE;
             obstacles.add(f);
         }
         explode(parent.x, parent.y, 12, parent.color);
@@ -251,7 +249,9 @@ abstract class GameSpawner extends GameAudio {
         // поэтому предмет не превращается в вечное декоративное кольцо.
         if (shieldCharges > 0) {
             shieldCharges = 0;
-            progress.shieldBlocks++;
+            if (countsPersistentProgress()) {
+                progress.shieldBlocks++;
+            }
             shake = 24f;
             flash = 0.55f;
             invuln = 1.2f;
@@ -354,10 +354,6 @@ abstract class GameSpawner extends GameAudio {
                 bombWaveOriginX = p.x;
                 bombWaveOriginY = p.y;
                 bombWaveTimer = BOMB_WAVE_DURATION;
-                bombX = p.x;
-                bombY = p.y;
-                bombTimer = 0f;
-                bombTarget = null;
                 resolveBomb(p.x, p.y);
                 toast(sBombActive);
                 buzz(28);
@@ -389,7 +385,9 @@ abstract class GameSpawner extends GameAudio {
                 score += starPoints;
                 addScorePop(p.x, p.y - 40f, "+" + fmt((int) starPoints), C_GOLD);
                 runStars++;
-                progress.stars++;
+                if (countsPersistentProgress()) {
+                    progress.stars++;
+                }
                 explode(p.x, p.y, 12, C_GOLD);
                 playSound(sndCoin, 0.95f + rnd.nextFloat() * 0.25f);
                 if (!hintStarShown) {
@@ -400,20 +398,6 @@ abstract class GameSpawner extends GameAudio {
                 break;
         }
         checkProgress();
-    }
-
-    Obs nearestBombTarget(float x, float y) {
-        Obs nearest = null;
-        float nearestD2 = Float.MAX_VALUE;
-        for (int i = 0; i < obstacles.size(); i++) {
-            Obs o = obstacles.get(i);
-            float d2 = dist2(o.x, o.y, x, y);
-            if (d2 < nearestD2) {
-                nearestD2 = d2;
-                nearest = o;
-            }
-        }
-        return nearest;
     }
 
     void gameOver() {
@@ -478,14 +462,6 @@ abstract class GameSpawner extends GameAudio {
         return GameRules.titleIndexForRank(rank);
     }
 
-    void startDailyChallenge() {
-        startGame();
-    }
-
-    void startGame(boolean challenge) {
-        startGame();
-    }
-
     void startGame() {
         setKeepScreenOn(true);
         // Чередуем два лупа между забегами, чтобы длинная сессия не звучала одинаково.
@@ -532,9 +508,8 @@ abstract class GameSpawner extends GameAudio {
         runDodged = 0;
         runMaxCombo = 0;
         scoreMult = 1f;
-        runMaxMult = 1f;
         closeMult = 1f;
-        runMaxCloseMult = 1f;
+        runMaxOverallMult = 1f;
         bossMult = 1f;
         levelMult = 1f + progress.levelMultiplierStep();
         scoreBanked = false;
@@ -543,9 +518,7 @@ abstract class GameSpawner extends GameAudio {
         slowTimer = 0f;
         phaseTimer = 0f;
         doubleTimer = 0f;
-        bombTimer = 0f;
         spawnPauseTimer = 0f;
-        bombTarget = null;
         bossMask = 0;
         bossZonesCompleted = 0;
         bossZoneTimer = 0f;
@@ -557,8 +530,10 @@ abstract class GameSpawner extends GameAudio {
         exitArmed = 0f;
         pressedId = B_NONE;
 
-        progress.runs++;
-        progress.saveStats();
+        if (countsPersistentProgress()) {
+            progress.runs++;
+            progress.saveStats();
+        }
 
         px = W / 2f;
         targetX = px;
@@ -575,8 +550,10 @@ abstract class GameSpawner extends GameAudio {
 
         state = ST_PLAY;
         playSound(sndPower, 1.35f);
-        int fresh = progress.refreshAchievements();
-        toastAchievement(fresh);
+        if (countsPersistentProgress()) {
+            int fresh = progress.refreshAchievements();
+            toastAchievement(fresh);
+        }
     }
 
     void resetMenu() {
@@ -612,9 +589,8 @@ abstract class GameSpawner extends GameAudio {
         comboTimer = 0f;
         comboPop = 0f;
         scoreMult = 1f;
-        runMaxMult = 1f;
         closeMult = 1f;
-        runMaxCloseMult = 1f;
+        runMaxOverallMult = 1f;
         bossMult = 1f;
         levelMult = 1f + progress.levelMultiplierStep();
         announceTimer = 0f;
@@ -623,9 +599,7 @@ abstract class GameSpawner extends GameAudio {
         slowTimer = 0f;
         phaseTimer = 0f;
         doubleTimer = 0f;
-        bombTimer = 0f;
         spawnPauseTimer = 0f;
-        bombTarget = null;
         bossMask = 0;
         bossZonesCompleted = 0;
         bossZoneTimer = 0f;
@@ -646,20 +620,20 @@ abstract class GameSpawner extends GameAudio {
             return;
         }
         scoreBanked = true;
-        int finalScore = (int) score;
+        int finalScore = score >= Integer.MAX_VALUE
+                ? Integer.MAX_VALUE : Math.max(0, (int) score);
         progress.recordScore(mode, finalScore);
         // «Дзен» — тренировка: рекорд обновляется, но неон за очки не даётся.
         if (!zenMode) {
             progress.addNeon(finalScore);
         }
-        progress.addRun(mode, finalScore, Math.max(1, (int) elapsed));
+        if (countsPersistentProgress()) {
+            progress.addRun(mode, finalScore, Math.max(1, (int) elapsed));
+        }
     }
 
     void bumpMultiplier() {
         scoreMult += progress.starMultiplierStep();
-        if (scoreMult > runMaxMult) {
-            runMaxMult = scoreMult;
-        }
     }
 
     void resetMultiplier() {
@@ -679,14 +653,16 @@ abstract class GameSpawner extends GameAudio {
     }
 
     void checkProgress() {
-        if (combo > progress.bestCombo) {
+        if (countsPersistentProgress() && combo > progress.bestCombo) {
             progress.bestCombo = combo;
         }
-        if ((int) elapsed > progress.bestTime) {
+        if (countsPersistentProgress() && (int) elapsed > progress.bestTime) {
             progress.bestTime = (int) elapsed;
         }
-        int fresh = progress.refreshAchievements();
-        toastAchievement(fresh);
+        if (countsPersistentProgress()) {
+            int fresh = progress.refreshAchievements();
+            toastAchievement(fresh);
+        }
     }
 
     void toastAchievement(int fresh) {
@@ -783,31 +759,7 @@ abstract class GameSpawner extends GameAudio {
                     tfBlack, Paint.Align.CENTER);
         }
     }
-
-    void drawBombCharge(Canvas c) {
-        if (bombTimer <= 0f) {
-            return;
-        }
-        float frac = 1f - clamp(bombTimer / BOMB_DELAY, 0f, 1f);
-        pStroke.setStyle(Paint.Style.STROKE);
-        pStroke.setStrokeWidth(5f);
-        pStroke.setColor(C_ORANGE);
-        pStroke.setAlpha(220);
-        c.drawCircle(bombX, bombY, BOMB_RADIUS * (0.35f + 0.65f * frac), pStroke);
-        pStroke.setColor(0xFFFFE4B0);
-        pStroke.setAlpha(170);
-        tmpRect.set(bombX - 42f, bombY - 42f, bombX + 42f, bombY + 42f);
-        c.drawArc(tmpRect, -90f, frac * 360f, false, pStroke);
-        pStroke.setStyle(Paint.Style.FILL);
-    }
-
-    void resolveBomb() {
-        resolveBomb(bombX, bombY);
-    }
-
     void resolveBomb(float bx, float by) {
-        bombX = bx;
-        bombY = by;
         int cleared = 0;
         for (int i = obstacles.size() - 1; i >= 0; i--) {
             Obs o = obstacles.get(i);
@@ -822,7 +774,6 @@ abstract class GameSpawner extends GameAudio {
             obstacles.remove(i);
         }
         bossBullets.clear();
-        bombTarget = null;
         spawnPauseTimer = 1.1f;
         flash = 0.40f;
         shake = 0.55f;

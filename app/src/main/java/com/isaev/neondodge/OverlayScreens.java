@@ -356,7 +356,7 @@ abstract class OverlayScreens extends InfoScreens {
         float gap = 22f;
         float tw = (r - l - gap * 2f) / 3f;
         float th = 250f;
-        String[] values = {formatTime((int) elapsed), fmt(runDodged), "x" + fmtMult(runMaxMult)};
+        String[] values = {formatTime((int) elapsed), fmt(runDodged), "x" + fmtMult(runMaxOverallMult)};
         String[] labels = {sStatName[2], sStatName[0], sStatMaxMult};
         for (int i = 0; i < 3; i++) {
             float tl = l + i * (tw + gap);

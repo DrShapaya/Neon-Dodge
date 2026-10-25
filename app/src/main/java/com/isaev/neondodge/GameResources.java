@@ -87,7 +87,10 @@ abstract class GameResources extends GameCore {
         sBossMultiplier = context.getString(R.string.boss_multiplier);
         sBossZone = context.getString(R.string.boss_zone);
         sBossReward = context.getString(R.string.boss_reward);
-        sHardcoreMultiplier = context.getString(R.string.hardcore_multiplier);
+        sMiniBossToast = context.getString(R.string.mini_boss_toast);
+        sBossLabel = context.getString(R.string.boss_label);
+        sBossZoneScore = context.getString(R.string.boss_zone_score);
+        sBossRewardScore = context.getString(R.string.boss_reward_score);
         sWorkshop = context.getString(R.string.workshop_title);
         sWorkshopLevel = context.getString(R.string.workshop_level);
         sWorkshopNext = context.getString(R.string.workshop_next);

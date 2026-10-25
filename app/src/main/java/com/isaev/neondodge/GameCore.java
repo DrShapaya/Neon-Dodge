@@ -74,8 +74,6 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     static final float SLOW_SCALE = 0.45f;
     static final float PHASE_TIME = 6f;
     static final float DOUBLE_TIME = 8f;
-    static final float BOMB_DELAY = 0.75f;
-    static final float BOMB_RADIUS = 520f;
     static final int MAX_LIVES = 3;
 
     float magnetDuration() {
@@ -92,6 +90,11 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
 
     float doubleDuration() {
         return DOUBLE_TIME * progress.bonusDurationScale();
+    }
+
+    /** Zen is a training run: only its mode record is persistent progress. */
+    boolean countsPersistentProgress() {
+        return !zenMode;
     }
 
     static final int CONTROL_ABOVE = 0;
@@ -178,9 +181,8 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     boolean scoreBanked;
 
     float scoreMult = 1f;
-    float runMaxMult = 1f;
     float closeMult = 1f;
-    float runMaxCloseMult = 1f;
+    float runMaxOverallMult = 1f;
     float bossMult = 1f;
     float levelMult = 1f;
 
@@ -207,9 +209,6 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     float slowTimer;
     float phaseTimer;
     float doubleTimer;
-    float bombTimer;
-    float bombX;
-    float bombY;
     float bombWaveTimer;
     static final float BOMB_WAVE_DURATION = 0.65f;
     float bombWaveOriginX;
@@ -219,7 +218,6 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     static final float MINE_FUSE_TIME = 0.65f;
     int profileReturn;
     float spawnPauseTimer;
-    Obs bombTarget;
     float specialTimer;
     float checkTimer;
     float saveTimer;
@@ -394,7 +392,10 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     String sBossMultiplier;
     String sBossZone;
     String sBossReward;
-    String sHardcoreMultiplier;
+    String sMiniBossToast;
+    String sBossLabel;
+    String sBossZoneScore;
+    String sBossRewardScore;
     String sWorkshop;
     String sWorkshopLevel;
     String sWorkshopNext;
@@ -534,7 +535,7 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     // месте: логотип нарисован трубками. Остальное — тихое тёмное стекло.
     //
     // Цвет несёт смысл: циан — действие, золото — неон и награды, магента —
-    // испытание дня, мята — выполнено, цвет режима — сам режим. Форма тоже:
+    // опасность и близкие пролёты, мята — выполнено, цвет режима — сам режим. Форма тоже:
     // главная кнопка — сплошная капсула, вторичные — стекло с контуром,
     // карточки — скругление UI_RADIUS, иконки — контур толщиной ICON_STROKE.
 
@@ -722,16 +723,13 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
         float burstPhase;
         float bounceFlash;
         float fuse;
-        float stopY;
         float splitY;
         int color;
         boolean passed;
         boolean mineArmed;
         boolean canSplit;
         boolean boss;
-        boolean bombArmed;
         int bossStage;
-        int bossHits;
         float bossShotTimer;
         int armorHits;
         float warnTimer;

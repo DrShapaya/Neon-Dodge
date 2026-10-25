@@ -278,8 +278,10 @@ abstract class GameLoop extends GameSpawner {
         latePressure = Math.min(0.30f, late / 300f);
         score += dt * (70f + 120f * difficulty)
                 * (1f + 0.25f * latePressure) * scoreFactor();
-        progress.totalTime += dt;
-        if ((int) elapsed > progress.bestTime) {
+        if (countsPersistentProgress()) {
+            progress.totalTime += dt;
+        }
+        if (countsPersistentProgress() && (int) elapsed > progress.bestTime) {
             progress.bestTime = (int) elapsed;
         }
 
@@ -306,18 +308,6 @@ abstract class GameLoop extends GameSpawner {
         spawnPauseTimer = Math.max(0f, spawnPauseTimer - dt);
         if (bombWaveTimer > 0f) {
             bombWaveTimer -= dt;
-        }
-        if (bombTimer > 0f) {
-            if (bombTarget != null && obstacles.contains(bombTarget)) {
-                bombX = bombTarget.x;
-                bombY = bombTarget.y;
-            } else {
-                bombTarget = null;
-            }
-            bombTimer -= dt;
-            if (bombTimer <= 0f) {
-                resolveBomb();
-            }
         }
 
         // Mini-bosses arrive at 2, 4 and 6 minutes and create a clear tempo spike.
@@ -503,7 +493,11 @@ abstract class GameLoop extends GameSpawner {
         float f = scoreMult * closeMult * bossMult * levelMult
                 * (hardcoreMode ? HARDCORE_MULT : 1f)
                 * (doubleTimer > 0f ? progress.temporaryMultiplier() : 1f);
-        return Math.min(f, 25000f);
+        f = Math.min(f, 25000f);
+        if (state == ST_PLAY) {
+            runMaxOverallMult = Math.max(runMaxOverallMult, f);
+        }
+        return f;
     }
 
     void updateObstacles(float dt) {
@@ -511,10 +505,7 @@ abstract class GameLoop extends GameSpawner {
         for (int i = obstacles.size() - 1; i >= 0; i--) {
             Obs o = obstacles.get(i);
 
-            if (o.bombArmed && o == bombTarget && bombTimer > 0f) {
-                o.vx = 0f;
-                o.vy = 0f;
-            } else if (o.boss) {
+            if (o.boss) {
                 float stopY = Math.max(190f, insetTop + 190f);
                 o.vy = o.y < stopY ? o.baseVy : 0f;
                 o.vx += (float) Math.sin(time * 0.7f + o.bossStage) * sdt * 35f;
@@ -603,16 +594,12 @@ abstract class GameLoop extends GameSpawner {
             o.warnTimer = Math.max(0f, o.warnTimer - dt);
             o.rot += o.vrot * sdt;
 
-            if (o.bombArmed && o == bombTarget && bombTimer > 0f) {
-                // The marked meteor stays in the shown blast radius until it
-                // detonates instead of continuing through the field.
-                continue;
-            }
-
             if (!o.passed && o.y > py + PLAYER_R * 0.5f) {
                 o.passed = true;
                 runDodged++;
-                progress.dodged++;
+                if (countsPersistentProgress()) {
+                    progress.dodged++;
+                }
                 float dx = Math.abs(o.x - px);
                 // В фазе или при обычном уклонении без урона засчитываем комбо
                 if ((phaseTimer > 0f || invuln <= 0f) && dx < o.r + PLAYER_R + 92f) {
@@ -620,7 +607,7 @@ abstract class GameLoop extends GameSpawner {
                     if (combo > runMaxCombo) {
                         runMaxCombo = combo;
                     }
-                    if (combo > progress.bestCombo) {
+                    if (countsPersistentProgress() && combo > progress.bestCombo) {
                         progress.bestCombo = combo;
                     }
                     comboTimer = 2.2f;
@@ -631,7 +618,6 @@ abstract class GameLoop extends GameSpawner {
                         toast(sHintCombo);
                     }
                     closeMult = Math.min(999f, closeMult + progress.closeMultiplierStep());
-                    runMaxCloseMult = Math.max(runMaxCloseMult, closeMult);
                     float comboPoints = 5f * combo * scoreFactor();
                     score += comboPoints;
                     addScorePop(o.x, py - 70f, "+" + fmt((int) comboPoints), C_GOLD);
@@ -787,7 +773,8 @@ abstract class GameLoop extends GameSpawner {
             if (bossZone.fill >= 1f) {
                 bossZonesCompleted++;
                 explode(bossZone.x, bossZone.y, 24, C_CYAN);
-                addScorePop(bossZone.x, bossZone.y - 45f, "ZONE +250", C_CYAN);
+                addScorePop(bossZone.x, bossZone.y - 45f,
+                        String.format(sBossZoneScore, 250), C_CYAN);
                 score += 250f * scoreFactor();
                 bossZone = null;
                 bossZoneTimer = 0.75f;
@@ -802,9 +789,12 @@ abstract class GameLoop extends GameSpawner {
                     }
                     bossBullets.clear();
                     score += 1000f * scoreFactor();
-                    addScorePop(px, py - 100f, "BOSS x" + fmtMult(bossMult), C_GOLD);
+                    addScorePop(px, py - 100f,
+                            String.format(sBossRewardScore, fmtMult(bossMult)), C_GOLD);
                     toast(sBossReward);
-                    progress.bossesDefeated++;
+                    if (countsPersistentProgress()) {
+                        progress.bossesDefeated++;
+                    }
                     progress.saveStats();
                     checkProgress();
                 }
@@ -815,7 +805,9 @@ abstract class GameLoop extends GameSpawner {
     void hitBossBullet(BossBullet bullet) {
         if (shieldCharges > 0) {
             shieldCharges = 0;
-            progress.shieldBlocks++;
+            if (countsPersistentProgress()) {
+                progress.shieldBlocks++;
+            }
             invuln = 1.2f;
             explode(px, py, 22, C_MINT);
             playSound(sndPower, 0.85f);

@@ -122,7 +122,6 @@ abstract class GameRenderer extends GameLoop {
             drawObs(c, obstacles.get(i));
         }
         drawParticles(c);
-        drawBombCharge(c);
         drawBombWave(c);
         drawScorePops(c);
         if (state != ST_OVER) {
@@ -425,7 +424,7 @@ abstract class GameRenderer extends GameLoop {
             c.drawCircle(o.x, o.y, o.r * 0.48f, pStroke);
             c.drawCircle(o.x, o.y, o.r * 0.22f, pStroke);
             pStroke.setStyle(Paint.Style.FILL);
-            textC(c, "BOSS", o.x, o.y + 8f, 24f, 0xFFFFFFFF, tfBlack, Paint.Align.CENTER);
+            textC(c, sBossLabel, o.x, o.y + 8f, 24f, 0xFFFFFFFF, tfBlack, Paint.Align.CENTER);
             return;
         }
         int glowAlpha = 100;
