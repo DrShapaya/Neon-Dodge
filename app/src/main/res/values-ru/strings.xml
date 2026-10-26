@@ -52,7 +52,7 @@
     <string name="rules_multiplier">Множитель очков</string>
     <string name="rules_multiplier_desc">В «Мастерской» есть две вкладки: «Множители» (звёздный импульс, неоновый манёвр, охота на титанов, постоянный множитель) и «Усиления» (длительность усилений и множитель x2–x5). Щит сохраняет множители забега после удара.</string>
     <string name="rules_progress">Прогресс</string>
-    <string name="rule_progress_1">Неон начисляется за набранные очки в режимах «Классика» и «Хардкор» (1 очко = 1 неон). «Дзен» сохраняет только тренировочный рекорд и не меняет достижения или постоянную статистику.</string>
+    <string name="rule_progress_1">Неон начисляется за каждый забег в «Классике» и «Хардкоре»: чем дольше забег, тем больше неон. Множители очков не ограничены, но на неон влияют только до ×3. «Хардкор» дополнительно даёт +50% неона. «Дзен» сохраняет только тренировочный рекорд и не меняет достижения или постоянную статистику.</string>
     <string name="rule_progress_2">Ранг повышается по мере накопления общего количества заработанного неона.</string>
     <string name="rule_progress_3">Скины сферы и шлейфа открываются за рекорды, комбо и пролёты.</string>
     <string name="rules_scroll_hint">Проведи пальцем, чтобы прокрутить</string>
@@ -129,6 +129,8 @@
     <string name="boss_zone">Зона</string>
     <string name="boss_reward">Босс побеждён · множитель босса усилен</string>
     <string name="mini_boss_toast">МИНИ-БОСС · %1$d:00</string>
+    <string name="late_mine_storm">ШТОРМ МИН · 15 с</string>
+    <string name="late_split_field">ПОЛЕ ОСКОЛКОВ · 15 с</string>
     <string name="boss_label">БОСС</string>
     <string name="boss_zone_score">ЗОНА +%1$d</string>
     <string name="boss_reward_score">БОСС x%1$s</string>

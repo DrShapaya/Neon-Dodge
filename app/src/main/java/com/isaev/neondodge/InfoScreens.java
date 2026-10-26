@@ -57,7 +57,7 @@ abstract class InfoScreens extends MenuScreen {
             textC(c, sProfileMaxRank, cx, y + 318f, 22f, C_MINT, tfBold, Paint.Align.CENTER);
         } else {
             long need = GameRules.rankThreshold(rank + 1) - progress.neonEarned;
-            String needText = String.format(sProfileNextRank, rank + 1, fmt((int) Math.min(need, Integer.MAX_VALUE)));
+            String needText = String.format(sProfileNextRank, rank + 1, fmt(need));
             textC(c, needText, cx, y + 318f, 22f, UI_FOG, tfMed, Paint.Align.CENTER);
         }
         y += cardH + 26f;
@@ -67,7 +67,7 @@ abstract class InfoScreens extends MenuScreen {
         card(c, l, y, r, y + statH, 0, false);
         iconDiamond(c, l + 54f, y + statH / 2f, 18f, C_GOLD);
         text(c, sProfileTotalNeon, l + 96f, y + 46f, 25f, UI_FOG, tfMed, Paint.Align.LEFT);
-        text(c, fmt((int) Math.min(progress.neonEarned, Integer.MAX_VALUE)), l + 96f, y + 86f, 34f, 0xFFFFE9A6, tfBlack, Paint.Align.LEFT);
+        text(c, fmt(progress.neonEarned), l + 96f, y + 86f, 34f, 0xFFFFE9A6, tfBlack, Paint.Align.LEFT);
         y += statH + 28f;
 
         // Лестница званий
@@ -159,7 +159,7 @@ abstract class InfoScreens extends MenuScreen {
                 formatTime((int) progress.totalTime),
                 fmt(progress.stars),
                 fmt(progress.runs),
-                fmt(progress.pointsTotal)
+                fmt(progress.neonEarned)
         };
         float gap = 18f;
         float tw = (r - l - gap * 2f) / 3f;

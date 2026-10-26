@@ -15,8 +15,13 @@ abstract class GameSpawner extends GameAudio {
     }
 
     void spawnObstacle() {
+        spawnObstacle(-1);
+    }
+
+    void spawnObstacle(int forcedType) {
         Obs o = new Obs();
-        o.type = pickObstacleType();
+        o.type = forcedType >= T_GREEN && forcedType <= T_ARMOR
+                ? forcedType : pickObstacleType();
         for (int retry = 0; retry < 4 && o.type == T_GRAVITY && countType(T_GRAVITY) >= 2; retry++) {
             o.type = pickObstacleType();
         }
@@ -110,8 +115,10 @@ abstract class GameSpawner extends GameAudio {
         o.boss = true;
         o.bossStage = minute / 2;
         o.type = T_ARMOR;
-        o.color = minute == 2 ? C_MAGENTA : (minute == 4 ? C_ORANGE : C_GOLD);
-        o.r = 82f + o.bossStage * 8f;
+        o.color = BOSS_COLORS[(o.bossStage - 1) % BOSS_COLORS.length];
+        // Keep the boss readable on the fixed-width field while its stage
+        // continues to scale projectile speed and timing indefinitely.
+        o.r = 82f + Math.min(10, o.bossStage) * 8f;
         o.x = o.r + 24f + gameRnd.nextFloat() * (W - 2f * o.r - 48f);
         o.y = -o.r - 60f;
         o.baseVy = 250f + o.bossStage * 24f;
@@ -159,6 +166,14 @@ abstract class GameSpawner extends GameAudio {
         }
         if (elapsed < 75f) {
             return gameRnd.nextInt(7);
+        }
+        // Late events keep the full roster readable while biasing the active
+        // pattern toward its signature obstacle for the whole 15-second phase.
+        if (runEventKind == RE_MINE_STORM && gameRnd.nextFloat() < 0.68f) {
+            return T_MINE;
+        }
+        if (runEventKind == RE_SPLIT_FIELD && gameRnd.nextFloat() < 0.68f) {
+            return T_SPLIT;
         }
         float v = gameRnd.nextFloat();
         if (v < 0.14f) {
@@ -267,7 +282,7 @@ abstract class GameSpawner extends GameAudio {
             combo = 0;
             comboTimer = 0f;
             comboPop = 0f;
-            resetMultipliers();
+            softenMultipliersAfterHit();
             shake = 18f;
             flash = 0.45f;
             invuln = 1.2f;
@@ -281,7 +296,7 @@ abstract class GameSpawner extends GameAudio {
         combo = 0;
         comboTimer = 0f;
         comboPop = 0f;
-        resetMultipliers();
+        softenMultipliersAfterHit();
 
         lives--;
         shake = 30f;
@@ -296,6 +311,23 @@ abstract class GameSpawner extends GameAudio {
         }
     }
 
+    /** A hit still costs the score multiplier, but keeps half of close-play progress. */
+    void softenMultipliersAfterHit() {
+        scoreMult = 1f;
+        closeMult = 1f + (closeMult - 1f) * 0.5f;
+    }
+
+    /**
+     * Начисляет базовые очки: на рекорд идёт сумма с полным множителем,
+     * в неон — та же сумма с потолком множителя ×3. Возвращает начисленные очки.
+     */
+    float award(float base) {
+        float f = scoreFactor();
+        score += base * f;
+        neonBase += base * GameRules.neonMult(f);
+        return base * f;
+    }
+
     void collect(Pickup p) {
         switch (p.kind) {
             case P_HEART:
@@ -303,8 +335,7 @@ abstract class GameSpawner extends GameAudio {
                     lives++;
                     playSound(sndPower, 1f);
                 } else {
-                    float points = 60f * scoreFactor();
-                    score += points;
+                    float points = award(60f);
                     addScorePop(p.x, p.y - 40f, "+" + fmt((int) points), C_GOLD);
                     playSound(sndCoin, 1.25f);
                 }
@@ -314,8 +345,7 @@ abstract class GameSpawner extends GameAudio {
 
             case P_SHIELD:
                 shieldCharges = 1;
-                float shieldPoints = 25f * scoreFactor();
-                score += shieldPoints;
+                float shieldPoints = award(25f);
                 addScorePop(p.x, p.y - 40f, "+" + fmt((int) shieldPoints), C_MINT);
                 explode(p.x, p.y, 18, C_MINT);
                 playSound(sndPower, 1.05f);
@@ -330,8 +360,7 @@ abstract class GameSpawner extends GameAudio {
 
             case P_MAGNET:
                 magnetTimer = magnetDuration();
-                float magnetPoints = 30f * scoreFactor();
-                score += magnetPoints;
+                float magnetPoints = award(30f);
                 addScorePop(p.x, p.y - 40f, "+" + fmt((int) magnetPoints), C_MAGENTA);
                 explode(p.x, p.y, 18, C_MAGENTA);
                 playSound(sndPower, 1.15f);
@@ -341,8 +370,7 @@ abstract class GameSpawner extends GameAudio {
 
             case P_SLOW:
                 slowTimer = slowDuration();
-                float slowPoints = 30f * scoreFactor();
-                score += slowPoints;
+                float slowPoints = award(30f);
                 addScorePop(p.x, p.y - 40f, "+" + fmt((int) slowPoints), C_ICE);
                 explode(p.x, p.y, 18, C_ICE);
                 playSound(sndPower, 0.85f);
@@ -361,8 +389,7 @@ abstract class GameSpawner extends GameAudio {
 
             case P_PHASE:
                 phaseTimer = phaseDuration();
-                float phasePoints = 35f * scoreFactor();
-                score += phasePoints;
+                float phasePoints = award(35f);
                 addScorePop(p.x, p.y - 40f, "+" + fmt((int) phasePoints), C_VIOLET);
                 explode(p.x, p.y, 18, C_VIOLET);
                 playSound(sndPower, 1.25f);
@@ -371,8 +398,7 @@ abstract class GameSpawner extends GameAudio {
 
             case P_DOUBLE:
                 doubleTimer = doubleDuration();
-                float doublePoints = 35f * scoreFactor();
-                score += doublePoints;
+                float doublePoints = award(35f);
                 addScorePop(p.x, p.y - 40f, "+" + fmt((int) doublePoints), C_GOLD);
                 explode(p.x, p.y, 18, C_GOLD);
                 playSound(sndPower, 1.4f);
@@ -381,8 +407,7 @@ abstract class GameSpawner extends GameAudio {
 
             default:
                 bumpMultiplier();
-                float starPoints = 50f * scoreFactor();
-                score += starPoints;
+                float starPoints = award(50f);
                 addScorePop(p.x, p.y - 40f, "+" + fmt((int) starPoints), C_GOLD);
                 runStars++;
                 if (countsPersistentProgress()) {
@@ -491,6 +516,7 @@ abstract class GameSpawner extends GameAudio {
         difficulty = 0f;
         latePressure = 0f;
         score = 0f;
+        neonBase = 0f;
         lives = maxLives;
         invuln = 1.0f;
         shake = 0f;
@@ -519,7 +545,7 @@ abstract class GameSpawner extends GameAudio {
         phaseTimer = 0f;
         doubleTimer = 0f;
         spawnPauseTimer = 0f;
-        bossMask = 0;
+        lastBossMinute = 0;
         bossZonesCompleted = 0;
         bossZoneTimer = 0f;
         bossZone = null;
@@ -545,6 +571,9 @@ abstract class GameSpawner extends GameAudio {
         heartTimer = 18f;
         trailTimer = 0f;
         specialTimer = 12f + gameRnd.nextFloat() * 6f;
+        runEventKind = RE_NONE;
+        runEventLeft = 0f;
+        runEventTimer = 0f;
         checkTimer = 0f;
         saveTimer = 5f;
 
@@ -578,6 +607,7 @@ abstract class GameSpawner extends GameAudio {
         difficulty = 0f;
         latePressure = 0f;
         score = 0f;
+        neonBase = 0f;
         lives = maxLives;
         invuln = 0f;
         shake = 0f;
@@ -600,11 +630,14 @@ abstract class GameSpawner extends GameAudio {
         phaseTimer = 0f;
         doubleTimer = 0f;
         spawnPauseTimer = 0f;
-        bossMask = 0;
+        lastBossMinute = 0;
         bossZonesCompleted = 0;
         bossZoneTimer = 0f;
         bossZone = null;
         bossBullets.clear();
+        runEventKind = RE_NONE;
+        runEventLeft = 0f;
+        runEventTimer = 0f;
         toastTimer = 0f;
         px = W / 2f;
         targetX = px;
@@ -624,8 +657,11 @@ abstract class GameSpawner extends GameAudio {
                 ? Integer.MAX_VALUE : Math.max(0, (int) score);
         progress.recordScore(mode, finalScore);
         // «Дзен» — тренировка: рекорд обновляется, но неон за очки не даётся.
+        // Неон считается от базы забега: множители очков влияют на него только
+        // до потолка ×3, а «Хардкор» даёт фиксированный бонус +50%.
         if (!zenMode) {
-            progress.addNeon(finalScore);
+            long gained = Math.round(neonBase * (hardcoreMode ? 1.5f : 1f));
+            progress.addNeon((int) Math.min(Integer.MAX_VALUE, gained));
         }
         if (countsPersistentProgress()) {
             progress.addRun(mode, finalScore, Math.max(1, (int) elapsed));
@@ -784,8 +820,7 @@ abstract class GameSpawner extends GameAudio {
             addParticle(bx, by, (float) Math.cos(Math.toRadians(ang)) * spd,
                     (float) Math.sin(Math.toRadians(ang)) * spd, 0.50f, 9f, C_ORANGE, 0f, 2);
         }
-        float points = (150f + cleared * 90f) * scoreFactor();
-        score += points;
+        float points = award(150f + cleared * 90f);
         addScorePop(bx, by - 40f, "+" + fmt((int) points), C_ORANGE);
         playSound(sndHit, 0.7f);
     }

@@ -36,7 +36,8 @@ final class Progress {
     static final int SPHERE_COUNT = 8;
     static final int TRAIL_COUNT = 7;
     static final int WORKSHOP_MAX_LEVEL = 20;
-    static final int WORKSHOP_MAX_LEVEL_30 = 30;
+    /** Максимум для веток «звёздный импульс» и «неоновый манёвр». */
+    static final int WORKSHOP_MAX_LEVEL_MULT = 20;
     static final int WORKSHOP_MAX_LEVEL_TEMP = 3;
     static final int WORKSHOP_UNLOCK_LEVEL = 5;
 
@@ -54,6 +55,8 @@ final class Progress {
     int pointsTotal;
     /** Весь заработанный неон, без вычета покупок: из него считается ранг. */
     long neonEarned;
+    /** Кошелёк: неон, доступный к тратам. Растёт только от начислений. */
+    long neon;
     int multiplierUpgradeLevel;
     int closeMultiplierUpgradeLevel;
     int bossMultiplierUpgradeLevel;
@@ -105,9 +108,9 @@ final class Progress {
         shieldBlocks = prefs.getInt("stat_shields", 0);
         bossesDefeated = prefs.getInt("stat_bosses_defeated", 0);
         pointsTotal = prefs.getInt("points_total", 0);
-        multiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade", 0), 0, WORKSHOP_MAX_LEVEL_30);
-        closeMultiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade_close", 0), 0,
-                WORKSHOP_MAX_LEVEL_30);
+        multiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade", 0), 0, WORKSHOP_MAX_LEVEL_MULT);
+        closeMultiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade_close", 0),
+                0, WORKSHOP_MAX_LEVEL_MULT);
         bossMultiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade_boss", 0), 0,
                 WORKSHOP_MAX_LEVEL);
         levelMultiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade_level", 0), 0,
@@ -122,6 +125,12 @@ final class Progress {
             neonEarned = prefs.getLong("neon_earned", 0L);
         } else {
             neonEarned = pointsTotal;
+        }
+        // Миграция кошелька: раньше траты шли из pointsTotal.
+        if (prefs.contains("neon")) {
+            neon = prefs.getLong("neon", 0L);
+        } else {
+            neon = pointsTotal;
         }
 
         int savedMode = prefs.getInt("mode", MODE_CLASSIC);
@@ -312,7 +321,7 @@ final class Progress {
             case 0:
                 return true;
             case 1:
-                return pointsTotal >= 4000;
+                return neonEarned >= 4000;
             case 2:
                 return best >= 2500;
             case 3:
@@ -322,7 +331,7 @@ final class Progress {
             case 5:
                 return totalTime >= 900f;
             case 6:
-                return pointsTotal >= 12000;
+                return neonEarned >= 12000;
             case 7:
                 return bestCombo >= 30;
             default:
@@ -355,7 +364,7 @@ final class Progress {
     float sphereRatio(int id) {
         switch (id) {
             case 1:
-                return ratio(pointsTotal, 4000);
+                return ratio(neonEarned, 4000);
             case 2:
                 return ratio(best, 2500);
             case 3:
@@ -365,7 +374,7 @@ final class Progress {
             case 5:
                 return ratio((int) totalTime, 900);
             case 6:
-                return ratio(pointsTotal, 12000);
+                return ratio(neonEarned, 12000);
             case 7:
                 return ratio(bestCombo, 30);
             default:
@@ -397,6 +406,10 @@ final class Progress {
         return Math.max(0f, Math.min(1f, (float) value / target));
     }
 
+    private static float ratio(long value, long target) {
+        return Math.max(0f, Math.min(1f, (float) value / (float) target));
+    }
+
     int bestForMode(int m) {
         return bestByMode[m < 0 || m >= MODE_COUNT ? MODE_CLASSIC : m];
     }
@@ -423,6 +436,7 @@ final class Progress {
                 .putInt("stat_bosses_defeated", bossesDefeated)
                 .putInt("points_total", pointsTotal)
                 .putLong("neon_earned", neonEarned)
+                .putLong("neon", neon)
                 .putInt("mult_upgrade", multiplierUpgradeLevel)
                 .putInt("mult_upgrade_close", closeMultiplierUpgradeLevel)
                 .putInt("mult_upgrade_boss", bossMultiplierUpgradeLevel)
@@ -438,7 +452,7 @@ final class Progress {
     }
 
     int multiplierUpgradeCost() {
-        return multiplierUpgradeLevel >= WORKSHOP_MAX_LEVEL_30 ? 0
+        return multiplierUpgradeLevel >= WORKSHOP_MAX_LEVEL_MULT ? 0
                 : workshopCost(multiplierUpgradeLevel, 1500);
     }
 
@@ -447,7 +461,7 @@ final class Progress {
     }
 
     int closeMultiplierUpgradeCost() {
-        return closeMultiplierUpgradeLevel >= WORKSHOP_MAX_LEVEL_30 ? 0
+        return closeMultiplierUpgradeLevel >= WORKSHOP_MAX_LEVEL_MULT ? 0
                 : workshopCost(closeMultiplierUpgradeLevel, 2000);
     }
 
@@ -498,17 +512,17 @@ final class Progress {
 
     boolean canUpgradeLevelMultiplier() {
         int cost = levelMultiplierUpgradeCost();
-        return isLevelMultiplierUnlocked() && cost > 0 && pointsTotal >= cost;
+        return isLevelMultiplierUnlocked() && cost > 0 && neon >= cost;
     }
 
     boolean canUpgradeBossMultiplier() {
         int cost = bossMultiplierUpgradeCost();
-        return isBossMultiplierUnlocked() && cost > 0 && pointsTotal >= cost;
+        return isBossMultiplierUnlocked() && cost > 0 && neon >= cost;
     }
 
     boolean canUpgradeCloseMultiplier() {
         int cost = closeMultiplierUpgradeCost();
-        return isCloseMultiplierUnlocked() && cost > 0 && pointsTotal >= cost;
+        return isCloseMultiplierUnlocked() && cost > 0 && neon >= cost;
     }
 
     boolean isLevelMultiplierUnlocked() {
@@ -535,24 +549,24 @@ final class Progress {
 
     boolean canUpgradeBonusDuration() {
         int cost = bonusDurationUpgradeCost();
-        return cost > 0 && pointsTotal >= cost;
+        return cost > 0 && neon >= cost;
     }
 
     boolean canUpgradeTempMultiplier() {
         int cost = tempMultiplierUpgradeCost();
-        return cost > 0 && pointsTotal >= cost;
+        return cost > 0 && neon >= cost;
     }
 
     boolean canUpgradeMultiplier() {
         int cost = multiplierUpgradeCost();
-        return isStarMultiplierUnlocked() && cost > 0 && pointsTotal >= cost;
+        return isStarMultiplierUnlocked() && cost > 0 && neon >= cost;
     }
 
     boolean upgradeMultiplier() {
         if (!canUpgradeMultiplier()) {
             return false;
         }
-        pointsTotal -= multiplierUpgradeCost();
+        neon -= multiplierUpgradeCost();
         multiplierUpgradeLevel++;
         saveStats();
         return true;
@@ -562,7 +576,7 @@ final class Progress {
         if (!canUpgradeCloseMultiplier()) {
             return false;
         }
-        pointsTotal -= closeMultiplierUpgradeCost();
+        neon -= closeMultiplierUpgradeCost();
         closeMultiplierUpgradeLevel++;
         saveStats();
         return true;
@@ -572,7 +586,7 @@ final class Progress {
         if (!canUpgradeBossMultiplier()) {
             return false;
         }
-        pointsTotal -= bossMultiplierUpgradeCost();
+        neon -= bossMultiplierUpgradeCost();
         bossMultiplierUpgradeLevel++;
         saveStats();
         return true;
@@ -582,7 +596,7 @@ final class Progress {
         if (!canUpgradeLevelMultiplier()) {
             return false;
         }
-        pointsTotal -= levelMultiplierUpgradeCost();
+        neon -= levelMultiplierUpgradeCost();
         levelMultiplierUpgradeLevel++;
         saveStats();
         return true;
@@ -592,7 +606,7 @@ final class Progress {
         if (!canUpgradeBonusDuration()) {
             return false;
         }
-        pointsTotal -= bonusDurationUpgradeCost();
+        neon -= bonusDurationUpgradeCost();
         bonusDurationUpgradeLevel++;
         saveStats();
         return true;
@@ -602,30 +616,32 @@ final class Progress {
         if (!canUpgradeTempMultiplier()) {
             return false;
         }
-        pointsTotal -= tempMultiplierUpgradeCost();
+        neon -= tempMultiplierUpgradeCost();
         tempMultiplierUpgradeLevel++;
         saveStats();
         return true;
     }
 
-    /** Начисление неона: растут и баланс, и счётчик для ранга с защитой от переполнения. */
+    /** Начисление неона: пополняет и кошелёк, и счётчик для ранга с защитой от переполнения. */
     void addNeon(int amount) {
         if (amount <= 0) {
             return;
         }
         pointsTotal = (int) Math.min(Integer.MAX_VALUE, (long) pointsTotal + amount);
-        neonEarned = Math.min(Long.MAX_VALUE - amount, neonEarned + amount);
+        long room = Long.MAX_VALUE - amount;
+        neonEarned = Math.min(room, neonEarned + amount);
+        neon = Math.min(room, neon + amount);
     }
 
     int rank() {
         return GameRules.rankForNeon(neonEarned);
     }
 
-    private static int workshopCost(int level, int base) {
-        if (level >= WORKSHOP_MAX_LEVEL_30) {
+    static int workshopCost(int level, int base) {
+        if (level >= WORKSHOP_MAX_LEVEL_MULT) {
             return 0;
         }
-        double value = base * Math.pow(1.45, level);
+        double value = base * Math.pow(1.30, level);
         return (int) Math.min(Integer.MAX_VALUE, Math.round(value));
     }
 

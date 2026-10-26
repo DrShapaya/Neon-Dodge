@@ -40,6 +40,45 @@ public class GameRulesTest {
     }
 
     @Test
+    public void rankCurveIsQuadraticAndMonotonic() {
+        assertEquals(0L, GameRules.rankThreshold(1));
+        assertEquals(12000L, GameRules.rankThreshold(2));
+        assertEquals(12000L * 4, GameRules.rankThreshold(3));
+        assertEquals(12000L * 49L * 49L, GameRules.rankThreshold(50));
+        assertEquals(12000L * 99L * 99L, GameRules.rankThreshold(100));
+        long prev = 0L;
+        for (int r = 2; r <= GameRules.MAX_RANK; r++) {
+            long t = GameRules.rankThreshold(r);
+            assertTrue("threshold must grow: rank " + r, t > prev);
+            prev = t;
+        }
+    }
+
+    @Test
+    public void neonMultiplierIsCapped() {
+        assertEquals(1f, GameRules.neonMult(1f), 1e-6f);
+        assertEquals(2.7f, GameRules.neonMult(2.7f), 1e-6f);
+        assertEquals(3f, GameRules.neonMult(9f), 1e-6f);
+        assertEquals(3f, GameRules.neonMult(5000f), 1e-6f);
+    }
+
+    @Test
+    public void workshopCostGrowsModeratelyAndStopsAtCap() {
+        assertEquals(2500, Progress.workshopCost(0, 2500));
+        assertEquals(3250, Progress.workshopCost(1, 2500));
+        // Каждая ступень доступнее, чем в старой кривой ×1.45.
+        long c4 = Progress.workshopCost(4, 2500);
+        long c5 = Progress.workshopCost(5, 2500);
+        assertTrue(c5 * 100 < c4 * 135);
+        // Максимальный уровень недостижим для покупок — цену не называют.
+        assertEquals(0, Progress.workshopCost(Progress.WORKSHOP_MAX_LEVEL_MULT, 2500));
+        // Хвост остаётся достижимым: самый дорогой уровень в пределах нескольких
+        // сотен тысяч неона, а не десятков миллионов как при ×1.45.
+        long top = Progress.workshopCost(Progress.WORKSHOP_MAX_LEVEL_MULT - 1, 4000);
+        assertTrue(top > 0 && top < 1_000_000);
+    }
+
+    @Test
     public void rankProgressIsShareOfCurrentStep() {
         long t2 = GameRules.rankThreshold(2);
         long t3 = GameRules.rankThreshold(3);

@@ -180,7 +180,7 @@ abstract class MenuScreen extends HudLayer {
             text(c, sProfileMaxRank, cx, mFootY, 28f, C_GOLD, tfBold, Paint.Align.CENTER);
         } else {
             long need = GameRules.rankThreshold(rank + 1) - progress.neonEarned;
-            text(c, String.format(sRankToNext, rank + 1, fmt((int) Math.min(need, Integer.MAX_VALUE))),
+            text(c, String.format(sRankToNext, rank + 1, fmt(need)),
                     cx, mFootY, 28f, 0xFF6F8199, tfBold, Paint.Align.CENTER);
         }
     }
@@ -222,7 +222,7 @@ abstract class MenuScreen extends HudLayer {
         roundButton(c, B_SETTINGS, gx, cy, 61f);
         iconGear(c, gx, cy, 27f, 0xFFDFF5FF);
 
-        String neon = fmt(progress.pointsTotal);
+        String neon = fmt(progress.neon);
         float nw = measure(neon, 40f, tfBlack) + 110f;
         float nr = gx - 61f - 22f;
         boolean nDown = pressed(B_WORKSHOP);
@@ -457,18 +457,18 @@ abstract class MenuScreen extends HudLayer {
                     progress.canUpgradeBossMultiplier(),
                     B_WORKSHOP_UPGRADE_BOSS, C_GOLD);
 
-            // 3) Неоновый маневр (уровней 30, прибавка по 0.025)
+            // 3) Неоновый маневр (уровней 20, прибавка по 0.025)
             y = drawWorkshopCard(c, y, sWorkshopClose, progress.closeMultiplierUpgradeLevel,
-                    Progress.WORKSHOP_MAX_LEVEL_30,
+                    Progress.WORKSHOP_MAX_LEVEL_MULT,
                     String.format(sWorkshopCloseStep, fmtMult(progress.closeMultiplierStep())),
                     String.format(sWorkshopCloseStep, fmtMult(progress.closeMultiplierStep() + 0.025f)),
                     progress.isCloseMultiplierUnlocked(), progress.closeMultiplierUpgradeCost(),
                     progress.canUpgradeCloseMultiplier(),
                     B_WORKSHOP_UPGRADE_CLOSE, C_MAGENTA);
 
-            // 4) Звездный импульс (уровней 30, прибавка по 0.05)
+            // 4) Звездный импульс (уровней 20, прибавка по 0.05)
             y = drawWorkshopCard(c, y, sWorkshopStars, progress.multiplierUpgradeLevel,
-                    Progress.WORKSHOP_MAX_LEVEL_30, "+" + fmtMult(progress.starMultiplierStep()),
+                    Progress.WORKSHOP_MAX_LEVEL_MULT, "+" + fmtMult(progress.starMultiplierStep()),
                     "+" + fmtMult(progress.starMultiplierStep() + 0.05f),
                     progress.isStarMultiplierUnlocked(), progress.multiplierUpgradeCost(), progress.canUpgradeMultiplier(),
                     B_WORKSHOP_UPGRADE, C_GOLD);
@@ -548,7 +548,7 @@ abstract class MenuScreen extends HudLayer {
             primaryButton(c, buttonId, bx + bw / 2f, by + bh / 2f, bw, bh,
                     sWorkshopBuy, accent, 0.25f);
         } else {
-            String need = String.format(sWorkshopNeed, fmt(cost - progress.pointsTotal));
+            String need = String.format(sWorkshopNeed, fmt(cost - progress.neon));
             box(c, bx, by, bx + bw, by + bh, 26f, 0x0DFFFFFF, UI_LINE);
             textC(c, need, bx + bw / 2f, by + 43f, 21f, UI_FOG, tfBold, Paint.Align.CENTER);
             addHit(buttonId, bx, by, bx + bw, by + bh);
@@ -572,7 +572,7 @@ abstract class MenuScreen extends HudLayer {
     }
 
     void drawNeonPill(Canvas c, float right, float cy) {
-        String neon = fmt(progress.pointsTotal);
+        String neon = fmt(progress.neon);
         float nw = measure(neon, 27f, tfBlack) + 88f;
         box(c, right - nw, cy - 32f, right, cy + 32f, 32f, UI_SURFACE, 0x44FFD75E);
         iconDiamond(c, right - nw + 36f, cy, 15f, C_GOLD);

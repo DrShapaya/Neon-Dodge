@@ -88,6 +88,8 @@ abstract class GameResources extends GameCore {
         sBossZone = context.getString(R.string.boss_zone);
         sBossReward = context.getString(R.string.boss_reward);
         sMiniBossToast = context.getString(R.string.mini_boss_toast);
+        sLateMineStorm = context.getString(R.string.late_mine_storm);
+        sLateSplitField = context.getString(R.string.late_split_field);
         sBossLabel = context.getString(R.string.boss_label);
         sBossZoneScore = context.getString(R.string.boss_zone_score);
         sBossRewardScore = context.getString(R.string.boss_reward_score);

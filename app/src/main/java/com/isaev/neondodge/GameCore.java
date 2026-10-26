@@ -104,6 +104,10 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     static final float HARDCORE_MULT = 2f;
     static final float BOSS_ZONE_RADIUS = 150f;
     static final float BOSS_ZONE_FILL_TIME = 2.8f;
+    /** Потолок накопленного множителя за близкие пролёты. */
+    static final float CLOSE_MULT_CAP = 15f;
+    /** Первый тематический late-event сразу после основного разгона (1:30). */
+    static final float LATE_EVENT_START = 90f;
 
     // Sphere / trail skin palettes.
     static final int[] SPHERE_OUTER = {
@@ -137,6 +141,15 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
             C_GOLD, C_MAGENTA, C_MINT, C_STEEL
     };
 
+    /** Палитра боссов по стадиям; после пятой стадии цвет повторяется по кругу. */
+    static final int[] BOSS_COLORS = {C_MAGENTA, C_ORANGE, C_GOLD, C_VIOLET, C_RED};
+
+    // Поздние события забега: короткие тематические фазы после разгона сложности.
+    static final int RE_NONE = 0;
+    static final int RE_MINE_STORM = 1;   // рой мин
+    static final int RE_SPLIT_FIELD = 2;  // поле осколков
+    static final int RE_BLUE_RUSH = 3;    // рывок синих
+
     float scale = 1f;
     float viewOffsetX;
     float worldH = 1920f;
@@ -158,6 +171,9 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     float difficulty;
     float latePressure;
     float score;
+    /** Накопленная неоновая база забега: суммы очков до метамножителей,
+     *  а множитель очков применён с потолком ×3 (GameRules.neonMult). */
+    float neonBase;
     boolean newRecord;
     int lives = MAX_LIVES;
 
@@ -173,7 +189,8 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     int runStars;
     int runDodged;
     int runMaxCombo;
-    int bossMask;
+    /** Минута последнего минибосса; боссы приходят каждые 2 минуты и без конца. */
+    int lastBossMinute;
     int bossZonesCompleted;
     float bossZoneTimer;
     BossZone bossZone;
@@ -210,6 +227,10 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     float phaseTimer;
     float doubleTimer;
     float bombWaveTimer;
+    /** Стоп-кадр при уроне: мир замирает на пару кадров. */
+    float hitStop;
+    /** Короткий slow-mo при победе над боссом. */
+    float bossSlowTimer;
     static final float BOMB_WAVE_DURATION = 0.65f;
     float bombWaveOriginX;
     float bombWaveOriginY;
@@ -221,6 +242,10 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     float specialTimer;
     float checkTimer;
     float saveTimer;
+    // Поздние события: kind активного события, left — остаток, timer — до следующего.
+    int runEventKind;
+    float runEventLeft;
+    float runEventTimer;
     String toastText = "";
     float toastTimer;
     float px = W / 2f;
@@ -393,6 +418,8 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     String sBossZone;
     String sBossReward;
     String sMiniBossToast;
+    String sLateMineStorm;
+    String sLateSplitField;
     String sBossLabel;
     String sBossZoneScore;
     String sBossRewardScore;
@@ -691,6 +718,12 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     }
 
     String fmt(int v) {
+        NumberFormat nf = NumberFormat.getIntegerInstance(Locale.getDefault());
+        nf.setGroupingUsed(true);
+        return nf.format(v).replace('\u00A0', ' ');
+    }
+
+    String fmt(long v) {
         NumberFormat nf = NumberFormat.getIntegerInstance(Locale.getDefault());
         nf.setGroupingUsed(true);
         return nf.format(v).replace('\u00A0', ' ');

@@ -403,7 +403,7 @@ abstract class OverlayScreens extends InfoScreens {
                 : String.format(sRankLabel, rank);
         text(c, title, l + 44f, y + 66f, 36f, UI_INK, tfDisplayBold, Paint.Align.LEFT);
         if (runNeonGained > 0) {
-            String gain = "+" + fmt((int) Math.min(runNeonGained, Integer.MAX_VALUE));
+            String gain = "+" + fmt(runNeonGained);
             float gw = measure(gain, 36f, tfBlack);
             text(c, gain, r - 44f, y + 66f, 36f, 0xFFFFE9A6, tfBlack, Paint.Align.RIGHT);
             iconDiamond(c, r - 44f - gw - 26f, y + 54f, 14f, C_GOLD);
@@ -432,8 +432,7 @@ abstract class OverlayScreens extends InfoScreens {
             pShade.setShader(null);
         }
         String note = zenMode ? sModeHints[Progress.MODE_ZEN]
-                : String.format(sRankToNext, rank + 1,
-                fmt((int) Math.min(hi - progress.neonEarned, Integer.MAX_VALUE)));
+                : String.format(sRankToNext, rank + 1, fmt(hi - progress.neonEarned));
         text(c, note, l + 44f, y + 182f, 30f, UI_FOG, tfBold, Paint.Align.LEFT);
         return y + h;
     }

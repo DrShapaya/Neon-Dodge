@@ -52,7 +52,7 @@
     <string name="rules_multiplier">Score multiplier</string>
     <string name="rules_multiplier_desc">The Workshop features two tabs: "Multipliers" (star impulse, neon manoeuvre, titan hunt, permanent multiplier) and "Power-ups" (power-up duration and boost multiplier x2–x5). A shield preserves run multipliers after a hit.</string>
     <string name="rules_progress">Progress</string>
-    <string name="rule_progress_1">Neon is earned from run scores in Classic and Hardcore modes (1 point = 1 neon). Zen only saves a training record and does not change achievements or persistent statistics.</string>
+    <string name="rule_progress_1">Neon is earned for each run in Classic and Hardcore: the longer the run, the more neon. Score multipliers boost score without limit, but count toward neon only up to ×3. Hardcore grants an extra +50% neon. Zen saves only a training record and does not change achievements or persistent statistics.</string>
     <string name="rule_progress_2">Your rank increases as you accumulate total earned neon.</string>
     <string name="rule_progress_3">Sphere and trail skins unlock through records, combos and dodges.</string>
     <string name="rules_scroll_hint">Drag to scroll</string>
@@ -129,6 +129,8 @@
     <string name="boss_zone">Zone</string>
     <string name="boss_reward">Boss defeated · boss multiplier upgraded</string>
     <string name="mini_boss_toast">MINI-BOSS · %1$d:00</string>
+    <string name="late_mine_storm">MINE STORM · 15 s</string>
+    <string name="late_split_field">SHARD FIELD · 15 s</string>
     <string name="boss_label">BOSS</string>
     <string name="boss_zone_score">ZONE +%1$d</string>
     <string name="boss_reward_score">BOSS x%1$s</string>

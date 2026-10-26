@@ -20,13 +20,29 @@ final class GameRules {
         return Math.max(0, currentHits - 1);
     }
 
-    /** Неон, заработанный за всё время, с которого начинается ранг (ранг 1 — с нуля, макс. ранг 100). */
+    /**
+     * Совокупный неон, заработанный за всё время, с которого открывается ранг
+     * (ранг 1 — с нуля, макс. ранг 100). Простая квадратичная кривая: ранг 2 —
+     * 12 тысяч, ранг 50 — 28,8 млн, ранг 100 — 117,6 млн. Верхние ранги —
+     * долгосрочный престиж, а не необходимые вехи.
+     */
     static long rankThreshold(int rank) {
         if (rank <= 1) {
             return 0L;
         }
-        long r = Math.min(MAX_RANK, rank);
-        return Math.round(2000.0 * (r - 1) * Math.pow(r, 1.42));
+        long steps = Math.min(MAX_RANK, rank) - 1;
+        return 12000L * steps * steps;
+    }
+
+    /**
+     * Множитель очков влияет на заработанный неон только до этого потолка.
+     * Рекорд растёт без ограничений, а валюту это защищает от петли:
+     * множитель → доход → множитель.
+     */
+    static final float NEON_MULT_CAP = 3f;
+
+    static float neonMult(float scoreFactor) {
+        return Math.min(scoreFactor, NEON_MULT_CAP);
     }
 
     /** Ранг от 1 до MAX_RANK (100). */

@@ -276,8 +276,11 @@ abstract class GameLoop extends GameSpawner {
         // растёт ещё несколько минут, но медленно и с жёстким лимитом.
         float late = zenMode ? 0f : Math.max(0f, elapsed - diffTime);
         latePressure = Math.min(0.30f, late / 300f);
-        score += dt * (70f + 120f * difficulty)
-                * (1f + 0.25f * latePressure) * scoreFactor();
+        float f = scoreFactor();
+        float scoreTick = dt * (70f + 120f * difficulty)
+                * (1f + 0.25f * latePressure);
+        score += scoreTick * f;
+        neonBase += scoreTick * GameRules.neonMult(f);
         if (countsPersistentProgress()) {
             progress.totalTime += dt;
         }
@@ -310,15 +313,15 @@ abstract class GameLoop extends GameSpawner {
             bombWaveTimer -= dt;
         }
 
-        // Mini-bosses arrive at 2, 4 and 6 minutes and create a clear tempo spike.
+        updateLateEvent(dt);
+
+        // Mini-bosses arrive every two minutes. The stage keeps increasing, so
+        // long record runs continue to get a readable tempo spike.
         int minute = (int) (elapsed / 60f);
-        if (minute >= 2 && minute <= 6 && (minute & 1) == 0) {
-            int bit = 1 << (minute / 2 - 1);
-            if ((bossMask & bit) == 0) {
-                bossMask |= bit;
-                spawnBoss(minute);
-                announceTimer = 2.4f;
-            }
+        if (minute >= 2 && (minute & 1) == 0 && minute > lastBossMinute) {
+            lastBossMinute = minute;
+            spawnBoss(minute);
+            announceTimer = 2.4f;
         }
 
         targetX = clamp(targetX, PLAYER_R + 6f, W - PLAYER_R - 6f);
@@ -454,6 +457,42 @@ abstract class GameLoop extends GameSpawner {
         }
     }
 
+    /** Runs a short late-game pattern every 45 seconds after the pressure ramp. */
+    void updateLateEvent(float dt) {
+        if (runEventKind != RE_NONE) {
+            runEventLeft -= dt;
+            if (runEventLeft <= 0f) {
+                runEventKind = RE_NONE;
+                runEventLeft = 0f;
+                runEventTimer = 45f;
+            }
+            return;
+        }
+        if (elapsed < LATE_EVENT_START) {
+            return;
+        }
+        runEventTimer -= dt;
+        if (runEventTimer <= 0f) {
+            int cycle = Math.max(0, (int) ((elapsed - LATE_EVENT_START) / 45f));
+            runEventKind = (cycle & 1) == 0 ? RE_MINE_STORM : RE_SPLIT_FIELD;
+            runEventLeft = 15f;
+            runEventTimer = 45f;
+            if (runEventKind == RE_MINE_STORM) {
+                toast(sLateMineStorm);
+                spawnLateEventPattern(T_MINE, 4);
+            } else {
+                toast(sLateSplitField);
+                spawnLateEventPattern(T_SPLIT, 4);
+            }
+        }
+    }
+
+    void spawnLateEventPattern(int type, int count) {
+        for (int i = 0; i < count; i++) {
+            spawnObstacle(type);
+        }
+    }
+
     void followTarget(float k) {
         // Гравитационные астероиды смещают точку, к которой стремится сфера.
         // Игрок может компенсировать притяжение пальцем.
@@ -541,8 +580,7 @@ abstract class GameLoop extends GameSpawner {
                         if (dist2(o.x, o.y, px, py) <= blastR * blastR) {
                             hit(o);
                         } else {
-                            float pts = 70f * scoreFactor();
-                            score += pts;
+                            float pts = award(70f);
                             addScorePop(o.x, o.y, "+" + fmt((int) pts), C_LIME);
                             combo++;
                             comboTimer = 1.8f;
@@ -617,9 +655,8 @@ abstract class GameLoop extends GameSpawner {
                         prefs.edit().putBoolean("hint_combo", true).apply();
                         toast(sHintCombo);
                     }
-                    closeMult = Math.min(999f, closeMult + progress.closeMultiplierStep());
-                    float comboPoints = 5f * combo * scoreFactor();
-                    score += comboPoints;
+                    closeMult = Math.min(CLOSE_MULT_CAP, closeMult + progress.closeMultiplierStep());
+                    float comboPoints = award(5f * combo);
                     addScorePop(o.x, py - 70f, "+" + fmt((int) comboPoints), C_GOLD);
                     for (int k = 0; k < 3; k++) {
                         addParticle(o.x + (rnd.nextFloat() - 0.5f) * o.r,
@@ -773,9 +810,9 @@ abstract class GameLoop extends GameSpawner {
             if (bossZone.fill >= 1f) {
                 bossZonesCompleted++;
                 explode(bossZone.x, bossZone.y, 24, C_CYAN);
+                float zonePoints = award(250f);
                 addScorePop(bossZone.x, bossZone.y - 45f,
-                        String.format(sBossZoneScore, 250), C_CYAN);
-                score += 250f * scoreFactor();
+                        "+" + fmt((int) zonePoints), C_CYAN);
                 bossZone = null;
                 bossZoneTimer = 0.75f;
                 toast(sBossZone + " " + bossZonesCompleted + "/4");
@@ -788,7 +825,7 @@ abstract class GameLoop extends GameSpawner {
                         }
                     }
                     bossBullets.clear();
-                    score += 1000f * scoreFactor();
+                    float reward = award(1000f);
                     addScorePop(px, py - 100f,
                             String.format(sBossRewardScore, fmtMult(bossMult)), C_GOLD);
                     toast(sBossReward);
@@ -820,7 +857,7 @@ abstract class GameLoop extends GameSpawner {
         }
         combo = 0;
         comboTimer = 0f;
-        resetMultipliers();
+        softenMultipliersAfterHit();
         lives--;
         invuln = 1.7f;
         shake = 30f;
