@@ -482,8 +482,7 @@ abstract class InfoScreens extends MenuScreen {
 
         float ix = l + 54f;
         float iy = y + cardH / 2f;
-        drawGlow(c, ix, iy, 90f, col, 120);
-        drawHex(c, ix, iy, 26f, time * 18f + index * 30f, col);
+        drawEnemyPreview(c, ix, iy, 26f, index);
 
         text(c, sAstName[index], l + 104f, y + 42f, 29f, UI_INK, tfBold, Paint.Align.LEFT);
         drawWrapped(c, sAstDesc[index], l + 104f, y + 76f, 24f,

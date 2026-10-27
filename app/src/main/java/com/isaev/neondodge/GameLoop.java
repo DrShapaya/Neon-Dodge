@@ -653,6 +653,21 @@ abstract class GameLoop extends GameSpawner {
             o.warnTimer = Math.max(0f, o.warnTimer - dt);
             o.rot += o.vrot * sdt;
 
+            if (o.y > -o.r && o.y < worldH + o.r) {
+                if (o.type == T_BLUE && rnd.nextFloat() < 0.20f) {
+                    addParticle(o.x + (rnd.nextFloat() - 0.5f) * 12f, o.y - o.r * 0.45f,
+                            (rnd.nextFloat() - 0.5f) * 16f, -50f, 0.22f, 3.2f, C_CYAN, 0f, 0);
+                } else if (o.type == T_ORANGE && o.burstPhase < 0.30f && rnd.nextFloat() < 0.35f) {
+                    addParticle(o.x + (rnd.nextFloat() - 0.5f) * 14f, o.y - o.r * 0.35f,
+                            (rnd.nextFloat() - 0.5f) * 26f, -90f, 0.26f, 4.2f, C_ORANGE, 0f, 0);
+                } else if (o.type == T_GRAVITY && rnd.nextFloat() < 0.15f) {
+                    float a = rnd.nextFloat() * 6.2831853f;
+                    float d = o.r * (1.1f + rnd.nextFloat() * 0.7f);
+                    addParticle(o.x + (float) Math.cos(a) * d, o.y + (float) Math.sin(a) * d,
+                            -(float) Math.cos(a) * 70f, -(float) Math.sin(a) * 70f, 0.30f, 2.8f, C_VIOLET, 0f, 0);
+                }
+            }
+
             if (!o.passed && o.y > py + PLAYER_R * 0.5f) {
                 o.passed = true;
                 runDodged++;

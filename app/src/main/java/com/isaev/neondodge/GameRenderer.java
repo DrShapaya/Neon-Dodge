@@ -699,215 +699,686 @@ abstract class GameRenderer extends GameLoop {
             }
             return;
         }
-        int glowAlpha = 100;
-        if (o.type == T_ORANGE) {
-            glowAlpha = o.burstPhase < 0.30f ? 170 : 70;
-        } else if (o.type == T_GREEN && o.bounceFlash > 0f) {
-            glowAlpha = 100 + (int) (120f * o.bounceFlash);
-        } else if (o.type == T_MINE) {
-            float blink = 0.5f + 0.5f * (float) Math.sin(time * 18f);
-            glowAlpha = o.mineArmed && o.fuse < 0.85f
-                    ? 130 + (int) (100f * blink) : 105;
-        } else if (o.type == T_GRAVITY) {
-            glowAlpha = 105 + (int) (55f * (0.5f + 0.5f * (float) Math.sin(time * 3f)));
-        } else if (o.type == T_ARMOR) {
-            glowAlpha = 125;
-        }
-        drawGlow(c, o.x, o.y, o.r * 2.7f, o.color, glowAlpha);
-
-        hexPath.reset();
-        for (int i = 0; i < 6; i++) {
-            double ang = Math.toRadians(o.rot + i * 60f);
-            float hx = o.x + (float) Math.cos(ang) * o.r;
-            float hy = o.y + (float) Math.sin(ang) * o.r;
-            if (i == 0) {
-                hexPath.moveTo(hx, hy);
-            } else {
-                hexPath.lineTo(hx, hy);
-            }
-        }
-        hexPath.close();
-
-        pFill.setColor(o.color);
-        pFill.setAlpha(40);
-        c.drawPath(hexPath, pFill);
-
-        pStroke.setStyle(Paint.Style.STROKE);
-        pStroke.setColor(o.color);
-        pStroke.setAlpha(235);
-        pStroke.setStrokeWidth(o.type == T_RED || o.type == T_ARMOR ? 7.5f : 5.5f);
-        c.drawPath(hexPath, pStroke);
-
-        pStroke.setColor(0xFFFFFFFF);
-        pStroke.setAlpha(70);
-        pStroke.setStrokeWidth(1.8f);
-        c.drawPath(hexPath, pStroke);
-        pStroke.setStyle(Paint.Style.FILL);
-
-        if (o.type == T_RED) {
-            pStroke.setStyle(Paint.Style.STROKE);
-            pStroke.setColor(0xFFFFFFFF);
-            pStroke.setAlpha(95);
-            pStroke.setStrokeWidth(2.2f);
-            c.drawCircle(o.x, o.y, o.r * 0.50f, pStroke);
-            pStroke.setStyle(Paint.Style.FILL);
-        } else {
-            drawObsMark(c, o);
+        switch (o.type) {
+            case T_GREEN:
+                drawObsGreen(c, o);
+                break;
+            case T_BLUE:
+                drawObsBlue(c, o);
+                break;
+            case T_VIOLET:
+                drawObsViolet(c, o);
+                break;
+            case T_ORANGE:
+                drawObsOrange(c, o);
+                break;
+            case T_RED:
+                drawObsRed(c, o);
+                break;
+            case T_SPLIT:
+                drawObsSplit(c, o);
+                break;
+            case T_MINE:
+                drawObsMine(c, o);
+                break;
+            case T_GRAVITY:
+                drawObsGravity(c, o);
+                break;
+            case T_ARMOR:
+            default:
+                drawObsArmor(c, o);
+                break;
         }
     }
 
-    void drawObsMark(Canvas c, Obs o) {
-        pStroke.setStyle(Paint.Style.STROKE);
-        switch (o.type) {
-            case T_GREEN: {
-                pStroke.setColor(0xFFFFFFFF);
-                pStroke.setAlpha(145);
-                pStroke.setStrokeWidth(2.6f);
-                float off = o.r * 0.40f;
-                float len = o.r * 0.20f;
-                c.drawLine(o.x - off - len, o.y - len, o.x - off, o.y, pStroke);
-                c.drawLine(o.x - off - len, o.y + len, o.x - off, o.y, pStroke);
-                c.drawLine(o.x + off + len, o.y - len, o.x + off, o.y, pStroke);
-                c.drawLine(o.x + off + len, o.y + len, o.x + off, o.y, pStroke);
-                break;
-            }
-            case T_BLUE: {
-                pStroke.setColor(o.color);
-                pStroke.setAlpha(160);
-                pStroke.setStrokeWidth(2.2f);
-                float by = o.y - o.r * 1.18f;
-                for (int k = -1; k <= 1; k++) {
-                    float sx = o.x + k * o.r * 0.34f;
-                    c.drawLine(sx, by, sx, by - o.r * (0.34f - Math.abs(k) * 0.06f), pStroke);
-                }
-                break;
-            }
-            case T_VIOLET: {
-                float ang = (float) Math.atan2(py - o.y, px - o.x);
-                float dx = (float) Math.cos(ang) * o.r * 0.38f;
-                float dy = (float) Math.sin(ang) * o.r * 0.38f;
-                pStroke.setColor(0xFFFFFFFF);
-                pStroke.setAlpha(65);
-                pStroke.setStrokeWidth(1.6f);
-                c.drawCircle(o.x, o.y, o.r * 0.50f, pStroke);
-                pFill.setColor(0xFFFFFFFF);
-                pFill.setAlpha(185);
-                c.drawCircle(o.x + dx, o.y + dy, 2.5f + o.r * 0.06f, pFill);
-                break;
-            }
-            case T_ORANGE: {
-                pStroke.setColor(0xFFFFFFFF);
-                pStroke.setAlpha(o.burstPhase < 0.30f ? 220 : 90);
-                pStroke.setStrokeWidth(3f);
-                float u = o.r * 0.38f;
-                c.drawLine(o.x - u * 0.45f, o.y - u, o.x + u * 0.25f, o.y - u * 0.10f, pStroke);
-                c.drawLine(o.x + u * 0.25f, o.y - u * 0.10f, o.x - u * 0.12f, o.y + u * 0.08f, pStroke);
-                c.drawLine(o.x - u * 0.12f, o.y + u * 0.08f, o.x + u * 0.45f, o.y + u, pStroke);
-                break;
-            }
-            case T_SPLIT: {
-                pStroke.setColor(0xFFFFFFFF);
-                pStroke.setAlpha(170);
-                pStroke.setStrokeWidth(2.4f);
-                float u = o.r * 0.28f;
-                c.drawLine(o.x - u * 0.85f, o.y - u, o.x - u * 0.10f, o.y, pStroke);
-                c.drawLine(o.x - u * 0.10f, o.y, o.x - u * 0.85f, o.y + u, pStroke);
-                c.drawLine(o.x + u * 0.85f, o.y - u, o.x + u * 0.10f, o.y, pStroke);
-                c.drawLine(o.x + u * 0.10f, o.y, o.x + u * 0.85f, o.y + u, pStroke);
-                break;
-            }
-            case T_MINE: {
-                float blinkFreq = o.mineArmed ? (18f + (o.fuse / MINE_FUSE_TIME) * 35f) : 10f;
-                float blink = 0.5f + 0.5f * (float) Math.sin(time * blinkFreq);
-                int mineCol = o.mineArmed ? mix(o.color, C_RED, clamp(o.fuse / MINE_FUSE_TIME, 0f, 1f)) : o.color;
-                pStroke.setColor(mineCol);
-                pStroke.setAlpha(o.mineArmed ? 170 + (int) (85f * blink) : 150);
-                pStroke.setStrokeWidth(2.8f);
-                for (int k = 0; k < 6; k++) {
-                    double ang = Math.toRadians(o.rot + k * 60f);
-                    float ca = (float) Math.cos(ang);
-                    float sa = (float) Math.sin(ang);
-                    c.drawLine(o.x + ca * o.r * 0.72f, o.y + sa * o.r * 0.72f,
-                            o.x + ca * o.r * 1.02f, o.y + sa * o.r * 1.02f, pStroke);
-                }
-                pFill.setColor(o.mineArmed ? (blink > 0.5f ? 0xFFFFFFFF : C_RED) : o.color);
-                pFill.setAlpha(o.mineArmed ? 220 : 175);
-                c.drawCircle(o.x, o.y, o.r * 0.22f, pFill);
+    /** 1. T_GREEN: Рикошет — Вращающийся 4-лопастной бритвенный сюрикен */
+    void drawObsGreen(Canvas c, Obs o) {
+        float bf = o.bounceFlash;
+        drawGlow(c, o.x, o.y, o.r * 2.9f, o.color, 110 + (int) (130f * bf));
 
-                if (o.mineArmed) {
-                    float fuseFrac = clamp(o.fuse / MINE_FUSE_TIME, 0f, 1f);
-                    pFill.setColor(withAlpha(C_RED, (int) (18f + 30f * blink * fuseFrac)));
-                    c.drawCircle(o.x, o.y, MINE_BLAST_R, pFill);
-                    pStroke.setColor(withAlpha(C_RED, (int) (90f + 140f * blink)));
-                    pStroke.setStrokeWidth(2.5f + 2f * blink);
-                    c.drawCircle(o.x, o.y, MINE_BLAST_R, pStroke);
-                    pStroke.setColor(0xFFFFE4B0);
-                    pStroke.setStrokeWidth(3.5f);
-                    tmpRect.set(o.x - 36f, o.y - 36f, o.x + 36f, o.y + 36f);
-                    c.drawArc(tmpRect, -90f, fuseFrac * 360f, false, pStroke);
-                }
-                break;
-            }
-            case T_GRAVITY: {
-                float pulse = 0.5f + 0.5f * (float) Math.sin(time * 4f);
-                pStroke.setColor(0xFFFFFFFF);
-                pStroke.setAlpha(50 + (int) (55f * pulse));
-                pStroke.setStrokeWidth(1.8f);
-                c.drawCircle(o.x, o.y, o.r * 0.44f, pStroke);
-                pStroke.setAlpha(35 + (int) (45f * pulse));
-                c.drawCircle(o.x, o.y, o.r * 0.68f, pStroke);
-                pFill.setColor(0xFFFFFFFF);
-                pFill.setAlpha(120 + (int) (55f * pulse));
-                for (int k = 0; k < 4; k++) {
-                    double ang = Math.toRadians(time * 55f + k * 90f);
-                    c.drawCircle(o.x + (float) Math.cos(ang) * o.r * 0.55f,
-                            o.y + (float) Math.sin(ang) * o.r * 0.55f,
-                            2.2f + o.r * 0.03f, pFill);
-                }
-                break;
-            }
-            case T_ARMOR: {
-                hexPath.reset();
-                for (int k = 0; k < 6; k++) {
-                    double ang = Math.toRadians(o.rot + k * 60f);
-                    float hx = o.x + (float) Math.cos(ang) * o.r * 0.56f;
-                    float hy = o.y + (float) Math.sin(ang) * o.r * 0.56f;
-                    if (k == 0) {
-                        hexPath.moveTo(hx, hy);
-                    } else {
-                        hexPath.lineTo(hx, hy);
-                    }
-                }
-                hexPath.close();
-                pStroke.setColor(0xFFFFFFFF);
-                pStroke.setAlpha(105);
-                pStroke.setStrokeWidth(2.6f);
-                c.drawPath(hexPath, pStroke);
-                pFill.setColor(0xFFFFFFFF);
-                pFill.setAlpha(135);
-                for (int k = 0; k < 3; k++) {
-                    double ang = Math.toRadians(o.rot + 30f + k * 120f);
-                    c.drawCircle(o.x + (float) Math.cos(ang) * o.r * 0.34f,
-                            o.y + (float) Math.sin(ang) * o.r * 0.34f,
-                            2.6f, pFill);
-                }
-                if (o.armorHits <= 1) {
-                    pStroke.setColor(0xFFFFF1B0);
-                    pStroke.setAlpha(220);
-                    pStroke.setStrokeWidth(3.4f);
-                    c.drawLine(o.x - o.r * 0.45f, o.y - o.r * 0.50f,
-                            o.x - o.r * 0.05f, o.y + o.r * 0.08f, pStroke);
-                    c.drawLine(o.x - o.r * 0.05f, o.y + o.r * 0.08f,
-                            o.x + o.r * 0.38f, o.y - o.r * 0.18f, pStroke);
-                    c.drawLine(o.x - o.r * 0.05f, o.y + o.r * 0.08f,
-                            o.x + o.r * 0.18f, o.y + o.r * 0.48f, pStroke);
-                }
-                break;
-            }
-            default:
-                break;
+        c.save();
+        c.translate(o.x, o.y);
+        if (bf > 0f) {
+            c.scale(1f + 0.30f * bf, 1f - 0.20f * bf);
         }
-        pStroke.setStyle(Paint.Style.FILL);
+        c.rotate(o.rot);
+
+        // 4-лопастной сюрикен
+        obsPath.reset();
+        float outerR = o.r * 1.05f;
+        float innerR = o.r * 0.32f;
+        for (int i = 0; i < 4; i++) {
+            double tipAng = Math.toRadians(i * 90f);
+            double baseAng = Math.toRadians(i * 90f + 45f);
+            float tx = (float) Math.cos(tipAng) * outerR;
+            float ty = (float) Math.sin(tipAng) * outerR;
+            float bx = (float) Math.cos(baseAng) * innerR;
+            float by = (float) Math.sin(baseAng) * innerR;
+            if (i == 0) {
+                obsPath.moveTo(tx, ty);
+            } else {
+                obsPath.lineTo(tx, ty);
+            }
+            obsPath.lineTo(bx, by);
+        }
+        obsPath.close();
+
+        pFill.setColor(o.color);
+        pFill.setAlpha(55);
+        c.drawPath(obsPath, pFill);
+
+        pStroke.setStyle(Paint.Style.STROKE);
+        pStroke.setColor(o.color);
+        pStroke.setStrokeWidth(5f);
+        pStroke.setAlpha(240);
+        c.drawPath(obsPath, pStroke);
+
+        pStroke.setColor(0xFFFFFFFF);
+        pStroke.setStrokeWidth(1.8f);
+        pStroke.setAlpha(bf > 0f ? 240 : 130);
+        c.drawPath(obsPath, pStroke);
+
+        // Внутренний ротор
+        c.rotate(-o.rot * 2f);
+        obsInnerPath.reset();
+        float r2 = o.r * 0.45f;
+        obsInnerPath.moveTo(0f, -r2);
+        obsInnerPath.lineTo(r2, 0f);
+        obsInnerPath.lineTo(0f, r2);
+        obsInnerPath.lineTo(-r2, 0f);
+        obsInnerPath.close();
+
+        pFill.setColor(withAlpha(o.color, 90));
+        c.drawPath(obsInnerPath, pFill);
+        pStroke.setColor(0xFFFFFFFF);
+        pStroke.setStrokeWidth(2f);
+        pStroke.setAlpha(180);
+        c.drawPath(obsInnerPath, pStroke);
+
+        pFill.setColor(0xFFFFFFFF);
+        c.drawCircle(0f, 0f, o.r * 0.16f, pFill);
+        strokeReset();
+        c.restore();
+    }
+
+    /** 2. T_BLUE: Быстрый — Сверхзвуковая кинетическая стрела / Дельта-перехватчик */
+    void drawObsBlue(Canvas c, Obs o) {
+        drawGlow(c, o.x, o.y, o.r * 2.7f, o.color, 120);
+
+        c.save();
+        c.translate(o.x, o.y);
+        float tilt = clamp(o.vx * 0.08f, -18f, 18f);
+        c.rotate(tilt);
+        c.scale(0.84f, 1.24f);
+
+        // 1. Сверхзвуковые дуги ударной волны перед носом
+        float wavePhase = (time * 8f) % 1f;
+        pStroke.setStyle(Paint.Style.STROKE);
+        pStroke.setColor(o.color);
+        pStroke.setStrokeWidth(2.5f);
+        pStroke.setAlpha((int) (140f * (1f - wavePhase)));
+        tmpRect.set(-o.r * 0.9f, o.r * 0.6f + wavePhase * 18f,
+                o.r * 0.9f, o.r * 1.5f + wavePhase * 18f);
+        c.drawArc(tmpRect, 30f, 120f, false, pStroke);
+
+        // 2. Двойные плазменные струи двигателей
+        float fl1 = o.r * 0.65f + (float) Math.sin(time * 40f) * 7f;
+        float fl2 = o.r * 0.65f + (float) Math.cos(time * 35f) * 7f;
+        float engX = o.r * 0.38f;
+        float engY = -o.r * 0.50f;
+
+        pStroke.setColor(0xFF1FC2FF);
+        pStroke.setStrokeWidth(6f);
+        pStroke.setAlpha(200);
+        c.drawLine(-engX, engY, -engX, engY - fl1, pStroke);
+        c.drawLine(engX, engY, engX, engY - fl2, pStroke);
+
+        pStroke.setColor(0xFFFFFFFF);
+        pStroke.setStrokeWidth(2.5f);
+        pStroke.setAlpha(240);
+        c.drawLine(-engX, engY, -engX, engY - fl1 * 0.65f, pStroke);
+        c.drawLine(engX, engY, engX, engY - fl2 * 0.65f, pStroke);
+
+        // 3. Стреловидный корпус перехватчика
+        obsPath.reset();
+        obsPath.moveTo(0f, o.r * 1.15f);
+        obsPath.lineTo(o.r * 0.85f, -o.r * 0.65f);
+        obsPath.lineTo(o.r * 0.35f, -o.r * 0.40f);
+        obsPath.lineTo(0f, -o.r * 0.22f);
+        obsPath.lineTo(-o.r * 0.35f, -o.r * 0.40f);
+        obsPath.lineTo(-o.r * 0.85f, -o.r * 0.65f);
+        obsPath.close();
+
+        pFill.setColor(withAlpha(o.color, 60));
+        c.drawPath(obsPath, pFill);
+
+        pStroke.setColor(o.color);
+        pStroke.setStrokeWidth(5f);
+        pStroke.setAlpha(240);
+        c.drawPath(obsPath, pStroke);
+
+        pStroke.setColor(0xFFFFFFFF);
+        pStroke.setStrokeWidth(1.8f);
+        pStroke.setAlpha(160);
+        c.drawPath(obsPath, pStroke);
+
+        pStroke.setColor(0xFFFFFFFF);
+        pStroke.setStrokeWidth(2.8f);
+        pStroke.setAlpha(220);
+        c.drawLine(0f, -o.r * 0.15f, 0f, o.r * 0.95f, pStroke);
+
+        strokeReset();
+        c.restore();
+    }
+
+    /** 3. T_VIOLET: Самонаводящийся — Дрон-охотник с кибернетическим глазом, следящим за игроком */
+    void drawObsViolet(Canvas c, Obs o) {
+        drawGlow(c, o.x, o.y, o.r * 2.8f, o.color, 115);
+
+        c.save();
+        c.translate(o.x, o.y);
+
+        pStroke.setStyle(Paint.Style.STROKE);
+        if (o.vx > 8f) {
+            float jlen = Math.min(22f, o.vx * 0.28f);
+            pStroke.setColor(0xFFE28FFF);
+            pStroke.setStrokeWidth(4.5f);
+            c.drawLine(-o.r * 0.85f, 0f, -o.r * 0.85f - jlen, 0f, pStroke);
+        } else if (o.vx < -8f) {
+            float jlen = Math.min(22f, -o.vx * 0.28f);
+            pStroke.setColor(0xFFE28FFF);
+            pStroke.setStrokeWidth(4.5f);
+            c.drawLine(o.r * 0.85f, 0f, o.r * 0.85f + jlen, 0f, pStroke);
+        }
+
+        // 1. Восьмиугольный корпус
+        obsPath.reset();
+        for (int i = 0; i < 8; i++) {
+            double ang = Math.toRadians(i * 45f + 22.5f);
+            float rad = (i % 2 == 0) ? o.r * 0.98f : o.r * 0.85f;
+            float hx = (float) Math.cos(ang) * rad;
+            float hy = (float) Math.sin(ang) * rad;
+            if (i == 0) obsPath.moveTo(hx, hy);
+            else obsPath.lineTo(hx, hy);
+        }
+        obsPath.close();
+
+        pFill.setColor(withAlpha(o.color, 50));
+        c.drawPath(obsPath, pFill);
+
+        pStroke.setColor(o.color);
+        pStroke.setStrokeWidth(5f);
+        pStroke.setAlpha(235);
+        c.drawPath(obsPath, pStroke);
+
+        // 2. Внешняя оправа сенсора и засечки прицела
+        pStroke.setColor(0xFFFFFFFF);
+        pStroke.setStrokeWidth(2f);
+        pStroke.setAlpha(110);
+        c.drawCircle(0f, 0f, o.r * 0.60f, pStroke);
+
+        pStroke.setStrokeWidth(2.4f);
+        pStroke.setAlpha(170);
+        for (int k = 0; k < 4; k++) {
+            double ang = Math.toRadians(k * 90f + time * 45f);
+            float ca = (float) Math.cos(ang);
+            float sa = (float) Math.sin(ang);
+            c.drawLine(ca * o.r * 0.48f, sa * o.r * 0.48f,
+                    ca * o.r * 0.64f, sa * o.r * 0.64f, pStroke);
+        }
+
+        // 3. Кибернетический глаз, следящий за игроком
+        float dx = px - o.x;
+        float dy = py - o.y;
+        float dist = (float) Math.sqrt(dx * dx + dy * dy);
+        float eyeOffset = o.r * 0.24f;
+        float pupilX = dist > 1f ? (dx / dist) * eyeOffset : 0f;
+        float pupilY = dist > 1f ? (dy / dist) * eyeOffset : 0f;
+
+        pFill.setColor(0xFF38085C);
+        c.drawCircle(pupilX, pupilY, o.r * 0.28f, pFill);
+        pStroke.setColor(C_MAGENTA);
+        pStroke.setStrokeWidth(2.5f);
+        pStroke.setAlpha(220);
+        c.drawCircle(pupilX, pupilY, o.r * 0.28f, pStroke);
+
+        pFill.setColor(0xFFFF2A4B);
+        c.drawCircle(pupilX, pupilY, o.r * 0.14f, pFill);
+        pFill.setColor(0xFFFFFFFF);
+        c.drawCircle(pupilX - 2f, pupilY - 2f, o.r * 0.06f, pFill);
+
+        strokeReset();
+        c.restore();
+    }
+
+    /** 4. T_ORANGE: Импульсный — Тяжёлый ракетный перехватчик с мощными форсажными факелами */
+    void drawObsOrange(Canvas c, Obs o) {
+        boolean boosting = o.burstPhase < 0.30f;
+        drawGlow(c, o.x, o.y, o.r * (boosting ? 3.2f : 2.6f), o.color, boosting ? 190 : 85);
+
+        c.save();
+        c.translate(o.x, o.y);
+
+        if (boosting) {
+            float boostT = o.burstPhase / 0.30f;
+            float sy = 1.32f - 0.12f * boostT;
+            float sx = 0.82f + 0.08f * boostT;
+            c.scale(sx, sy);
+        } else {
+            c.scale(1.08f, 0.94f);
+        }
+
+        // 1. Форсажные факелы двух двигателей
+        float engX = o.r * 0.44f;
+        float engY = -o.r * 0.40f;
+        float flameLen = boosting
+                ? (o.r * 1.35f + (float) Math.sin(time * 50f) * 12f)
+                : (o.r * 0.35f + (float) Math.sin(time * 20f) * 4f);
+
+        pStroke.setStyle(Paint.Style.STROKE);
+        pStroke.setColor(0xFFFF9500);
+        pStroke.setStrokeWidth(boosting ? 8.5f : 4f);
+        pStroke.setAlpha(boosting ? 230 : 120);
+        c.drawLine(-engX, engY, -engX, engY - flameLen, pStroke);
+        c.drawLine(engX, engY, engX, engY - flameLen, pStroke);
+
+        pStroke.setColor(0xFFFFE875);
+        pStroke.setStrokeWidth(boosting ? 4f : 1.8f);
+        pStroke.setAlpha(boosting ? 255 : 160);
+        c.drawLine(-engX, engY, -engX, engY - flameLen * 0.65f, pStroke);
+        c.drawLine(engX, engY, engX, engY - flameLen * 0.65f, pStroke);
+
+        // 2. Стреловидный тяжёлый носовой клин
+        obsPath.reset();
+        obsPath.moveTo(0f, o.r * 1.05f);
+        obsPath.lineTo(o.r * 0.88f, o.r * 0.10f);
+        obsPath.lineTo(o.r * 0.65f, -o.r * 0.55f);
+        obsPath.lineTo(o.r * 0.22f, -o.r * 0.35f);
+        obsPath.lineTo(0f, -o.r * 0.20f);
+        obsPath.lineTo(-o.r * 0.22f, -o.r * 0.35f);
+        obsPath.lineTo(-o.r * 0.65f, -o.r * 0.55f);
+        obsPath.lineTo(-o.r * 0.88f, o.r * 0.10f);
+        obsPath.close();
+
+        pFill.setColor(withAlpha(o.color, boosting ? 80 : 45));
+        c.drawPath(obsPath, pFill);
+
+        pStroke.setColor(o.color);
+        pStroke.setStrokeWidth(5.5f);
+        pStroke.setAlpha(240);
+        c.drawPath(obsPath, pStroke);
+
+        pStroke.setColor(0xFFFFFFFF);
+        pStroke.setStrokeWidth(2f);
+        pStroke.setAlpha(boosting ? 220 : 120);
+        c.drawPath(obsPath, pStroke);
+
+        pFill.setColor(boosting ? 0xFFFFFFFF : withAlpha(o.color, 170));
+        c.drawCircle(0f, o.r * 0.25f, o.r * 0.22f, pFill);
+
+        strokeReset();
+        c.restore();
+    }
+
+    /** 5. T_RED: Титан / Колосс — Огромный шипастый астероид-джаггернаут с пылающим лавовым ядром */
+    void drawObsRed(Canvas c, Obs o) {
+        float pulse = 0.93f + 0.07f * (float) Math.sin(time * 5f);
+        drawGlow(c, o.x, o.y, o.r * 3.1f, o.color, 135);
+
+        c.save();
+        c.translate(o.x, o.y);
+        c.rotate(o.rot * 0.4f);
+
+        // 1. Концентрическая гравитационная ударная волна
+        float shockProg = (time * 1.6f) % 1f;
+        float shockR = o.r * (1.1f + shockProg * 1.3f);
+        pStroke.setStyle(Paint.Style.STROKE);
+        pStroke.setColor(C_RED);
+        pStroke.setStrokeWidth(3f * (1f - shockProg));
+        pStroke.setAlpha((int) (150f * (1f - shockProg)));
+        c.drawCircle(0f, 0f, shockR, pStroke);
+
+        // 2. 8-шипастый монолитный бастион
+        obsPath.reset();
+        for (int i = 0; i < 8; i++) {
+            double tipAng = Math.toRadians(i * 45f);
+            double baseAng = Math.toRadians(i * 45f + 22.5f);
+            float tx = (float) Math.cos(tipAng) * o.r * 1.05f * pulse;
+            float ty = (float) Math.sin(tipAng) * o.r * 1.05f * pulse;
+            float bx = (float) Math.cos(baseAng) * o.r * 0.74f;
+            float by = (float) Math.sin(baseAng) * o.r * 0.74f;
+            if (i == 0) obsPath.moveTo(tx, ty);
+            else obsPath.lineTo(tx, ty);
+            obsPath.lineTo(bx, by);
+        }
+        obsPath.close();
+
+        pFill.setColor(0x35FF2A4B);
+        c.drawPath(obsPath, pFill);
+
+        pStroke.setColor(o.color);
+        pStroke.setStrokeWidth(7.5f);
+        pStroke.setAlpha(245);
+        c.drawPath(obsPath, pStroke);
+
+        pStroke.setColor(0xFFFFFFFF);
+        pStroke.setStrokeWidth(2f);
+        pStroke.setAlpha(90);
+        c.drawPath(obsPath, pStroke);
+
+        // 3. Радиальные раскалённые трещины/жилы
+        pStroke.setColor(0xFFFF851B);
+        pStroke.setStrokeWidth(3.5f);
+        pStroke.setAlpha(200);
+        for (int i = 0; i < 8; i++) {
+            double ang = Math.toRadians(i * 45f);
+            float ca = (float) Math.cos(ang);
+            float sa = (float) Math.sin(ang);
+            c.drawLine(ca * o.r * 0.35f, sa * o.r * 0.35f,
+                    ca * o.r * 0.95f, sa * o.r * 0.95f, pStroke);
+        }
+
+        // 4. Пылающее лавовое ядро
+        pFill.setColor(0xFFFF3355);
+        c.drawCircle(0f, 0f, o.r * 0.40f * pulse, pFill);
+        pFill.setColor(0xFFFFE875);
+        c.drawCircle(0f, 0f, o.r * 0.22f * pulse, pFill);
+
+        strokeReset();
+        c.restore();
+    }
+
+    /** 6. T_SPLIT: Делящийся — Нестабильный бинарный кристалл с электрическими дугами */
+    void drawObsSplit(Canvas c, Obs o) {
+        drawGlow(c, o.x, o.y, o.r * 2.7f, o.color, 125);
+
+        c.save();
+        c.translate(o.x, o.y);
+        c.rotate(o.rot);
+
+        if (!o.canSplit) {
+            obsPath.reset();
+            obsPath.moveTo(0f, -o.r * 1.15f);
+            obsPath.lineTo(o.r * 0.65f, 0f);
+            obsPath.lineTo(0f, o.r * 1.15f);
+            obsPath.lineTo(-o.r * 0.65f, 0f);
+            obsPath.close();
+
+            pFill.setColor(withAlpha(o.color, 70));
+            c.drawPath(obsPath, pFill);
+            pStroke.setStyle(Paint.Style.STROKE);
+            pStroke.setColor(o.color);
+            pStroke.setStrokeWidth(4.5f);
+            c.drawPath(obsPath, pStroke);
+            pStroke.setColor(0xFFFFFFFF);
+            pStroke.setStrokeWidth(1.8f);
+            c.drawPath(obsPath, pStroke);
+            strokeReset();
+            c.restore();
+            return;
+        }
+
+        float jitter = (float) Math.sin(time * 35f) * 3.5f;
+
+        for (int side = -1; side <= 1; side += 2) {
+            float ox = side * (o.r * 0.32f) + (side > 0 ? jitter : -jitter);
+            obsPath.reset();
+            obsPath.moveTo(ox, -o.r * 0.95f);
+            obsPath.lineTo(ox + side * o.r * 0.55f, 0f);
+            obsPath.lineTo(ox, o.r * 0.95f);
+            obsPath.lineTo(ox - side * o.r * 0.08f, 0f);
+            obsPath.close();
+
+            pFill.setColor(withAlpha(o.color, 65));
+            c.drawPath(obsPath, pFill);
+
+            pStroke.setStyle(Paint.Style.STROKE);
+            pStroke.setColor(o.color);
+            pStroke.setStrokeWidth(4.5f);
+            c.drawPath(obsPath, pStroke);
+
+            pStroke.setColor(0xFFFFFFFF);
+            pStroke.setStrokeWidth(1.8f);
+            c.drawPath(obsPath, pStroke);
+        }
+
+        // Электрические молнии между половинами кристалла
+        pStroke.setStyle(Paint.Style.STROKE);
+        pStroke.setColor(0xFFFFFFFF);
+        pStroke.setStrokeWidth(2.5f);
+        pStroke.setAlpha(230);
+        float zapY1 = (float) Math.sin(time * 28f) * o.r * 0.4f;
+        float zapY2 = -zapY1 * 0.8f;
+        c.drawLine(-o.r * 0.20f, zapY1 - 8f, 0f, zapY1 + 6f, pStroke);
+        c.drawLine(0f, zapY1 + 6f, o.r * 0.20f, zapY1 - 5f, pStroke);
+        c.drawLine(-o.r * 0.20f, zapY2 + 5f, 0f, zapY2 - 6f, pStroke);
+        c.drawLine(0f, zapY2 - 6f, o.r * 0.20f, zapY2 + 8f, pStroke);
+
+        strokeReset();
+        c.restore();
+    }
+
+    /** 7. T_MINE: Пространственная мина — Выдвижные детонаторы, радарная волна и круговой таймер */
+    void drawObsMine(Canvas c, Obs o) {
+        boolean armed = o.mineArmed;
+        float fuseFrac = armed ? clamp(o.fuse / MINE_FUSE_TIME, 0f, 1f) : 0f;
+        float blinkFreq = armed ? (16f + fuseFrac * 35f) : 8f;
+        float blink = 0.5f + 0.5f * (float) Math.sin(time * blinkFreq);
+        int mineCol = armed ? mix(o.color, C_RED, fuseFrac) : o.color;
+
+        drawGlow(c, o.x, o.y, o.r * (armed ? 3.2f : 2.6f), mineCol, armed ? 180 : 100);
+
+        if (armed) {
+            float pulseRadar = (time * 2.5f) % 1f;
+            pFill.setColor(withAlpha(C_RED, (int) (16f + 25f * blink * fuseFrac)));
+            c.drawCircle(o.x, o.y, MINE_BLAST_R, pFill);
+
+            pStroke.setStyle(Paint.Style.STROKE);
+            pStroke.setColor(withAlpha(C_RED, (int) (140f * (1f - pulseRadar))));
+            pStroke.setStrokeWidth(3f);
+            c.drawCircle(o.x, o.y, MINE_BLAST_R * pulseRadar, pStroke);
+
+            pStroke.setColor(withAlpha(C_RED, (int) (100f + 140f * blink)));
+            pStroke.setStrokeWidth(2.5f + 1.5f * blink);
+            c.drawCircle(o.x, o.y, MINE_BLAST_R, pStroke);
+        }
+
+        c.save();
+        c.translate(o.x, o.y);
+        c.rotate(o.rot);
+
+        // Выдвигающиеся сенсорные иглы-детонаторы
+        float spikeReach = armed ? (1.10f + 0.15f * blink) : 0.95f;
+        pStroke.setStyle(Paint.Style.STROKE);
+        pStroke.setColor(mineCol);
+        pStroke.setStrokeWidth(3.8f);
+        pStroke.setAlpha(230);
+        for (int k = 0; k < 8; k++) {
+            double ang = Math.toRadians(k * 45f);
+            float ca = (float) Math.cos(ang);
+            float sa = (float) Math.sin(ang);
+            c.drawLine(ca * o.r * 0.45f, sa * o.r * 0.45f,
+                    ca * o.r * spikeReach, sa * o.r * spikeReach, pStroke);
+            pFill.setColor(armed ? (blink > 0.5f ? 0xFFFFFFFF : C_RED) : mineCol);
+            c.drawCircle(ca * o.r * spikeReach, sa * o.r * spikeReach, 3.5f, pFill);
+        }
+
+        pFill.setColor(0xFF1E0E08);
+        c.drawCircle(0f, 0f, o.r * 0.52f, pFill);
+
+        pStroke.setColor(mineCol);
+        pStroke.setStrokeWidth(4.5f);
+        c.drawCircle(0f, 0f, o.r * 0.52f, pStroke);
+
+        pStroke.setColor(0xFFFFFFFF);
+        pStroke.setStrokeWidth(1.8f);
+        pStroke.setAlpha(120);
+        c.drawCircle(0f, 0f, o.r * 0.40f, pStroke);
+
+        pFill.setColor(armed ? (blink > 0.4f ? 0xFFFFFFFF : C_RED) : mineCol);
+        c.drawCircle(0f, 0f, o.r * 0.22f, pFill);
+
+        if (armed) {
+            pStroke.setColor(0xFFFFE875);
+            pStroke.setStrokeWidth(3.5f);
+            tmpRect.set(-o.r * 0.32f, -o.r * 0.32f, o.r * 0.32f, o.r * 0.32f);
+            c.drawArc(tmpRect, -90f, (1f - fuseFrac) * 360f, false, pStroke);
+        }
+
+        strokeReset();
+        c.restore();
+    }
+
+    /** 8. T_GRAVITY: Сингулярность — Космическая чёрная дыра с аккреционным диском и искажением пространства */
+    void drawObsGravity(Canvas c, Obs o) {
+        drawGlow(c, o.x, o.y, o.r * 3.3f, o.color, 150);
+
+        float ripple1 = (time * 1.5f) % 1f;
+        float ripple2 = (time * 1.5f + 0.5f) % 1f;
+        pStroke.setStyle(Paint.Style.STROKE);
+        pStroke.setColor(o.color);
+        pStroke.setStrokeWidth(2f);
+        pStroke.setAlpha((int) (90f * (1f - ripple1)));
+        c.drawCircle(o.x, o.y, o.r * (1.2f + ripple1 * 1.2f), pStroke);
+        pStroke.setAlpha((int) (90f * (1f - ripple2)));
+        c.drawCircle(o.x, o.y, o.r * (1.2f + ripple2 * 1.2f), pStroke);
+
+        c.save();
+        c.translate(o.x, o.y);
+
+        // Вращающийся спиральный аккреционный диск
+        c.rotate(time * 140f);
+        pStroke.setColor(o.color);
+        pStroke.setStrokeWidth(3.5f);
+        pStroke.setAlpha(200);
+        for (int a = 0; a < 4; a++) {
+            float armAngle = a * 90f;
+            tmpRect.set(-o.r * 0.92f, -o.r * 0.92f, o.r * 0.92f, o.r * 0.92f);
+            c.drawArc(tmpRect, armAngle, 65f, false, pStroke);
+        }
+
+        c.rotate(time * 80f);
+        pStroke.setColor(0xFFF396FF);
+        pStroke.setStrokeWidth(2.2f);
+        for (int a = 0; a < 4; a++) {
+            float armAngle = a * 90f + 45f;
+            tmpRect.set(-o.r * 0.65f, -o.r * 0.65f, o.r * 0.65f, o.r * 0.65f);
+            c.drawArc(tmpRect, armAngle, 55f, false, pStroke);
+        }
+
+        pFill.setColor(0xFFFFFFFF);
+        for (int k = 0; k < 4; k++) {
+            double ang = Math.toRadians(time * 220f + k * 90f);
+            float distM = o.r * (0.45f + 0.25f * (float) Math.sin(time * 4f + k));
+            c.drawCircle((float) Math.cos(ang) * distM, (float) Math.sin(ang) * distM, 3f, pFill);
+        }
+
+        pStroke.setColor(0xFFFFFFFF);
+        pStroke.setStrokeWidth(3.5f);
+        pStroke.setAlpha(255);
+        c.drawCircle(0f, 0f, o.r * 0.44f, pStroke);
+
+        pFill.setColor(0xFF040108);
+        c.drawCircle(0f, 0f, o.r * 0.40f, pFill);
+
+        strokeReset();
+        c.restore();
+    }
+
+    /** 9. T_ARMOR: Бронированный — Тяжёлый бастион с композитными плитами и силовым щитом Эгида */
+    void drawObsArmor(Canvas c, Obs o) {
+        drawGlow(c, o.x, o.y, o.r * 2.9f, o.color, 135);
+
+        c.save();
+        c.translate(o.x, o.y);
+        c.rotate(o.rot * 0.5f);
+
+        // Силовое поле «Эгида»
+        float shieldPulse = 0.5f + 0.5f * (float) Math.sin(time * 6f);
+        pStroke.setStyle(Paint.Style.STROKE);
+        pStroke.setColor(C_CYAN);
+        pStroke.setStrokeWidth(3f + shieldPulse * 1.5f);
+        pStroke.setAlpha(140 + (int) (70f * shieldPulse));
+        tmpRect.set(-o.r * 1.14f, -o.r * 1.14f, o.r * 1.14f, o.r * 1.14f);
+        for (int s = 0; s < 4; s++) {
+            c.drawArc(tmpRect, s * 90f + time * 35f, 70f, false, pStroke);
+        }
+
+        pFill.setColor(0xFFFFFFFF);
+        for (int s = 0; s < 4; s++) {
+            double ang = Math.toRadians(s * 90f + time * 35f);
+            c.drawCircle((float) Math.cos(ang) * o.r * 1.14f,
+                    (float) Math.sin(ang) * o.r * 1.14f, 4f, pFill);
+        }
+
+        // Сегментированный бастион
+        obsPath.reset();
+        for (int i = 0; i < 6; i++) {
+            double ang = Math.toRadians(i * 60f);
+            float hx = (float) Math.cos(ang) * o.r * 0.92f;
+            float hy = (float) Math.sin(ang) * o.r * 0.92f;
+            if (i == 0) obsPath.moveTo(hx, hy);
+            else obsPath.lineTo(hx, hy);
+        }
+        obsPath.close();
+
+        pFill.setColor(0x45E5A824);
+        c.drawPath(obsPath, pFill);
+
+        pStroke.setColor(o.color);
+        pStroke.setStrokeWidth(7.5f);
+        pStroke.setAlpha(245);
+        c.drawPath(obsPath, pStroke);
+
+        pStroke.setColor(0xFFFFFFFF);
+        pStroke.setStrokeWidth(2f);
+        pStroke.setAlpha(120);
+        c.drawPath(obsPath, pStroke);
+
+        obsInnerPath.reset();
+        for (int i = 0; i < 6; i++) {
+            double ang = Math.toRadians(i * 60f + 30f);
+            float hx = (float) Math.cos(ang) * o.r * 0.54f;
+            float hy = (float) Math.sin(ang) * o.r * 0.54f;
+            if (i == 0) obsInnerPath.moveTo(hx, hy);
+            else obsInnerPath.lineTo(hx, hy);
+        }
+        obsInnerPath.close();
+        pStroke.setStrokeWidth(2.8f);
+        pStroke.setAlpha(170);
+        c.drawPath(obsInnerPath, pStroke);
+
+        pFill.setColor(0xFFFFE875);
+        for (int i = 0; i < 6; i++) {
+            double ang = Math.toRadians(i * 60f);
+            c.drawCircle((float) Math.cos(ang) * o.r * 0.72f,
+                    (float) Math.sin(ang) * o.r * 0.72f, 3.5f, pFill);
+        }
+
+        pFill.setColor(0xFFFFFFFF);
+        c.drawCircle(0f, 0f, o.r * 0.22f, pFill);
+
+        strokeReset();
+        c.restore();
+    }
+
+    void drawEnemyPreview(Canvas c, float x, float y, float r, int type) {
+        previewObs.type = type;
+        previewObs.x = x;
+        previewObs.y = y;
+        previewObs.r = r;
+        previewObs.rot = time * 45f + type * 30f;
+        previewObs.color = OBS_COLORS[type % OBS_COLORS.length];
+        previewObs.burstPhase = (time * 0.9f + type * 0.3f) % 1.05f;
+        previewObs.bounceFlash = 0f;
+        previewObs.mineArmed = false;
+        previewObs.fuse = 0f;
+        previewObs.canSplit = true;
+        previewObs.armorHits = 2;
+        previewObs.boss = false;
+        previewObs.vx = 0f;
+        previewObs.vy = 200f;
+        drawObs(c, previewObs);
     }
 
     void drawPickup(Canvas c, Pickup p) {

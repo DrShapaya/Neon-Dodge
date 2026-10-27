@@ -360,6 +360,9 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     final HashMap<Integer, PorterDuffColorFilter> filters = new HashMap<>();
     final HashMap<String, Path> neonPaths = new HashMap<>();
     final Path hexPath = new Path();
+    final Path obsPath = new Path();
+    final Path obsInnerPath = new Path();
+    final Obs previewObs = new Obs();
     final Paint pShade = new Paint(Paint.ANTI_ALIAS_FLAG);
     final Path podPath = new Path();
     final android.graphics.Matrix shaderMatrix = new android.graphics.Matrix();

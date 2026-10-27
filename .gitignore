@@ -18,6 +18,8 @@ store/*
 !store/*.png
 !store/screenshots/
 !store/screenshots/*.png
+!store/cards/
+!store/cards/*.png
 *.jks
 *.keystore
 *.apk
