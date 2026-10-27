@@ -213,8 +213,13 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     float bossLaserAimTimer;
     float bossLaserFireTimer;
     float bossLaserX;
+    float bossLaserY;
     float bossLaserTargetX;
     float bossLaserWidth = 26f;
+
+    float bossStopY() {
+        return Math.max(480f, insetTop + 440f);
+    }
 
     // Таран
     float bossDashWarnTimer;
@@ -586,6 +591,7 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     String sNewRecordMode;
     String sSkinUnlocked;
     String sSecondsShort;
+    String sSecUnit;
     String sStatMaxMult;
     final String[] sBonusDesc = new String[8];
     final String[] sStatName = new String[6];

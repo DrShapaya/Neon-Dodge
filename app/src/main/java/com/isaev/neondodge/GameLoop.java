@@ -518,6 +518,17 @@ abstract class GameLoop extends GameSpawner {
             pullX += dx / d * strength;
             pullY += dy / d * strength;
         }
+        if (bossActive && bossKind == BOSS_KIND_VORTEX && bossStunTimer <= 0f) {
+            float dx = (W / 2f) - px;
+            float dy = bossStopY() - py;
+            float d2 = dx * dx + dy * dy;
+            if (d2 > 1f) {
+                float d = (float) Math.sqrt(d2);
+                float strength = 75f;
+                pullX += (dx / d) * strength;
+                pullY += (dy / d) * (strength * 0.4f);
+            }
+        }
         float pullLen = (float) Math.sqrt(pullX * pullX + pullY * pullY);
         if (pullLen > 132f) {
             pullX *= 132f / pullLen;
@@ -551,9 +562,13 @@ abstract class GameLoop extends GameSpawner {
             Obs o = obstacles.get(i);
 
             if (o.boss) {
-                float stopY = Math.max(190f, insetTop + 190f);
-                o.vy = o.y < stopY ? o.baseVy : 0f;
-                o.vx += (float) Math.sin(time * 0.7f + o.bossStage) * sdt * 35f;
+                float stopY = bossStopY();
+                if (bossDashTimer > 0f) {
+                    o.vy = 0f;
+                    o.vx = 0f;
+                } else {
+                    o.vy = o.y < stopY ? o.baseVy : 0f;
+                }
             } else if (o.type == T_ORANGE) {
                 o.burstPhase += sdt;
                 if (o.burstPhase >= 1.05f) {
@@ -580,7 +595,7 @@ abstract class GameLoop extends GameSpawner {
                     if (o.fuse >= MINE_FUSE_TIME) {
                         explode(o.x, o.y, 32, o.color);
                         playSound(sndHit, 0.85f);
-                        shake = Math.max(shake, 0.45f);
+                        shake = Math.max(shake, 20f);
                         flash = 0.25f;
                         float blastR = MINE_BLAST_R + PLAYER_R;
                         if (dist2(o.x, o.y, px, py) <= blastR * blastR) {
@@ -772,7 +787,7 @@ abstract class GameLoop extends GameSpawner {
             return;
         }
 
-        float stopY = Math.max(210f, insetTop + 210f);
+        float stopY = bossStopY();
         if (boss.y < stopY) {
             return;
         }
@@ -784,8 +799,10 @@ abstract class GameLoop extends GameSpawner {
             boss.bounceFlash = Math.max(boss.bounceFlash, 0.6f);
         } else {
             bossWobble = 0f;
-            boss.x = clamp(boss.x + (float) Math.sin(time * 0.85f + boss.bossStage) * (110f + boss.bossStage * 15f) * dt,
-                    boss.r + 30f, W - boss.r - 30f);
+            if (bossDashTimer <= 0f) {
+                boss.x = clamp(boss.x + (float) Math.sin(time * 0.85f + boss.bossStage) * (110f + boss.bossStage * 15f) * dt,
+                        boss.r + 30f, W - boss.r - 30f);
+            }
         }
 
         // 2. Резонаторы перегрузки (Conduits)
@@ -815,7 +832,7 @@ abstract class GameLoop extends GameSpawner {
             conduitArcY = bossConduits.get(bossConduits.size() - 1).y;
             playSound(sndHit, 1.35f);
             playSound(sndPower, 1.4f);
-            shake = 0.55f;
+            shake = 28f;
             flash = 0.45f;
             bossHp--;
             bossStunTimer = 1.15f + progress.conduitStunBonus();
@@ -847,9 +864,10 @@ abstract class GameLoop extends GameSpawner {
     void updateBossAttacks(Obs boss, float dt) {
         switch (bossKind) {
             case BOSS_KIND_PRISM: // Лазер + веер кристаллов
+                bossLaserY = boss.y + boss.r * 0.45f;
                 if (bossLaserFireTimer > 0f) {
                     bossLaserFireTimer -= dt;
-                    if (Math.abs(px - bossLaserX) < (bossLaserWidth + PLAYER_R * 0.72f)) {
+                    if (py > bossLaserY && Math.abs(px - bossLaserX) < (bossLaserWidth + PLAYER_R * 0.72f)) {
                         hitLaser();
                     }
                 } else if (bossLaserAimTimer > 0f) {
@@ -859,7 +877,7 @@ abstract class GameLoop extends GameSpawner {
                     if (bossLaserAimTimer <= 0f) {
                         bossLaserFireTimer = 0.48f;
                         playSound(sndPower, 1.6f);
-                        shake = 0.35f;
+                        shake = 20f;
                     }
                 }
 
@@ -914,16 +932,12 @@ abstract class GameLoop extends GameSpawner {
                         bossBullets.add(b);
                     }
                 }
-                // Небольшое грави-притяжение к центру
-                if ((int) (time * 1.5f) != (int) ((time - dt) * 1.5f)) {
-                    float pull = (W / 2f - px) * 0.08f;
-                    px += pull;
-                }
                 break;
 
             case BOSS_KIND_STRIKER: // Тараны + дуговые лезвия
                 if (bossDashTimer > 0f) {
                     bossDashTimer -= dt;
+                    boss.x = bossDashX;
                     float dashProgress = 1f - bossDashTimer / 0.65f;
                     if (dashProgress < 0.5f) {
                         boss.y = bossDashStartY + (bossDashTargetY - bossDashStartY) * (dashProgress * 2f);
@@ -937,10 +951,11 @@ abstract class GameLoop extends GameSpawner {
                     bossDashWarnTimer -= dt;
                     if (bossDashWarnTimer <= 0f) {
                         bossDashTimer = 0.65f;
+                        boss.x = bossDashX;
                         bossDashStartY = boss.y;
                         bossDashTargetY = groundY() - 40f;
                         playSound(sndHit, 1.4f);
-                        shake = 0.45f;
+                        shake = 26f;
                     }
                 } else {
                     boss.bossShotTimer -= dt;
@@ -993,6 +1008,13 @@ abstract class GameLoop extends GameSpawner {
         for (int i = bossBullets.size() - 1; i >= 0; i--) {
             BossBullet b = bossBullets.get(i);
             if (b.reflected) {
+                if (boss == null) {
+                    b.y -= 800f * dt;
+                    if (b.y < -120f) {
+                        bossBullets.remove(i);
+                    }
+                    continue;
+                }
                 float dx = boss.x - b.x;
                 float dy = boss.y - b.y;
                 float dist = (float) Math.sqrt(dx * dx + dy * dy);
@@ -1011,7 +1033,7 @@ abstract class GameLoop extends GameSpawner {
                     playSound(sndHit, 1.2f);
                     addScorePop(boss.x, boss.y + 45f, sBossReflect + " +500", C_MINT);
                     award(500f);
-                    shake = 0.35f;
+                    shake = 22f;
                     continue;
                 }
             } else {
@@ -1024,7 +1046,7 @@ abstract class GameLoop extends GameSpawner {
                 }
 
                 // Close Dodge для отражения нестабильных ядер
-                if (b.kind == BULLET_REFLECTABLE && invuln <= 0f) {
+                if (b.kind == BULLET_REFLECTABLE && !b.reflected && invuln <= 0f) {
                     float d2 = dist2(b.x, b.y, px, py);
                     float hitDist = b.r + PLAYER_R;
                     float reflectDist = hitDist + 65f;
@@ -1090,7 +1112,7 @@ abstract class GameLoop extends GameSpawner {
                     essenceOrbs.add(orb);
                 }
                 playSound(sndPower, 1.5f);
-                shake = 0.55f;
+                shake = 32f;
                 flash = 0.5f;
             }
         }
@@ -1191,18 +1213,32 @@ abstract class GameLoop extends GameSpawner {
             checkProgress();
             return;
         }
+        if (zenMode) {
+            combo = 0;
+            comboTimer = 0f;
+            comboPop = 0f;
+            softenMultipliersAfterHit();
+            shake = 20f;
+            flash = 0.5f;
+            invuln = 1.4f;
+            explode(px, py, 14, C_CYAN);
+            playSound(sndHit, 1.1f);
+            buzz(25);
+            return;
+        }
         combo = 0;
         comboTimer = 0f;
+        comboPop = 0f;
         softenMultipliersAfterHit();
         lives--;
         hitStop = 0.08f;
         invuln = 1.6f;
-        shake = 0.5f;
-        flash = 0.5f;
+        shake = 30f;
+        flash = 0.6f;
         explode(px, py, 28, C_RED);
         playSound(sndHit, 1.0f);
         buzz(45);
-        if (lives <= 0 && !zenMode) {
+        if (lives <= 0) {
             if (!emergencyPhaseUsed && progress.hasEmergencyPhase()) {
                 emergencyPhaseUsed = true;
                 lives = 1;
@@ -1218,6 +1254,9 @@ abstract class GameLoop extends GameSpawner {
     }
 
     void hitBossBullet(BossBullet bullet) {
+        if (invuln > 0f || phaseTimer > 0f || state != ST_PLAY) {
+            return;
+        }
         if (shieldCharges > 0) {
             shieldCharges--;
             if (countsPersistentProgress()) {
@@ -1230,11 +1269,23 @@ abstract class GameLoop extends GameSpawner {
             checkProgress();
             return;
         }
-        if (phaseTimer > 0f) {
+        if (zenMode) {
+            combo = 0;
+            comboTimer = 0f;
+            comboPop = 0f;
+            softenMultipliersAfterHit();
+            shake = 18f;
+            flash = 0.45f;
+            invuln = 1.2f;
+            explode(px, py, 10, C_CYAN);
+            explode(bullet.x, bullet.y, 10, bullet.color);
+            playSound(sndHit, 1.2f);
+            buzz(22);
             return;
         }
         combo = 0;
         comboTimer = 0f;
+        comboPop = 0f;
         softenMultipliersAfterHit();
         lives--;
         invuln = 1.7f;
@@ -1244,7 +1295,7 @@ abstract class GameLoop extends GameSpawner {
         explode(bullet.x, bullet.y, 12, bullet.color);
         playSound(sndHit, 0.9f);
         buzz(45);
-        if (lives <= 0 && !zenMode) {
+        if (lives <= 0) {
             if (!emergencyPhaseUsed && progress.hasEmergencyPhase()) {
                 emergencyPhaseUsed = true;
                 lives = 1;

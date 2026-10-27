@@ -448,7 +448,7 @@ abstract class MenuScreen extends HudLayer {
             y = drawWorkshopCard(c, y, sWorkshopStartMult, progress.levelMultiplierUpgradeLevel,
                     Progress.WORKSHOP_MAX_5,
                     String.format(sWorkshopStartMultStep, fmtMult(progress.startMultiplier())),
-                    String.format(sWorkshopStartMultStep, fmtMult(progress.startMultiplier() + 0.20f)),
+                    "x" + fmtMult(progress.startMultiplier() + 0.20f),
                     true, progress.levelMultiplierUpgradeCost(),
                     progress.canUpgradeLevelMultiplier(),
                     B_WORKSHOP_UPGRADE_LEVEL, C_CYAN);
@@ -457,7 +457,7 @@ abstract class MenuScreen extends HudLayer {
             y = drawWorkshopCard(c, y, sWorkshopStars, progress.multiplierUpgradeLevel,
                     Progress.WORKSHOP_MAX_10,
                     String.format(sWorkshopStarStep, fmtMult(progress.starMultiplierStep())),
-                    String.format(sWorkshopStarStep, fmtMult(progress.starMultiplierStep() + 0.02f)),
+                    "+" + fmtMult(progress.starMultiplierStep() + 0.02f),
                     true, progress.multiplierUpgradeCost(),
                     progress.canUpgradeMultiplier(),
                     B_WORKSHOP_UPGRADE, C_GOLD);
@@ -466,7 +466,7 @@ abstract class MenuScreen extends HudLayer {
             y = drawWorkshopCard(c, y, sWorkshopClose, progress.closeMultiplierUpgradeLevel,
                     Progress.WORKSHOP_MAX_10,
                     String.format(sWorkshopCloseStep, fmtMult(progress.closeMultiplierStep())),
-                    String.format(sWorkshopCloseStep, fmtMult(progress.closeMultiplierStep() + 0.02f)),
+                    "+" + fmtMult(progress.closeMultiplierStep() + 0.02f),
                     true, progress.closeMultiplierUpgradeCost(),
                     progress.canUpgradeCloseMultiplier(),
                     B_WORKSHOP_UPGRADE_CLOSE, C_MAGENTA);
@@ -475,7 +475,7 @@ abstract class MenuScreen extends HudLayer {
             y = drawWorkshopCard(c, y, sWorkshopComboTime, progress.comboTimeUpgradeLevel,
                     Progress.WORKSHOP_MAX_5,
                     String.format(sWorkshopComboTimeStep, fmtMult(progress.comboExtraTime())),
-                    String.format(sWorkshopComboTimeStep, fmtMult(progress.comboExtraTime() + 0.15f)),
+                    "+" + fmtMult(progress.comboExtraTime() + 0.15f) + " " + sSecUnit,
                     true, progress.comboTimeUpgradeCost(),
                     progress.canUpgradeComboTime(),
                     B_WORKSHOP_UPGRADE_COMBO, C_ICE);
@@ -485,7 +485,7 @@ abstract class MenuScreen extends HudLayer {
             y = drawWorkshopCard(c, y, sWorkshopShieldCap, progress.shieldCapUpgradeLevel,
                     Progress.WORKSHOP_MAX_5,
                     String.format(sWorkshopShieldCapStep, fmtMult(progress.shieldInvulnBonus())),
-                    String.format(sWorkshopShieldCapStep, fmtMult(progress.shieldInvulnBonus() + 0.30f)),
+                    "+" + fmtMult(progress.shieldInvulnBonus() + 0.30f) + " " + sSecUnit,
                     true, progress.shieldCapUpgradeCost(),
                     progress.canUpgradeShieldCap(),
                     B_WORKSHOP_UPGRADE_SHIELD, C_CYAN);
@@ -496,16 +496,15 @@ abstract class MenuScreen extends HudLayer {
             y = drawWorkshopCard(c, y, sWorkshopMagnetRadius, progress.magnetRadiusUpgradeLevel,
                     Progress.WORKSHOP_MAX_8,
                     String.format(sWorkshopMagnetRadiusStep, magPct),
-                    String.format(sWorkshopMagnetRadiusStep, nextMagPct),
+                    "+" + nextMagPct + "%",
                     true, progress.magnetRadiusUpgradeCost(),
                     progress.canUpgradeMagnetRadius(),
                     B_WORKSHOP_UPGRADE_MAGNET, C_GOLD);
 
             // 3) Аварийный сдвиг
-            String curPhase = progress.emergencyPhaseUpgradeLevel == 0 ? "—"
+            String curPhase = progress.emergencyPhaseUpgradeLevel == 0 ? " — "
                     : String.format(sWorkshopEmergencyPhaseStep, fmtMult(progress.emergencyPhaseDuration()));
-            String nextPhase = String.format(sWorkshopEmergencyPhaseStep,
-                    fmtMult(progress.emergencyPhaseUpgradeLevel == 0 ? 1.4f : progress.emergencyPhaseDuration() + 0.40f));
+            String nextPhase = fmtMult(progress.emergencyPhaseUpgradeLevel == 0 ? 1.4f : progress.emergencyPhaseDuration() + 0.40f) + " " + sSecUnit;
             y = drawWorkshopCard(c, y, sWorkshopEmergencyPhase, progress.emergencyPhaseUpgradeLevel,
                     Progress.WORKSHOP_MAX_5,
                     curPhase, nextPhase,
@@ -519,7 +518,7 @@ abstract class MenuScreen extends HudLayer {
             y = drawWorkshopCard(c, y, sWorkshopSecondWind, progress.secondWindUpgradeLevel,
                     Progress.WORKSHOP_MAX_5,
                     String.format(sWorkshopSecondWindStep, healPct),
-                    String.format(sWorkshopSecondWindStep, nextHealPct),
+                    "+" + nextHealPct + "%",
                     true, progress.secondWindUpgradeCost(),
                     progress.canUpgradeSecondWind(),
                     B_WORKSHOP_UPGRADE_HEART, C_MINT);
@@ -531,7 +530,7 @@ abstract class MenuScreen extends HudLayer {
             y = drawWorkshopCard(c, y, sWorkshopEssenceBoost, progress.bossMultiplierUpgradeLevel,
                     Progress.WORKSHOP_MAX_5,
                     String.format(sWorkshopEssenceBoostStep, essPct),
-                    String.format(sWorkshopEssenceBoostStep, nextEssPct),
+                    "+" + nextEssPct + "%",
                     true, progress.bossMultiplierUpgradeCost(),
                     progress.canUpgradeBossMultiplier(),
                     B_WORKSHOP_UPGRADE_BOSS, C_GOLD);
@@ -542,7 +541,7 @@ abstract class MenuScreen extends HudLayer {
             y = drawWorkshopCard(c, y, sWorkshopConduitBoost, progress.conduitBoostUpgradeLevel,
                     Progress.WORKSHOP_MAX_5,
                     String.format(sWorkshopConduitBoostStep, condPct),
-                    String.format(sWorkshopConduitBoostStep, nextCondPct),
+                    "+" + nextCondPct + "%",
                     true, progress.conduitBoostUpgradeCost(),
                     progress.canUpgradeConduitBoost(),
                     B_WORKSHOP_UPGRADE_CONDUIT, C_CYAN);
@@ -553,7 +552,7 @@ abstract class MenuScreen extends HudLayer {
             y = drawWorkshopCard(c, y, sWorkshopBonusDuration, progress.bonusDurationUpgradeLevel,
                     Progress.WORKSHOP_MAX_10,
                     String.format(sWorkshopBonusDurationStep, durPct),
-                    String.format(sWorkshopBonusDurationStep, nextDurPct),
+                    "+" + nextDurPct + "%",
                     true, progress.bonusDurationUpgradeCost(),
                     progress.canUpgradeBonusDuration(),
                     B_WORKSHOP_UPGRADE_DURATION, C_ICE);
@@ -562,7 +561,7 @@ abstract class MenuScreen extends HudLayer {
             y = drawWorkshopCard(c, y, sWorkshopTempMultiplier, progress.tempMultiplierUpgradeLevel,
                     Progress.WORKSHOP_MAX_5,
                     String.format(sWorkshopTempMultiplierStep, fmtMult(progress.temporaryMultiplier())),
-                    String.format(sWorkshopTempMultiplierStep, fmtMult(progress.temporaryMultiplier() + 0.60f)),
+                    "x" + fmtMult(progress.temporaryMultiplier() + 0.60f),
                     true, progress.tempMultiplierUpgradeCost(),
                     progress.canUpgradeTempMultiplier(),
                     B_WORKSHOP_UPGRADE_TEMP, C_MAGENTA);
@@ -584,7 +583,8 @@ abstract class MenuScreen extends HudLayer {
         float r = W - UI_PAD;
         float h = 286f;
         box(c, l, y, r, y + h, UI_RADIUS, UI_SURFACE, withAlpha(accent, 0x66));
-        text(c, title, l + 32f, y + 44f, 36f, accent, tfDisplayBold, Paint.Align.LEFT);
+        float titleSize = measure(title, 34f, tfDisplayBold) > (r - l - 240f) ? 28f : 34f;
+        text(c, title, l + 32f, y + 44f, titleSize, accent, tfDisplayBold, Paint.Align.LEFT);
         text(c, String.format(sWorkshopLevelOf, level, maxLevel), r - 32f, y + 42f,
                 24f, UI_FOG, tfMed, Paint.Align.RIGHT);
         text(c, current, l + 32f, y + 86f, 29f, accent, tfBlack, Paint.Align.LEFT);

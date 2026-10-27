@@ -113,8 +113,8 @@ abstract class GameSpawner extends GameAudio {
     void spawnBossConduits(int phase) {
         bossConduits.clear();
         int count = (phase <= 1) ? 3 : 2;
-        float minY = Math.max(520f, insetTop + 420f);
-        float maxY = Math.min(worldH - 320f, groundY() - 80f);
+        float minY = Math.max(630f, insetTop + 600f);
+        float maxY = Math.min(worldH - 260f, groundY() - 70f);
         float laneHeight = (maxY - minY) / count;
 
         for (int i = 0; i < count; i++) {
@@ -179,7 +179,7 @@ abstract class GameSpawner extends GameAudio {
         bombWaveOriginY = worldH / 2f;
         bombWaveTimer = BOMB_WAVE_DURATION;
         flash = 0.45f;
-        shake = 0.40f;
+        shake = 25f;
         playSound(sndPower, 0.8f);
 
         int stage = minute / 2;
@@ -530,6 +530,7 @@ abstract class GameSpawner extends GameAudio {
 
     void gameOver() {
         setKeepScreenOn(false);
+        cleanBossState();
         runPrevBest = progress.bestForMode(mode);
         newRecord = (int) score > runPrevBest;
         bankScore();
@@ -912,7 +913,7 @@ abstract class GameSpawner extends GameAudio {
         bossBullets.clear();
         spawnPauseTimer = 1.1f;
         flash = 0.40f;
-        shake = 0.55f;
+        shake = 26f;
         explode(bx, by, 40, C_ORANGE);
         for (int k = 0; k < 12; k++) {
             float ang = k * 30f;

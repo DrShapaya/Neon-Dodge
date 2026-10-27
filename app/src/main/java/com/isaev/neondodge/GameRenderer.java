@@ -71,6 +71,7 @@ abstract class GameRenderer extends GameLoop {
             pScrim.setShader(hudScrim);
             c.drawRect(0f, 0f, W, hudScrimH, pScrim);
             drawHud(c);
+            drawBossHpBar(c);
         }
         if (state == ST_MENU) {
             drawMenu(c);
@@ -130,7 +131,6 @@ abstract class GameRenderer extends GameLoop {
         if (state != ST_OVER) {
             drawPlayer(c, px, py);
         }
-        drawBossHpBar(c);
     }
 
     void drawBombWave(Canvas c) {
@@ -162,7 +162,7 @@ abstract class GameRenderer extends GameLoop {
         if (!bossActive && bossDeathPhase == 0) {
             return;
         }
-        float barY = insetTop + 24f;
+        float barY = insetTop + 330f;
         float barW = 460f;
         float barH = 14f;
         float left = W / 2f - barW / 2f;
@@ -199,10 +199,10 @@ abstract class GameRenderer extends GameLoop {
             pStroke.setStrokeWidth(4f);
             pStroke.setColor(C_CYAN);
             pStroke.setAlpha((int) (190f * a));
-            c.drawLine(bossLaserX, insetTop + 140f, bossLaserX, worldH, pStroke);
+            c.drawLine(bossLaserX, bossLaserY, bossLaserX, worldH, pStroke);
 
             pFill.setColor(0x155FF3FF);
-            c.drawRect(bossLaserX - bossLaserWidth, insetTop + 140f,
+            c.drawRect(bossLaserX - bossLaserWidth, bossLaserY,
                     bossLaserX + bossLaserWidth, worldH, pFill);
             pStroke.setStyle(Paint.Style.FILL);
         }
@@ -211,16 +211,17 @@ abstract class GameRenderer extends GameLoop {
         if (bossDashWarnTimer > 0f) {
             float a = 0.5f + 0.5f * (float) Math.sin(time * 24f);
             float laneW = 140f;
+            float topY = bossStopY();
             pFill.setColor(withAlpha(C_ORANGE, (int) (40f * a)));
-            c.drawRect(bossDashX - laneW / 2f, insetTop + 140f, bossDashX + laneW / 2f, worldH, pFill);
+            c.drawRect(bossDashX - laneW / 2f, topY, bossDashX + laneW / 2f, worldH, pFill);
 
             strokeStyle(C_ORANGE, 4f);
             pStroke.setAlpha((int) (200f * a));
-            c.drawLine(bossDashX - laneW / 2f, insetTop + 140f, bossDashX - laneW / 2f, worldH, pStroke);
-            c.drawLine(bossDashX + laneW / 2f, insetTop + 140f, bossDashX + laneW / 2f, worldH, pStroke);
+            c.drawLine(bossDashX - laneW / 2f, topY, bossDashX - laneW / 2f, worldH, pStroke);
+            c.drawLine(bossDashX + laneW / 2f, topY, bossDashX + laneW / 2f, worldH, pStroke);
             strokeReset();
 
-            float arrowY = ((time * 600f) % (worldH - 400f)) + insetTop + 200f;
+            float arrowY = ((time * 600f) % (worldH - topY - 100f)) + topY + 40f;
             textC(c, "▼ ▼ ▼", bossDashX, arrowY, 28f, C_ORANGE, tfBlack, Paint.Align.CENTER);
         }
     }
@@ -229,15 +230,15 @@ abstract class GameRenderer extends GameLoop {
         if (bossLaserFireTimer > 0f) {
             float laserW = bossLaserWidth * 2f;
             pFill.setColor(0x445FF3FF);
-            c.drawRect(bossLaserX - laserW * 1.5f, insetTop + 140f,
+            c.drawRect(bossLaserX - laserW * 1.5f, bossLaserY,
                     bossLaserX + laserW * 1.5f, worldH, pFill);
 
             pFill.setColor(C_CYAN);
-            c.drawRect(bossLaserX - laserW, insetTop + 140f,
+            c.drawRect(bossLaserX - laserW, bossLaserY,
                     bossLaserX + laserW, worldH, pFill);
 
             pFill.setColor(0xFFFFFFFF);
-            c.drawRect(bossLaserX - laserW * 0.4f, insetTop + 140f,
+            c.drawRect(bossLaserX - laserW * 0.4f, bossLaserY,
                     bossLaserX + laserW * 0.4f, worldH, pFill);
         }
     }
@@ -696,8 +697,6 @@ abstract class GameRenderer extends GameLoop {
                     strokeReset();
                     break;
             }
-
-            textC(c, getBossName(bossKind), bx, by + 8f, 22f, 0xFFFFFFFF, tfBlack, Paint.Align.CENTER);
             return;
         }
         int glowAlpha = 100;

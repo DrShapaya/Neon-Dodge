@@ -142,6 +142,7 @@ abstract class GameResources extends GameCore {
         sNewRecordMode = context.getString(R.string.new_record_mode);
         sSkinUnlocked = context.getString(R.string.skin_unlocked);
         sSecondsShort = context.getString(R.string.seconds_short);
+        sSecUnit = context.getString(R.string.sec_unit);
         sStatMaxMult = context.getString(R.string.stat_max_mult);
         sWorkshopStat = context.getString(R.string.workshop_stat);
         sWorkshopStep = context.getString(R.string.workshop_star_step);

@@ -275,5 +275,6 @@
     <string name="new_record_mode">Новый рекорд · %1$s</string>
     <string name="skin_unlocked">Открыт скин «%1$s»</string>
     <string name="seconds_short">%1$dс</string>
+    <string name="sec_unit">с</string>
     <string name="stat_max_mult">макс. множитель</string>
 </resources>
