@@ -35,10 +35,13 @@ final class Progress {
 
     static final int SPHERE_COUNT = 8;
     static final int TRAIL_COUNT = 7;
-    static final int WORKSHOP_MAX_LEVEL = 20;
-    /** Максимум для веток «звёздный импульс» и «неоновый манёвр». */
-    static final int WORKSHOP_MAX_LEVEL_MULT = 20;
-    static final int WORKSHOP_MAX_LEVEL_TEMP = 3;
+    static final int WORKSHOP_MAX_5 = 5;
+    static final int WORKSHOP_MAX_8 = 8;
+    static final int WORKSHOP_MAX_10 = 10;
+    static final int WORKSHOP_MAX_LEVEL = WORKSHOP_MAX_10;
+    static final int WORKSHOP_MAX_LEVEL_MULT = WORKSHOP_MAX_10;
+    static final int WORKSHOP_MAX_LEVEL_TEMP = WORKSHOP_MAX_5;
+    static final int WORKSHOP_TOTAL_MAX_LEVEL = 78;
     static final int WORKSHOP_UNLOCK_LEVEL = 5;
 
     private final SharedPreferences prefs;
@@ -63,6 +66,12 @@ final class Progress {
     int levelMultiplierUpgradeLevel;
     int bonusDurationUpgradeLevel;
     int tempMultiplierUpgradeLevel;
+    int comboTimeUpgradeLevel;
+    int shieldCapUpgradeLevel;
+    int magnetRadiusUpgradeLevel;
+    int emergencyPhaseUpgradeLevel;
+    int secondWindUpgradeLevel;
+    int conduitBoostUpgradeLevel;
     float totalTime;
 
     static final class RunRecord {
@@ -108,17 +117,18 @@ final class Progress {
         shieldBlocks = prefs.getInt("stat_shields", 0);
         bossesDefeated = prefs.getInt("stat_bosses_defeated", 0);
         pointsTotal = prefs.getInt("points_total", 0);
-        multiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade", 0), 0, WORKSHOP_MAX_LEVEL_MULT);
-        closeMultiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade_close", 0),
-                0, WORKSHOP_MAX_LEVEL_MULT);
-        bossMultiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade_boss", 0), 0,
-                WORKSHOP_MAX_LEVEL);
-        levelMultiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade_level", 0), 0,
-                WORKSHOP_MAX_LEVEL);
-        bonusDurationUpgradeLevel = clamp(prefs.getInt("bonus_duration_upgrade", 0), 0,
-                WORKSHOP_MAX_LEVEL);
-        tempMultiplierUpgradeLevel = clamp(prefs.getInt("temp_multiplier_upgrade", 0), 0,
-                WORKSHOP_MAX_LEVEL_TEMP);
+        multiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade", 0), 0, WORKSHOP_MAX_10);
+        closeMultiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade_close", 0), 0, WORKSHOP_MAX_10);
+        bossMultiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade_boss", 0), 0, WORKSHOP_MAX_5);
+        levelMultiplierUpgradeLevel = clamp(prefs.getInt("mult_upgrade_level", 0), 0, WORKSHOP_MAX_5);
+        bonusDurationUpgradeLevel = clamp(prefs.getInt("bonus_duration_upgrade", 0), 0, WORKSHOP_MAX_10);
+        tempMultiplierUpgradeLevel = clamp(prefs.getInt("temp_multiplier_upgrade", 0), 0, WORKSHOP_MAX_5);
+        comboTimeUpgradeLevel = clamp(prefs.getInt("combo_time_upgrade", 0), 0, WORKSHOP_MAX_5);
+        shieldCapUpgradeLevel = clamp(prefs.getInt("shield_cap_upgrade", 0), 0, WORKSHOP_MAX_5);
+        magnetRadiusUpgradeLevel = clamp(prefs.getInt("magnet_radius_upgrade", 0), 0, WORKSHOP_MAX_8);
+        emergencyPhaseUpgradeLevel = clamp(prefs.getInt("emergency_phase_upgrade", 0), 0, WORKSHOP_MAX_5);
+        secondWindUpgradeLevel = clamp(prefs.getInt("second_wind_upgrade", 0), 0, WORKSHOP_MAX_5);
+        conduitBoostUpgradeLevel = clamp(prefs.getInt("conduit_boost_upgrade", 0), 0, WORKSHOP_MAX_5);
         totalTime = prefs.getFloat("stat_time", 0f);
         achMask = prefs.getInt("ach_mask", 0);
         if (prefs.contains("neon_earned")) {
@@ -443,6 +453,12 @@ final class Progress {
                 .putInt("mult_upgrade_level", levelMultiplierUpgradeLevel)
                 .putInt("bonus_duration_upgrade", bonusDurationUpgradeLevel)
                 .putInt("temp_multiplier_upgrade", tempMultiplierUpgradeLevel)
+                .putInt("combo_time_upgrade", comboTimeUpgradeLevel)
+                .putInt("shield_cap_upgrade", shieldCapUpgradeLevel)
+                .putInt("magnet_radius_upgrade", magnetRadiusUpgradeLevel)
+                .putInt("emergency_phase_upgrade", emergencyPhaseUpgradeLevel)
+                .putInt("second_wind_upgrade", secondWindUpgradeLevel)
+                .putInt("conduit_boost_upgrade", conduitBoostUpgradeLevel)
                 .putFloat("stat_time", totalTime)
                 .putInt("ach_mask", achMask);
         for (int i = 0; i < MODE_COUNT; i++) {
@@ -451,78 +467,126 @@ final class Progress {
         e.apply();
     }
 
-    int multiplierUpgradeCost() {
-        return multiplierUpgradeLevel >= WORKSHOP_MAX_LEVEL_MULT ? 0
-                : workshopCost(multiplierUpgradeLevel, 1500);
+    int levelMultiplierUpgradeCost() {
+        return workshopCost(levelMultiplierUpgradeLevel, WORKSHOP_MAX_5, 2000);
     }
 
-    float starMultiplierStep() {
-        return 0.1f + multiplierUpgradeLevel * 0.05f;
+    int multiplierUpgradeCost() {
+        return workshopCost(multiplierUpgradeLevel, WORKSHOP_MAX_10, 1500);
     }
 
     int closeMultiplierUpgradeCost() {
-        return closeMultiplierUpgradeLevel >= WORKSHOP_MAX_LEVEL_MULT ? 0
-                : workshopCost(closeMultiplierUpgradeLevel, 2000);
+        return workshopCost(closeMultiplierUpgradeLevel, WORKSHOP_MAX_10, 1500);
+    }
+
+    int comboTimeUpgradeCost() {
+        return workshopCost(comboTimeUpgradeLevel, WORKSHOP_MAX_5, 2500);
+    }
+
+    int shieldCapUpgradeCost() {
+        return workshopCost(shieldCapUpgradeLevel, WORKSHOP_MAX_5, 3000);
+    }
+
+    int magnetRadiusUpgradeCost() {
+        return workshopCost(magnetRadiusUpgradeLevel, WORKSHOP_MAX_8, 1200);
+    }
+
+    int emergencyPhaseUpgradeCost() {
+        return workshopCost(emergencyPhaseUpgradeLevel, WORKSHOP_MAX_5, 3500);
+    }
+
+    int secondWindUpgradeCost() {
+        return workshopCost(secondWindUpgradeLevel, WORKSHOP_MAX_5, 2000);
     }
 
     int bossMultiplierUpgradeCost() {
-        return bossMultiplierUpgradeLevel >= WORKSHOP_MAX_LEVEL ? 0
-                : workshopCost(bossMultiplierUpgradeLevel, 3500);
+        return workshopCost(bossMultiplierUpgradeLevel, WORKSHOP_MAX_5, 3000);
     }
 
-    int levelMultiplierUpgradeCost() {
-        return levelMultiplierUpgradeLevel >= WORKSHOP_MAX_LEVEL ? 0
-                : workshopCost(levelMultiplierUpgradeLevel, 4000);
+    int conduitBoostUpgradeCost() {
+        return workshopCost(conduitBoostUpgradeLevel, WORKSHOP_MAX_5, 2500);
     }
 
     int bonusDurationUpgradeCost() {
-        return bonusDurationUpgradeLevel >= WORKSHOP_MAX_LEVEL ? 0
-                : workshopCost(bonusDurationUpgradeLevel, 2500);
+        return workshopCost(bonusDurationUpgradeLevel, WORKSHOP_MAX_10, 1500);
     }
 
     int tempMultiplierUpgradeCost() {
-        return tempMultiplierUpgradeLevel >= WORKSHOP_MAX_LEVEL_TEMP ? 0
-                : workshopCost(tempMultiplierUpgradeLevel, 3000);
+        return workshopCost(tempMultiplierUpgradeLevel, WORKSHOP_MAX_5, 2500);
     }
 
-    float bonusDurationScale() {
-        return 1f + bonusDurationUpgradeLevel * 0.1f;
-    }
-
-    float temporaryMultiplier() {
-        return 2f + tempMultiplierUpgradeLevel;
-    }
-
-    float closeMultiplierStep() {
-        return 0.10f + closeMultiplierUpgradeLevel * 0.025f;
-    }
-
-    float bossMultiplier() {
-        return 2f + bossMultiplierUpgradeLevel * 0.2f;
+    float startMultiplier() {
+        return 1.0f + levelMultiplierUpgradeLevel * 0.20f;
     }
 
     float levelMultiplierStep() {
-        return 0.1f * levelMultiplierUpgradeLevel;
+        return levelMultiplierUpgradeLevel * 0.20f;
+    }
+
+    float starMultiplierStep() {
+        return 0.10f + multiplierUpgradeLevel * 0.02f;
+    }
+
+    float closeMultiplierStep() {
+        return 0.10f + closeMultiplierUpgradeLevel * 0.02f;
+    }
+
+    float comboExtraTime() {
+        return comboTimeUpgradeLevel * 0.15f;
+    }
+
+    int maxShieldCharges() {
+        return shieldCapUpgradeLevel >= WORKSHOP_MAX_5 ? 2 : 1;
+    }
+
+    float shieldInvulnBonus() {
+        return shieldCapUpgradeLevel * 0.30f;
+    }
+
+    float magnetRadiusScale() {
+        return 1.0f + magnetRadiusUpgradeLevel * 0.15f;
+    }
+
+    boolean hasEmergencyPhase() {
+        return emergencyPhaseUpgradeLevel > 0;
+    }
+
+    float emergencyPhaseDuration() {
+        return 1.0f + emergencyPhaseUpgradeLevel * 0.40f;
+    }
+
+    float secondWindRateScale() {
+        return 1.0f + secondWindUpgradeLevel * 0.15f;
+    }
+
+    float essenceNeonBonus() {
+        return 1.0f + bossMultiplierUpgradeLevel * 0.20f;
+    }
+
+    float bossMultiplier() {
+        return 2.0f + bossMultiplierUpgradeLevel * 0.20f;
+    }
+
+    float conduitDamageScale() {
+        return 1.0f + conduitBoostUpgradeLevel * 0.20f;
+    }
+
+    float conduitStunBonus() {
+        return conduitBoostUpgradeLevel * 0.40f;
+    }
+
+    float bonusDurationScale() {
+        return 1.0f + bonusDurationUpgradeLevel * 0.10f;
+    }
+
+    float temporaryMultiplier() {
+        return 2.0f + tempMultiplierUpgradeLevel * 0.60f;
     }
 
     int workshopTotalLevel() {
-        return multiplierUpgradeLevel + closeMultiplierUpgradeLevel
-                + bossMultiplierUpgradeLevel + levelMultiplierUpgradeLevel;
-    }
-
-    boolean canUpgradeLevelMultiplier() {
-        int cost = levelMultiplierUpgradeCost();
-        return isLevelMultiplierUnlocked() && cost > 0 && neon >= cost;
-    }
-
-    boolean canUpgradeBossMultiplier() {
-        int cost = bossMultiplierUpgradeCost();
-        return isBossMultiplierUnlocked() && cost > 0 && neon >= cost;
-    }
-
-    boolean canUpgradeCloseMultiplier() {
-        int cost = closeMultiplierUpgradeCost();
-        return isCloseMultiplierUnlocked() && cost > 0 && neon >= cost;
+        return levelMultiplierUpgradeLevel + multiplierUpgradeLevel + closeMultiplierUpgradeLevel + comboTimeUpgradeLevel
+                + shieldCapUpgradeLevel + magnetRadiusUpgradeLevel + emergencyPhaseUpgradeLevel + secondWindUpgradeLevel
+                + bossMultiplierUpgradeLevel + conduitBoostUpgradeLevel + bonusDurationUpgradeLevel + tempMultiplierUpgradeLevel;
     }
 
     boolean isLevelMultiplierUnlocked() {
@@ -530,21 +594,65 @@ final class Progress {
     }
 
     boolean isBossMultiplierUnlocked() {
-        return levelMultiplierUpgradeLevel >= WORKSHOP_UNLOCK_LEVEL;
+        return true;
     }
 
     boolean isCloseMultiplierUnlocked() {
-        return bossMultiplierUpgradeLevel >= WORKSHOP_UNLOCK_LEVEL;
+        return true;
     }
 
     boolean isStarMultiplierUnlocked() {
-        return closeMultiplierUpgradeLevel >= WORKSHOP_UNLOCK_LEVEL;
+        return true;
     }
 
-    boolean canUpgradeAnyWorkshop() {
-        return canUpgradeMultiplier() || canUpgradeCloseMultiplier()
-                || canUpgradeBossMultiplier() || canUpgradeLevelMultiplier()
-                || canUpgradeBonusDuration() || canUpgradeTempMultiplier();
+    boolean canUpgradeLevelMultiplier() {
+        int cost = levelMultiplierUpgradeCost();
+        return cost > 0 && neon >= cost;
+    }
+
+    boolean canUpgradeMultiplier() {
+        int cost = multiplierUpgradeCost();
+        return cost > 0 && neon >= cost;
+    }
+
+    boolean canUpgradeCloseMultiplier() {
+        int cost = closeMultiplierUpgradeCost();
+        return cost > 0 && neon >= cost;
+    }
+
+    boolean canUpgradeComboTime() {
+        int cost = comboTimeUpgradeCost();
+        return cost > 0 && neon >= cost;
+    }
+
+    boolean canUpgradeShieldCap() {
+        int cost = shieldCapUpgradeCost();
+        return cost > 0 && neon >= cost;
+    }
+
+    boolean canUpgradeMagnetRadius() {
+        int cost = magnetRadiusUpgradeCost();
+        return cost > 0 && neon >= cost;
+    }
+
+    boolean canUpgradeEmergencyPhase() {
+        int cost = emergencyPhaseUpgradeCost();
+        return cost > 0 && neon >= cost;
+    }
+
+    boolean canUpgradeSecondWind() {
+        int cost = secondWindUpgradeCost();
+        return cost > 0 && neon >= cost;
+    }
+
+    boolean canUpgradeBossMultiplier() {
+        int cost = bossMultiplierUpgradeCost();
+        return cost > 0 && neon >= cost;
+    }
+
+    boolean canUpgradeConduitBoost() {
+        int cost = conduitBoostUpgradeCost();
+        return cost > 0 && neon >= cost;
     }
 
     boolean canUpgradeBonusDuration() {
@@ -557,9 +665,20 @@ final class Progress {
         return cost > 0 && neon >= cost;
     }
 
-    boolean canUpgradeMultiplier() {
-        int cost = multiplierUpgradeCost();
-        return isStarMultiplierUnlocked() && cost > 0 && neon >= cost;
+    boolean canUpgradeAnyWorkshop() {
+        return canUpgradeLevelMultiplier() || canUpgradeMultiplier() || canUpgradeCloseMultiplier() || canUpgradeComboTime()
+                || canUpgradeShieldCap() || canUpgradeMagnetRadius() || canUpgradeEmergencyPhase() || canUpgradeSecondWind()
+                || canUpgradeBossMultiplier() || canUpgradeConduitBoost() || canUpgradeBonusDuration() || canUpgradeTempMultiplier();
+    }
+
+    boolean upgradeLevelMultiplier() {
+        if (!canUpgradeLevelMultiplier()) {
+            return false;
+        }
+        neon -= levelMultiplierUpgradeCost();
+        levelMultiplierUpgradeLevel++;
+        saveStats();
+        return true;
     }
 
     boolean upgradeMultiplier() {
@@ -582,6 +701,56 @@ final class Progress {
         return true;
     }
 
+    boolean upgradeComboTime() {
+        if (!canUpgradeComboTime()) {
+            return false;
+        }
+        neon -= comboTimeUpgradeCost();
+        comboTimeUpgradeLevel++;
+        saveStats();
+        return true;
+    }
+
+    boolean upgradeShieldCap() {
+        if (!canUpgradeShieldCap()) {
+            return false;
+        }
+        neon -= shieldCapUpgradeCost();
+        shieldCapUpgradeLevel++;
+        saveStats();
+        return true;
+    }
+
+    boolean upgradeMagnetRadius() {
+        if (!canUpgradeMagnetRadius()) {
+            return false;
+        }
+        neon -= magnetRadiusUpgradeCost();
+        magnetRadiusUpgradeLevel++;
+        saveStats();
+        return true;
+    }
+
+    boolean upgradeEmergencyPhase() {
+        if (!canUpgradeEmergencyPhase()) {
+            return false;
+        }
+        neon -= emergencyPhaseUpgradeCost();
+        emergencyPhaseUpgradeLevel++;
+        saveStats();
+        return true;
+    }
+
+    boolean upgradeSecondWind() {
+        if (!canUpgradeSecondWind()) {
+            return false;
+        }
+        neon -= secondWindUpgradeCost();
+        secondWindUpgradeLevel++;
+        saveStats();
+        return true;
+    }
+
     boolean upgradeBossMultiplier() {
         if (!canUpgradeBossMultiplier()) {
             return false;
@@ -592,12 +761,12 @@ final class Progress {
         return true;
     }
 
-    boolean upgradeLevelMultiplier() {
-        if (!canUpgradeLevelMultiplier()) {
+    boolean upgradeConduitBoost() {
+        if (!canUpgradeConduitBoost()) {
             return false;
         }
-        neon -= levelMultiplierUpgradeCost();
-        levelMultiplierUpgradeLevel++;
+        neon -= conduitBoostUpgradeCost();
+        conduitBoostUpgradeLevel++;
         saveStats();
         return true;
     }
@@ -637,12 +806,16 @@ final class Progress {
         return GameRules.rankForNeon(neonEarned);
     }
 
-    static int workshopCost(int level, int base) {
-        if (level >= WORKSHOP_MAX_LEVEL_MULT) {
+    static int workshopCost(int level, int maxLevel, int base) {
+        if (level >= maxLevel) {
             return 0;
         }
-        double value = base * Math.pow(1.30, level);
+        double value = base * (1.0 + level * 0.55 + level * level * 0.10);
         return (int) Math.min(Integer.MAX_VALUE, Math.round(value));
+    }
+
+    static int workshopCost(int level, int base) {
+        return workshopCost(level, WORKSHOP_MAX_10, base);
     }
 
     void saveMode() {

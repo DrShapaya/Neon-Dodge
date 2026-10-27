@@ -394,7 +394,7 @@ abstract class GameLoop extends GameSpawner {
         float sdt = dt * slowFactor();
 
         spawnTimer -= sdt;
-        if (spawnTimer <= 0f && spawnPauseTimer <= 0f && elapsed > 0.7f) {
+        if (!bossActive && spawnTimer <= 0f && spawnPauseTimer <= 0f && elapsed > 0.7f) {
             spawnObstacle();
             float base;
             if (zenMode) {
@@ -415,7 +415,7 @@ abstract class GameLoop extends GameSpawner {
         }
 
         if (lives < maxLives) {
-            heartTimer -= dt;
+            heartTimer -= dt * progress.secondWindRateScale();
             if (heartTimer <= 0f) {
                 spawnPickup(P_HEART);
                 heartTimer = 24f;
@@ -459,6 +459,9 @@ abstract class GameLoop extends GameSpawner {
 
     /** Runs a short late-game pattern every 45 seconds after the pressure ramp. */
     void updateLateEvent(float dt) {
+        if (bossActive) {
+            return;
+        }
         if (runEventKind != RE_NONE) {
             runEventLeft -= dt;
             if (runEventLeft <= 0f) {
@@ -525,6 +528,9 @@ abstract class GameLoop extends GameSpawner {
     }
 
     float slowFactor() {
+        if (bossSlowMoTimer > 0f) {
+            return 0.20f;
+        }
         return slowTimer > 0f ? SLOW_SCALE : 1f;
     }
 
@@ -583,7 +589,7 @@ abstract class GameLoop extends GameSpawner {
                             float pts = award(70f);
                             addScorePop(o.x, o.y, "+" + fmt((int) pts), C_LIME);
                             combo++;
-                            comboTimer = 1.8f;
+                            comboTimer = 1.8f + progress.comboExtraTime();
                         }
                         obstacles.remove(i);
                         continue;
@@ -648,7 +654,7 @@ abstract class GameLoop extends GameSpawner {
                     if (countsPersistentProgress() && combo > progress.bestCombo) {
                         progress.bestCombo = combo;
                     }
-                    comboTimer = 2.2f;
+                    comboTimer = 2.2f + progress.comboExtraTime();
                     comboPop = 1f;
                     if (!hintComboShown) {
                         hintComboShown = true;
@@ -701,16 +707,18 @@ abstract class GameLoop extends GameSpawner {
 
     void updatePickups(float dt) {
         float sdt = dt * slowFactor();
+        float magScale = progress.magnetRadiusScale();
         for (int i = pickups.size() - 1; i >= 0; i--) {
             Pickup p = pickups.get(i);
             boolean pulled = false;
+            float dx = px - p.x;
+            float dy = py - p.y;
+            float d2 = dx * dx + dy * dy;
+            float d = (float) Math.sqrt(Math.max(1f, d2));
+            float passiveRadius = 110f * magScale;
             if (magnetTimer > 0f) {
-                float dx = px - p.x;
-                float dy = py - p.y;
-                float d2 = dx * dx + dy * dy;
-                float d = (float) Math.sqrt(Math.max(1f, d2));
                 // Медленно и плавно притягивает по всему экрану (звезды, хп, усиления)
-                float sp = 150f;
+                float sp = 160f * magScale;
                 p.x += dx / d * sp * dt;
                 p.y += dy / d * sp * dt;
                 pulled = true;
@@ -720,6 +728,11 @@ abstract class GameLoop extends GameSpawner {
                             0.25f + rnd.nextFloat() * 0.25f,
                             2f + rnd.nextFloat() * 2f, C_MAGENTA, 0f);
                 }
+            } else if (d < passiveRadius) {
+                float sp = 130f * (1f - d / passiveRadius) * magScale;
+                p.x += dx / d * sp * dt;
+                p.y += dy / d * sp * dt;
+                pulled = true;
             }
             if (!pulled) {
                 p.y += p.vy * sdt;
@@ -738,8 +751,13 @@ abstract class GameLoop extends GameSpawner {
         }
     }
 
-    /** Multi-stage boss encounter: four capture zones and a readable bullet pattern. */
+    /** Multi-stage epic boss encounter with unique attack patterns, conduits, and essence harvesting. */
     void updateBossMechanics(float dt) {
+        if (bossDeathPhase > 0) {
+            updateBossDeath(dt);
+            return;
+        }
+
         Obs boss = null;
         for (int i = 0; i < obstacles.size(); i++) {
             if (obstacles.get(i).boss) {
@@ -748,104 +766,464 @@ abstract class GameLoop extends GameSpawner {
             }
         }
         if (boss == null) {
-            bossZone = null;
-            bossBullets.clear();
+            if (bossActive) {
+                cleanBossState();
+            }
             return;
         }
 
-        float stopY = Math.max(190f, insetTop + 190f);
+        float stopY = Math.max(210f, insetTop + 210f);
         if (boss.y < stopY) {
             return;
         }
 
-        boss.bossShotTimer -= dt;
-        if (boss.bossShotTimer <= 0f) {
-            BossBullet bullet = new BossBullet();
-            bullet.x = boss.x;
-            bullet.y = boss.y + boss.r * 0.65f;
-            bullet.vx = (px - bullet.x) * 0.12f;
-            bullet.vy = 340f + boss.bossStage * 42f;
-            bullet.r = 18f + boss.bossStage * 2f;
-            bullet.color = boss.color;
-            bossBullets.add(bullet);
-            boss.bossShotTimer = Math.max(0.72f, 1.35f - boss.bossStage * 0.12f);
+        // 1. Оглушение и покачивание босса
+        if (bossStunTimer > 0f) {
+            bossStunTimer -= dt;
+            bossWobble = (float) Math.sin(time * 35f) * 14f;
+            boss.bounceFlash = Math.max(boss.bounceFlash, 0.6f);
+        } else {
+            bossWobble = 0f;
+            boss.x = clamp(boss.x + (float) Math.sin(time * 0.85f + boss.bossStage) * (110f + boss.bossStage * 15f) * dt,
+                    boss.r + 30f, W - boss.r - 30f);
         }
 
-        for (int i = bossBullets.size() - 1; i >= 0; i--) {
-            BossBullet bullet = bossBullets.get(i);
-            bullet.x += bullet.vx * dt;
-            bullet.y += bullet.vy * dt;
-            if (bullet.x < bullet.r || bullet.x > W - bullet.r) {
-                bullet.vx = -bullet.vx;
-                bullet.x = clamp(bullet.x, bullet.r, W - bullet.r);
-            }
-            if (bullet.y - bullet.r > worldH + 40f) {
-                bossBullets.remove(i);
-                continue;
-            }
-            if (invuln <= 0f && dist2(bullet.x, bullet.y, px, py)
-                    < (bullet.r + PLAYER_R) * (bullet.r + PLAYER_R)) {
-                bossBullets.remove(i);
-                hitBossBullet(bullet);
-            }
-        }
-
-        if (bossZone == null && bossZonesCompleted < 4) {
-            bossZoneTimer -= dt;
-            if (bossZoneTimer <= 0f) {
-                bossZone = new BossZone();
-                bossZone.x = 180f + gameRnd.nextFloat() * (W - 360f);
-                bossZone.y = Math.max(430f, worldH * (0.30f + gameRnd.nextFloat() * 0.30f));
-                bossZone.fill = 0f;
-                bossZoneTimer = 0.65f;
-                toast(sBossZone + " " + (bossZonesCompleted + 1) + "/4");
-            }
-        }
-        if (bossZone != null) {
-            boolean inside = dist2(px, py, bossZone.x, bossZone.y)
-                    <= (BOSS_ZONE_RADIUS + PLAYER_R) * (BOSS_ZONE_RADIUS + PLAYER_R);
-            bossZone.fill += (inside ? dt / BOSS_ZONE_FILL_TIME
-                    : -dt / (BOSS_ZONE_FILL_TIME * 0.70f));
-            bossZone.fill = clamp(bossZone.fill, 0f, 1f);
-            if (bossZone.fill >= 1f) {
-                bossZonesCompleted++;
-                explode(bossZone.x, bossZone.y, 24, C_CYAN);
-                float zonePoints = award(250f);
-                addScorePop(bossZone.x, bossZone.y - 45f,
-                        "+" + fmt((int) zonePoints), C_CYAN);
-                bossZone = null;
-                bossZoneTimer = 0.75f;
-                toast(sBossZone + " " + bossZonesCompleted + "/4");
-                if (bossZonesCompleted >= 4) {
-                    bossMult = progress.bossMultiplier();
-                    for (int i = obstacles.size() - 1; i >= 0; i--) {
-                        if (obstacles.get(i).boss) {
-                            explode(obstacles.get(i).x, obstacles.get(i).y, 55, obstacles.get(i).color);
-                            obstacles.remove(i);
-                        }
-                    }
-                    bossBullets.clear();
-                    float reward = award(1000f);
-                    addScorePop(px, py - 100f,
-                            String.format(sBossRewardScore, fmtMult(bossMult)), C_GOLD);
-                    toast(sBossReward);
-                    if (countsPersistentProgress()) {
-                        progress.bossesDefeated++;
-                    }
-                    progress.saveStats();
-                    checkProgress();
+        // 2. Резонаторы перегрузки (Conduits)
+        conduitArcTimer = Math.max(0f, conduitArcTimer - dt);
+        boolean allConduitsDone = true;
+        for (int i = 0; i < bossConduits.size(); i++) {
+            BossConduit c = bossConduits.get(i);
+            c.pulse += dt * 3.5f;
+            c.appearAnim = Math.min(1f, c.appearAnim + dt * 3f);
+            if (!c.active) {
+                allConduitsDone = false;
+                if (dist2(px, py, c.x, c.y) <= (c.r + PLAYER_R) * (c.r + PLAYER_R)) {
+                    c.active = true;
+                    explode(c.x, c.y, 20, C_CYAN);
+                    playSound(sndCoin, 1.25f);
+                    buzz(18);
+                    float pts = award(250f * progress.conduitDamageScale());
+                    addScorePop(c.x, c.y - 35f, "+" + fmt((int) pts), C_CYAN);
                 }
             }
+        }
+
+        // Если все узлы замкнуты — наносим урон боссу!
+        if (allConduitsDone && !bossConduits.isEmpty() && bossStunTimer <= 0f) {
+            conduitArcTimer = 0.65f;
+            conduitArcX = bossConduits.get(bossConduits.size() - 1).x;
+            conduitArcY = bossConduits.get(bossConduits.size() - 1).y;
+            playSound(sndHit, 1.35f);
+            playSound(sndPower, 1.4f);
+            shake = 0.55f;
+            flash = 0.45f;
+            bossHp--;
+            bossStunTimer = 1.15f + progress.conduitStunBonus();
+            explode(boss.x, boss.y, 50, boss.color);
+            addScorePop(boss.x, boss.y + 40f, sBossConduitLinked, C_GOLD);
+
+            if (bossHp <= 0) {
+                // Победа над боссом: переход к фазе разрушения и поглощения эссенции
+                bossDeathPhase = 1;
+                bossDeathTimer = 0f;
+                bossSlowMoTimer = 2.8f;
+                bossConduits.clear();
+                bossBullets.clear();
+                return;
+            } else {
+                spawnBossConduits(bossHp);
+            }
+        }
+
+        // 3. Атаки босса (если не оглушен)
+        if (bossStunTimer <= 0f) {
+            updateBossAttacks(boss, dt);
+        }
+
+        // 4. Обновление снарядов босса
+        updateBossProjectiles(boss, dt);
+    }
+
+    void updateBossAttacks(Obs boss, float dt) {
+        switch (bossKind) {
+            case BOSS_KIND_PRISM: // Лазер + веер кристаллов
+                if (bossLaserFireTimer > 0f) {
+                    bossLaserFireTimer -= dt;
+                    if (Math.abs(px - bossLaserX) < (bossLaserWidth + PLAYER_R * 0.72f)) {
+                        hitLaser();
+                    }
+                } else if (bossLaserAimTimer > 0f) {
+                    bossLaserAimTimer -= dt;
+                    bossLaserTargetX = px;
+                    bossLaserX += (bossLaserTargetX - bossLaserX) * Math.min(1f, dt * 5.5f);
+                    if (bossLaserAimTimer <= 0f) {
+                        bossLaserFireTimer = 0.48f;
+                        playSound(sndPower, 1.6f);
+                        shake = 0.35f;
+                    }
+                }
+
+                boss.bossShotTimer -= dt;
+                if (boss.bossShotTimer <= 0f) {
+                    int numShards = (bossHp <= 1) ? 6 : 5;
+                    float spread = 70f;
+                    float startAngle = -spread / 2f;
+                    float step = spread / (numShards - 1);
+                    float spd = 320f + boss.bossStage * 25f;
+
+                    for (int s = 0; s < numShards; s++) {
+                        float angle = (float) Math.toRadians(90f + startAngle + s * step);
+                        BossBullet b = new BossBullet();
+                        b.x = boss.x;
+                        b.y = boss.y + boss.r * 0.7f;
+                        b.vx = (float) Math.cos(angle) * spd;
+                        b.vy = (float) Math.sin(angle) * spd;
+                        b.r = 16f;
+                        b.color = boss.color;
+                        b.kind = (s == numShards / 2) ? BULLET_REFLECTABLE : BULLET_NORMAL;
+                        if (b.kind == BULLET_REFLECTABLE) {
+                            b.r = 24f;
+                            b.color = C_GOLD;
+                        }
+                        bossBullets.add(b);
+                    }
+                    boss.bossShotTimer = (bossHp <= 1) ? 1.7f : 2.3f;
+                    if (bossLaserAimTimer <= 0f && bossLaserFireTimer <= 0f) {
+                        bossLaserAimTimer = 1.1f;
+                        bossLaserX = px;
+                    }
+                }
+                break;
+
+            case BOSS_KIND_VORTEX: // Спирали + притяжение
+                bossSpiralTimer -= dt;
+                if (bossSpiralTimer <= 0f) {
+                    bossSpiralTimer = (bossHp <= 1) ? 0.16f : 0.22f;
+                    bossSpiralAngle += 24f;
+                    for (int arm = 0; arm < 2; arm++) {
+                        float rad = (float) Math.toRadians(bossSpiralAngle + arm * 180f);
+                        BossBullet b = new BossBullet();
+                        b.x = boss.x;
+                        b.y = boss.y + boss.r * 0.5f;
+                        float spd = 260f + boss.bossStage * 18f;
+                        b.vx = (float) Math.cos(rad) * spd;
+                        b.vy = Math.max(120f, (float) Math.sin(rad) * spd + 160f);
+                        b.r = 14f;
+                        b.color = (arm == 0) ? C_MAGENTA : C_VIOLET;
+                        b.kind = BULLET_SPIRAL;
+                        bossBullets.add(b);
+                    }
+                }
+                // Небольшое грави-притяжение к центру
+                if ((int) (time * 1.5f) != (int) ((time - dt) * 1.5f)) {
+                    float pull = (W / 2f - px) * 0.08f;
+                    px += pull;
+                }
+                break;
+
+            case BOSS_KIND_STRIKER: // Тараны + дуговые лезвия
+                if (bossDashTimer > 0f) {
+                    bossDashTimer -= dt;
+                    float dashProgress = 1f - bossDashTimer / 0.65f;
+                    if (dashProgress < 0.5f) {
+                        boss.y = bossDashStartY + (bossDashTargetY - bossDashStartY) * (dashProgress * 2f);
+                    } else {
+                        boss.y = bossDashTargetY - (bossDashTargetY - bossDashStartY) * ((dashProgress - 0.5f) * 2f);
+                    }
+                    if (dist2(boss.x, boss.y, px, py) < (boss.r + PLAYER_R) * (boss.r + PLAYER_R)) {
+                        hit(boss);
+                    }
+                } else if (bossDashWarnTimer > 0f) {
+                    bossDashWarnTimer -= dt;
+                    if (bossDashWarnTimer <= 0f) {
+                        bossDashTimer = 0.65f;
+                        bossDashStartY = boss.y;
+                        bossDashTargetY = groundY() - 40f;
+                        playSound(sndHit, 1.4f);
+                        shake = 0.45f;
+                    }
+                } else {
+                    boss.bossShotTimer -= dt;
+                    if (boss.bossShotTimer <= 0f) {
+                        bossDashWarnTimer = 0.9f;
+                        bossDashX = px;
+                        boss.bossShotTimer = 3.2f;
+
+                        for (int side = -1; side <= 1; side += 2) {
+                            BossBullet b = new BossBullet();
+                            b.x = boss.x;
+                            b.y = boss.y + boss.r * 0.6f;
+                            b.vx = side * 280f;
+                            b.vy = 260f;
+                            b.r = 20f;
+                            b.color = C_ORANGE;
+                            b.kind = BULLET_REFLECTABLE;
+                            bossBullets.add(b);
+                        }
+                    }
+                }
+                break;
+
+            case BOSS_KIND_NEXUS: // Комбинированный бой
+            default:
+                boss.bossShotTimer -= dt;
+                if (boss.bossShotTimer <= 0f) {
+                    for (int s = -2; s <= 2; s++) {
+                        BossBullet b = new BossBullet();
+                        b.x = boss.x + s * 30f;
+                        b.y = boss.y + boss.r * 0.7f;
+                        b.vx = s * 65f;
+                        b.vy = 320f + boss.bossStage * 30f;
+                        b.r = 17f;
+                        b.color = boss.color;
+                        b.kind = (s == 0) ? BULLET_REFLECTABLE : BULLET_NORMAL;
+                        if (b.kind == BULLET_REFLECTABLE) {
+                            b.r = 24f;
+                            b.color = C_GOLD;
+                        }
+                        bossBullets.add(b);
+                    }
+                    boss.bossShotTimer = 1.8f;
+                }
+                break;
+        }
+    }
+
+    void updateBossProjectiles(Obs boss, float dt) {
+        for (int i = bossBullets.size() - 1; i >= 0; i--) {
+            BossBullet b = bossBullets.get(i);
+            if (b.reflected) {
+                float dx = boss.x - b.x;
+                float dy = boss.y - b.y;
+                float dist = (float) Math.sqrt(dx * dx + dy * dy);
+                if (dist > 1f) {
+                    float spd = 950f;
+                    b.vx = (dx / dist) * spd;
+                    b.vy = (dy / dist) * spd;
+                }
+                b.x += b.vx * dt;
+                b.y += b.vy * dt;
+
+                if (dist2(b.x, b.y, boss.x, boss.y) <= (boss.r + b.r) * (boss.r + b.r)) {
+                    bossBullets.remove(i);
+                    bossStunTimer = Math.max(bossStunTimer, 0.8f);
+                    explode(boss.x, boss.y, 28, C_MINT);
+                    playSound(sndHit, 1.2f);
+                    addScorePop(boss.x, boss.y + 45f, sBossReflect + " +500", C_MINT);
+                    award(500f);
+                    shake = 0.35f;
+                    continue;
+                }
+            } else {
+                b.x += b.vx * dt;
+                b.y += b.vy * dt;
+
+                if (b.x < b.r || b.x > W - b.r) {
+                    b.vx = -b.vx;
+                    b.x = clamp(b.x, b.r, W - b.r);
+                }
+
+                // Close Dodge для отражения нестабильных ядер
+                if (b.kind == BULLET_REFLECTABLE && invuln <= 0f) {
+                    float d2 = dist2(b.x, b.y, px, py);
+                    float hitDist = b.r + PLAYER_R;
+                    float reflectDist = hitDist + 65f;
+                    if (d2 > hitDist * hitDist && d2 <= reflectDist * reflectDist) {
+                        b.reflected = true;
+                        b.color = C_MINT;
+                        b.vy = -600f;
+                        playSound(sndPower, 1.4f);
+                        addScorePop(px, py - 35f, sBossReflect, C_MINT);
+                        bumpMultiplier();
+                        continue;
+                    }
+                }
+
+                if (invuln <= 0f && dist2(b.x, b.y, px, py) < (b.r + PLAYER_R) * (b.r + PLAYER_R)) {
+                    bossBullets.remove(i);
+                    hitBossBullet(b);
+                    continue;
+                }
+            }
+
+            if (b.y - b.r > worldH + 60f || b.y + b.r < -120f) {
+                bossBullets.remove(i);
+            }
+        }
+    }
+
+    void updateBossDeath(float dt) {
+        bossSlowMoTimer = Math.max(0f, bossSlowMoTimer - dt);
+        bossDeathTimer += dt;
+
+        // Фаза 1: Разрушение босса
+        if (bossDeathPhase == 1) {
+            bossWobble = (float) Math.sin(time * 45f) * 18f;
+            if (bossDeathTimer >= 0.75f) {
+                bossDeathPhase = 2;
+                bossDeathTimer = 0f;
+                for (int i = obstacles.size() - 1; i >= 0; i--) {
+                    Obs o = obstacles.get(i);
+                    if (o.boss) {
+                        bossEssenceX = o.x;
+                        bossEssenceY = o.y;
+                        explode(o.x, o.y, 70, o.color);
+                        obstacles.remove(i);
+                        break;
+                    }
+                }
+                essenceOrbs.clear();
+                for (int e = 0; e < 18; e++) {
+                    EssenceOrb orb = new EssenceOrb();
+                    orb.x = bossEssenceX;
+                    orb.y = bossEssenceY;
+                    float ang = rnd.nextFloat() * 6.28f;
+                    float spd = 200f + rnd.nextFloat() * 280f;
+                    orb.vx = (float) Math.cos(ang) * spd;
+                    orb.vy = (float) Math.sin(ang) * spd;
+                    orb.r = 12f + rnd.nextFloat() * 8f;
+                    orb.color = (e % 2 == 0) ? C_CYAN : C_GOLD;
+                    orb.life = 0f;
+                    orb.maxLife = 2.4f;
+                    orb.delay = e * 0.045f;
+                    orb.absorbed = false;
+                    essenceOrbs.add(orb);
+                }
+                playSound(sndPower, 1.5f);
+                shake = 0.55f;
+                flash = 0.5f;
+            }
+        }
+        // Фаза 2: Полет и поглощение эссенции игроком
+        else if (bossDeathPhase == 2) {
+            boolean allAbsorbed = true;
+            for (int e = 0; e < essenceOrbs.size(); e++) {
+                EssenceOrb orb = essenceOrbs.get(e);
+                if (orb.absorbed) continue;
+                allAbsorbed = false;
+                orb.life += dt;
+                if (orb.life < orb.delay) {
+                    orb.vx *= 0.94f;
+                    orb.vy *= 0.94f;
+                } else {
+                    float dx = px - orb.x;
+                    float dy = py - orb.y;
+                    float dist = (float) Math.sqrt(dx * dx + dy * dy);
+                    if (dist > 1f) {
+                        float speed = 1100f + (orb.life - orb.delay) * 800f;
+                        orb.vx = (dx / dist) * speed;
+                        orb.vy = (dy / dist) * speed;
+                    }
+                }
+                orb.x += orb.vx * dt;
+                orb.y += orb.vy * dt;
+
+                if (dist2(orb.x, orb.y, px, py) <= (PLAYER_R + orb.r + 20f) * (PLAYER_R + orb.r + 20f)) {
+                    orb.absorbed = true;
+                    playerAbsorptionPulse = 1.0f;
+                    explode(px, py, 6, orb.color);
+                    playSound(sndCoin, 1.15f + (rnd.nextFloat() * 0.35f));
+                    buzz(10);
+                }
+            }
+
+            if (allAbsorbed || bossDeathTimer >= 1.6f) {
+                bossDeathPhase = 3;
+                bossDeathTimer = 0f;
+                scoreRollupTimer = 2.0f;
+
+                float baseAward = 1500f + lastBossMinute * 250f;
+                float f = scoreFactor();
+                scoreRollupBonus = baseAward * f;
+                scoreRollupCurrent = 0f;
+
+                shieldCharges = Math.min(shieldCharges + 1, progress.maxShieldCharges());
+                bossMult = progress.bossMultiplier();
+
+                if (countsPersistentProgress()) {
+                    progress.bossesDefeated++;
+                }
+                progress.saveStats();
+                checkProgress();
+
+                playSound(sndPower, 1.45f);
+                toast(sBossEssenceHarvested + " · " + String.format(sBossRewardScore, fmtMult(bossMult)));
+                addScorePop(px, py - 110f, "+" + fmt((int) scoreRollupBonus), C_GOLD);
+            }
+        }
+        // Фаза 3: Плавное увеличение счета и искры
+        else if (bossDeathPhase == 3) {
+            scoreRollupTimer -= dt;
+            playerAbsorptionPulse = Math.max(0f, playerAbsorptionPulse - dt * 2.2f);
+
+            float delta = Math.min(scoreRollupBonus - scoreRollupCurrent, (scoreRollupBonus / 1.3f) * dt);
+            if (delta > 0f) {
+                scoreRollupCurrent += delta;
+                score += delta;
+                neonBase += delta * GameRules.neonMult(scoreFactor()) * progress.essenceNeonBonus();
+            }
+
+            addParticle(px + (rnd.nextFloat() - 0.5f) * 60f, py + (rnd.nextFloat() - 0.5f) * 60f,
+                    (rnd.nextFloat() - 0.5f) * 40f, -90f, 0.35f, 6.5f, C_GOLD, 0f, 0);
+
+            if (scoreRollupTimer <= 0f) {
+                cleanBossState();
+                invuln = 2.2f;
+                spawnPauseTimer = 1.2f;
+                bossSlowMoTimer = 0f;
+            }
+        }
+    }
+
+    void hitLaser() {
+        if (invuln > 0f || phaseTimer > 0f || state != ST_PLAY) {
+            return;
+        }
+        if (shieldCharges > 0) {
+            shieldCharges--;
+            if (countsPersistentProgress()) {
+                progress.shieldBlocks++;
+            }
+            invuln = 1.3f + progress.shieldInvulnBonus();
+            explode(px, py, 24, C_MINT);
+            playSound(sndPower, 0.85f);
+            toast(sShieldBlocked);
+            checkProgress();
+            return;
+        }
+        combo = 0;
+        comboTimer = 0f;
+        softenMultipliersAfterHit();
+        lives--;
+        hitStop = 0.08f;
+        invuln = 1.6f;
+        shake = 0.5f;
+        flash = 0.5f;
+        explode(px, py, 28, C_RED);
+        playSound(sndHit, 1.0f);
+        buzz(45);
+        if (lives <= 0 && !zenMode) {
+            if (!emergencyPhaseUsed && progress.hasEmergencyPhase()) {
+                emergencyPhaseUsed = true;
+                lives = 1;
+                invuln = progress.emergencyPhaseDuration();
+                phaseTimer = invuln;
+                toast(sWorkshopEmergencyPhase);
+                playSound(sndPower, 1.4f);
+                flash = 0.7f;
+                return;
+            }
+            gameOver();
         }
     }
 
     void hitBossBullet(BossBullet bullet) {
         if (shieldCharges > 0) {
-            shieldCharges = 0;
+            shieldCharges--;
             if (countsPersistentProgress()) {
                 progress.shieldBlocks++;
             }
-            invuln = 1.2f;
+            invuln = 1.2f + progress.shieldInvulnBonus();
             explode(px, py, 22, C_MINT);
             playSound(sndPower, 0.85f);
             toast(sShieldBlocked);
@@ -866,7 +1244,17 @@ abstract class GameLoop extends GameSpawner {
         explode(bullet.x, bullet.y, 12, bullet.color);
         playSound(sndHit, 0.9f);
         buzz(45);
-        if (lives <= 0) {
+        if (lives <= 0 && !zenMode) {
+            if (!emergencyPhaseUsed && progress.hasEmergencyPhase()) {
+                emergencyPhaseUsed = true;
+                lives = 1;
+                invuln = progress.emergencyPhaseDuration();
+                phaseTimer = invuln;
+                toast(sWorkshopEmergencyPhase);
+                playSound(sndPower, 1.4f);
+                flash = 0.7f;
+                return;
+            }
             gameOver();
         }
     }

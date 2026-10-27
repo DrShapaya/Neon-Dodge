@@ -419,12 +419,12 @@ abstract class MenuScreen extends HudLayer {
         float l = UI_PAD;
         float r = W - UI_PAD;
 
-        // Вкладки: Множители и Усиления
+        // Вкладки: Множители, Корабль и щит, Модули и титаны (3 вкладки)
         float segH = 84f;
         float sy = top + 14f + segH / 2f;
         box(c, l, sy - segH / 2f, r, sy + segH / 2f, segH / 2f, 0xCC0A1226, UI_LINE);
-        float segW = (r - l - 12f) / 2f;
-        for (int i = 0; i < 2; i++) {
+        float segW = (r - l - 12f) / 3f;
+        for (int i = 0; i < 3; i++) {
             float sl = l + 6f + i * segW;
             float sr = sl + segW;
             boolean sel = workshopTab == i;
@@ -432,65 +432,148 @@ abstract class MenuScreen extends HudLayer {
                 box(c, sl, sy - segH / 2f + 6f, sr, sy + segH / 2f - 6f,
                         (segH - 12f) / 2f, 0x305FF3FF, 0xCC5FF3FF);
             }
-            textC(c, i == 0 ? sWorkshopTabMultipliers : sWorkshopTabBonuses, (sl + sr) / 2f, sy, 29f,
+            String tabTitle = i == 0 ? sWorkshopTabMultipliers
+                    : (i == 1 ? sWorkshopTabVessel : sWorkshopTabBonuses);
+            int tabBtn = i == 0 ? B_WORKSHOP_TAB_MULT
+                    : (i == 1 ? B_WORKSHOP_TAB_VESSEL : B_WORKSHOP_TAB_BONUS);
+            textC(c, tabTitle, (sl + sr) / 2f, sy, 22f,
                     sel ? UI_INK : UI_FOG, tfCond, Paint.Align.CENTER);
-            addHit(i == 0 ? B_WORKSHOP_TAB_MULT : B_WORKSHOP_TAB_BONUS, sl, sy - segH / 2f, sr, sy + segH / 2f);
+            addHit(tabBtn, sl, sy - segH / 2f, sr, sy + segH / 2f);
         }
 
         float y = beginScroll(c, sy + segH / 2f + 8f);
         if (workshopTab == 0) {
-            // 1) Постоянный множитель (прибавка по 0.1)
-            y = drawWorkshopCard(c, y, sWorkshopLevelMult, progress.levelMultiplierUpgradeLevel,
-                    Progress.WORKSHOP_MAX_LEVEL,
-                    String.format(sWorkshopLevelStep, fmtMult(progress.levelMultiplierStep())),
-                    String.format(sWorkshopLevelStep, fmtMult(progress.levelMultiplierStep() + 0.1f)),
-                    progress.isLevelMultiplierUnlocked(), progress.levelMultiplierUpgradeCost(),
+            // Вкладка 0: Множители
+            // 1) Неоновый старт
+            y = drawWorkshopCard(c, y, sWorkshopStartMult, progress.levelMultiplierUpgradeLevel,
+                    Progress.WORKSHOP_MAX_5,
+                    String.format(sWorkshopStartMultStep, fmtMult(progress.startMultiplier())),
+                    String.format(sWorkshopStartMultStep, fmtMult(progress.startMultiplier() + 0.20f)),
+                    true, progress.levelMultiplierUpgradeCost(),
                     progress.canUpgradeLevelMultiplier(),
                     B_WORKSHOP_UPGRADE_LEVEL, C_CYAN);
 
-            // 2) Охота на титанов (прибавка по 0.2)
-            y = drawWorkshopCard(c, y, sWorkshopBoss, progress.bossMultiplierUpgradeLevel,
-                    Progress.WORKSHOP_MAX_LEVEL,
-                    String.format(sWorkshopBossValue, fmtMult(progress.bossMultiplier())),
-                    String.format(sWorkshopBossValue, fmtMult(progress.bossMultiplier() + 0.2f)),
-                    progress.isBossMultiplierUnlocked(), progress.bossMultiplierUpgradeCost(),
-                    progress.canUpgradeBossMultiplier(),
-                    B_WORKSHOP_UPGRADE_BOSS, C_GOLD);
+            // 2) Звёздный импульс
+            y = drawWorkshopCard(c, y, sWorkshopStars, progress.multiplierUpgradeLevel,
+                    Progress.WORKSHOP_MAX_10,
+                    String.format(sWorkshopStarStep, fmtMult(progress.starMultiplierStep())),
+                    String.format(sWorkshopStarStep, fmtMult(progress.starMultiplierStep() + 0.02f)),
+                    true, progress.multiplierUpgradeCost(),
+                    progress.canUpgradeMultiplier(),
+                    B_WORKSHOP_UPGRADE, C_GOLD);
 
-            // 3) Неоновый маневр (уровней 20, прибавка по 0.025)
+            // 3) Неоновый манёвр
             y = drawWorkshopCard(c, y, sWorkshopClose, progress.closeMultiplierUpgradeLevel,
-                    Progress.WORKSHOP_MAX_LEVEL_MULT,
+                    Progress.WORKSHOP_MAX_10,
                     String.format(sWorkshopCloseStep, fmtMult(progress.closeMultiplierStep())),
-                    String.format(sWorkshopCloseStep, fmtMult(progress.closeMultiplierStep() + 0.025f)),
-                    progress.isCloseMultiplierUnlocked(), progress.closeMultiplierUpgradeCost(),
+                    String.format(sWorkshopCloseStep, fmtMult(progress.closeMultiplierStep() + 0.02f)),
+                    true, progress.closeMultiplierUpgradeCost(),
                     progress.canUpgradeCloseMultiplier(),
                     B_WORKSHOP_UPGRADE_CLOSE, C_MAGENTA);
 
-            // 4) Звездный импульс (уровней 20, прибавка по 0.05)
-            y = drawWorkshopCard(c, y, sWorkshopStars, progress.multiplierUpgradeLevel,
-                    Progress.WORKSHOP_MAX_LEVEL_MULT, "+" + fmtMult(progress.starMultiplierStep()),
-                    "+" + fmtMult(progress.starMultiplierStep() + 0.05f),
-                    progress.isStarMultiplierUnlocked(), progress.multiplierUpgradeCost(), progress.canUpgradeMultiplier(),
-                    B_WORKSHOP_UPGRADE, C_GOLD);
+            // 4) Резонанс комбо
+            y = drawWorkshopCard(c, y, sWorkshopComboTime, progress.comboTimeUpgradeLevel,
+                    Progress.WORKSHOP_MAX_5,
+                    String.format(sWorkshopComboTimeStep, fmtMult(progress.comboExtraTime())),
+                    String.format(sWorkshopComboTimeStep, fmtMult(progress.comboExtraTime() + 0.15f)),
+                    true, progress.comboTimeUpgradeCost(),
+                    progress.canUpgradeComboTime(),
+                    B_WORKSHOP_UPGRADE_COMBO, C_ICE);
+        } else if (workshopTab == 1) {
+            // Вкладка 1: Корабль и щит
+            // 1) Нано-щит
+            y = drawWorkshopCard(c, y, sWorkshopShieldCap, progress.shieldCapUpgradeLevel,
+                    Progress.WORKSHOP_MAX_5,
+                    String.format(sWorkshopShieldCapStep, fmtMult(progress.shieldInvulnBonus())),
+                    String.format(sWorkshopShieldCapStep, fmtMult(progress.shieldInvulnBonus() + 0.30f)),
+                    true, progress.shieldCapUpgradeCost(),
+                    progress.canUpgradeShieldCap(),
+                    B_WORKSHOP_UPGRADE_SHIELD, C_CYAN);
+
+            // 2) Магнитная аура
+            int magPct = Math.round((progress.magnetRadiusScale() - 1f) * 100f);
+            int nextMagPct = magPct + 15;
+            y = drawWorkshopCard(c, y, sWorkshopMagnetRadius, progress.magnetRadiusUpgradeLevel,
+                    Progress.WORKSHOP_MAX_8,
+                    String.format(sWorkshopMagnetRadiusStep, magPct),
+                    String.format(sWorkshopMagnetRadiusStep, nextMagPct),
+                    true, progress.magnetRadiusUpgradeCost(),
+                    progress.canUpgradeMagnetRadius(),
+                    B_WORKSHOP_UPGRADE_MAGNET, C_GOLD);
+
+            // 3) Аварийный сдвиг
+            String curPhase = progress.emergencyPhaseUpgradeLevel == 0 ? "—"
+                    : String.format(sWorkshopEmergencyPhaseStep, fmtMult(progress.emergencyPhaseDuration()));
+            String nextPhase = String.format(sWorkshopEmergencyPhaseStep,
+                    fmtMult(progress.emergencyPhaseUpgradeLevel == 0 ? 1.4f : progress.emergencyPhaseDuration() + 0.40f));
+            y = drawWorkshopCard(c, y, sWorkshopEmergencyPhase, progress.emergencyPhaseUpgradeLevel,
+                    Progress.WORKSHOP_MAX_5,
+                    curPhase, nextPhase,
+                    true, progress.emergencyPhaseUpgradeCost(),
+                    progress.canUpgradeEmergencyPhase(),
+                    B_WORKSHOP_UPGRADE_PHASE, C_MAGENTA);
+
+            // 4) Второе дыхание
+            int healPct = Math.round((progress.secondWindRateScale() - 1f) * 100f);
+            int nextHealPct = healPct + 15;
+            y = drawWorkshopCard(c, y, sWorkshopSecondWind, progress.secondWindUpgradeLevel,
+                    Progress.WORKSHOP_MAX_5,
+                    String.format(sWorkshopSecondWindStep, healPct),
+                    String.format(sWorkshopSecondWindStep, nextHealPct),
+                    true, progress.secondWindUpgradeCost(),
+                    progress.canUpgradeSecondWind(),
+                    B_WORKSHOP_UPGRADE_HEART, C_MINT);
         } else {
+            // Вкладка 2: Модули и титаны
+            // 1) Жатва эссенции
+            int essPct = Math.round((progress.essenceNeonBonus() - 1f) * 100f);
+            int nextEssPct = essPct + 20;
+            y = drawWorkshopCard(c, y, sWorkshopEssenceBoost, progress.bossMultiplierUpgradeLevel,
+                    Progress.WORKSHOP_MAX_5,
+                    String.format(sWorkshopEssenceBoostStep, essPct),
+                    String.format(sWorkshopEssenceBoostStep, nextEssPct),
+                    true, progress.bossMultiplierUpgradeCost(),
+                    progress.canUpgradeBossMultiplier(),
+                    B_WORKSHOP_UPGRADE_BOSS, C_GOLD);
+
+            // 2) Перегрузка узлов
+            int condPct = Math.round((progress.conduitDamageScale() - 1f) * 100f);
+            int nextCondPct = condPct + 20;
+            y = drawWorkshopCard(c, y, sWorkshopConduitBoost, progress.conduitBoostUpgradeLevel,
+                    Progress.WORKSHOP_MAX_5,
+                    String.format(sWorkshopConduitBoostStep, condPct),
+                    String.format(sWorkshopConduitBoostStep, nextCondPct),
+                    true, progress.conduitBoostUpgradeCost(),
+                    progress.canUpgradeConduitBoost(),
+                    B_WORKSHOP_UPGRADE_CONDUIT, C_CYAN);
+
+            // 3) Перегрузка модулей
             int durPct = Math.round((progress.bonusDurationScale() - 1f) * 100f);
             int nextDurPct = durPct + 10;
             y = drawWorkshopCard(c, y, sWorkshopBonusDuration, progress.bonusDurationUpgradeLevel,
-                    Progress.WORKSHOP_MAX_LEVEL,
+                    Progress.WORKSHOP_MAX_10,
                     String.format(sWorkshopBonusDurationStep, durPct),
                     String.format(sWorkshopBonusDurationStep, nextDurPct),
-                    true, progress.bonusDurationUpgradeCost(), progress.canUpgradeBonusDuration(),
+                    true, progress.bonusDurationUpgradeCost(),
+                    progress.canUpgradeBonusDuration(),
                     B_WORKSHOP_UPGRADE_DURATION, C_ICE);
 
-            int tempMult = (int) progress.temporaryMultiplier();
-            int nextTempMult = tempMult + 1;
+            // 4) Гипер-множитель
             y = drawWorkshopCard(c, y, sWorkshopTempMultiplier, progress.tempMultiplierUpgradeLevel,
-                    Progress.WORKSHOP_MAX_LEVEL_TEMP,
-                    String.format(sWorkshopTempMultiplierStep, tempMult),
-                    progress.tempMultiplierUpgradeLevel < Progress.WORKSHOP_MAX_LEVEL_TEMP ? String.format(sWorkshopTempMultiplierStep, nextTempMult) : "",
-                    true, progress.tempMultiplierUpgradeCost(), progress.canUpgradeTempMultiplier(),
-                    B_WORKSHOP_UPGRADE_TEMP, C_GOLD);
+                    Progress.WORKSHOP_MAX_5,
+                    String.format(sWorkshopTempMultiplierStep, fmtMult(progress.temporaryMultiplier())),
+                    String.format(sWorkshopTempMultiplierStep, fmtMult(progress.temporaryMultiplier() + 0.60f)),
+                    true, progress.tempMultiplierUpgradeCost(),
+                    progress.canUpgradeTempMultiplier(),
+                    B_WORKSHOP_UPGRADE_TEMP, C_MAGENTA);
         }
+
+        // Общий счётчик прогресса улучшений
+        y += 12f;
+        textC(c, String.format(sWorkshopProgress, progress.workshopTotalLevel(), Progress.WORKSHOP_TOTAL_MAX_LEVEL),
+                (l + r) / 2f, y, 22f, UI_FOG, tfMed, Paint.Align.CENTER);
+        y += 40f;
+
         endScroll(c, y);
     }
 

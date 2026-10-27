@@ -113,8 +113,10 @@ abstract class GameRenderer extends GameLoop {
     }
 
     void drawWorld(Canvas c) {
-        drawBossZone(c);
+        drawBossTelegraphs(c);
+        drawBossConduits(c);
         drawBossBullets(c);
+        drawBossLaser(c);
         for (int i = 0; i < pickups.size(); i++) {
             drawPickup(c, pickups.get(i));
         }
@@ -123,10 +125,12 @@ abstract class GameRenderer extends GameLoop {
         }
         drawParticles(c);
         drawBombWave(c);
+        drawEssenceHarvest(c);
         drawScorePops(c);
         if (state != ST_OVER) {
             drawPlayer(c, px, py);
         }
+        drawBossHpBar(c);
     }
 
     void drawBombWave(Canvas c) {
@@ -154,42 +158,227 @@ abstract class GameRenderer extends GameLoop {
         strokeReset();
     }
 
-    void drawBossZone(Canvas c) {
-        if (bossZone == null) {
+    void drawBossHpBar(Canvas c) {
+        if (!bossActive && bossDeathPhase == 0) {
             return;
         }
-        float pulse = 0.88f + 0.12f * (float) Math.sin(time * 4f);
-        drawGlow(c, bossZone.x, bossZone.y, BOSS_ZONE_RADIUS * 2.6f, C_CYAN,
-                110 + (int) (50f * pulse));
-        pFill.setColor(0x1835E7FF);
-        c.drawCircle(bossZone.x, bossZone.y, BOSS_ZONE_RADIUS, pFill);
+        float barY = insetTop + 24f;
+        float barW = 460f;
+        float barH = 14f;
+        float left = W / 2f - barW / 2f;
+
+        String name = bossAnnounceName.isEmpty() ? getBossName(bossKind) : bossAnnounceName;
+        textC(c, name, W / 2f, barY - 14f, 22f, C_GOLD, tfDisplay, Paint.Align.CENTER);
+
+        box(c, left - 4f, barY - 2f, left + barW + 4f, barY + barH + 2f, 6f, 0x44000000, 0x66FFFFFF);
+
+        float segGap = 6f;
+        float segW = (barW - segGap * (bossMaxHp - 1)) / bossMaxHp;
+
+        for (int i = 0; i < bossMaxHp; i++) {
+            float sx = left + i * (segW + segGap);
+            boolean filled = (i < bossHp);
+            int segCol = filled ? BOSS_COLORS[bossKind % BOSS_COLORS.length] : 0x33FF4F6A;
+            int segBorder = filled ? 0xFFFFFFFF : 0x55FF4F6A;
+
+            box(c, sx, barY, sx + segW, barY + barH, 4f,
+                    filled ? withAlpha(segCol, 190) : segCol, segBorder);
+
+            if (filled) {
+                pFill.setColor(0x88FFFFFF);
+                c.drawRect(sx + 3f, barY + 2f, sx + segW - 3f, barY + 5f, pFill);
+            }
+        }
+    }
+
+    void drawBossTelegraphs(Canvas c) {
+        // 1. Прицельная линия лазера (Prism)
+        if (bossLaserAimTimer > 0f) {
+            float a = 0.5f + 0.5f * (float) Math.sin(time * 20f);
+            pStroke.setStyle(Paint.Style.STROKE);
+            pStroke.setStrokeWidth(4f);
+            pStroke.setColor(C_CYAN);
+            pStroke.setAlpha((int) (190f * a));
+            c.drawLine(bossLaserX, insetTop + 140f, bossLaserX, worldH, pStroke);
+
+            pFill.setColor(0x155FF3FF);
+            c.drawRect(bossLaserX - bossLaserWidth, insetTop + 140f,
+                    bossLaserX + bossLaserWidth, worldH, pFill);
+            pStroke.setStyle(Paint.Style.FILL);
+        }
+
+        // 2. Предупреждающая полоса тарана (Striker)
+        if (bossDashWarnTimer > 0f) {
+            float a = 0.5f + 0.5f * (float) Math.sin(time * 24f);
+            float laneW = 140f;
+            pFill.setColor(withAlpha(C_ORANGE, (int) (40f * a)));
+            c.drawRect(bossDashX - laneW / 2f, insetTop + 140f, bossDashX + laneW / 2f, worldH, pFill);
+
+            strokeStyle(C_ORANGE, 4f);
+            pStroke.setAlpha((int) (200f * a));
+            c.drawLine(bossDashX - laneW / 2f, insetTop + 140f, bossDashX - laneW / 2f, worldH, pStroke);
+            c.drawLine(bossDashX + laneW / 2f, insetTop + 140f, bossDashX + laneW / 2f, worldH, pStroke);
+            strokeReset();
+
+            float arrowY = ((time * 600f) % (worldH - 400f)) + insetTop + 200f;
+            textC(c, "▼ ▼ ▼", bossDashX, arrowY, 28f, C_ORANGE, tfBlack, Paint.Align.CENTER);
+        }
+    }
+
+    void drawBossLaser(Canvas c) {
+        if (bossLaserFireTimer > 0f) {
+            float laserW = bossLaserWidth * 2f;
+            pFill.setColor(0x445FF3FF);
+            c.drawRect(bossLaserX - laserW * 1.5f, insetTop + 140f,
+                    bossLaserX + laserW * 1.5f, worldH, pFill);
+
+            pFill.setColor(C_CYAN);
+            c.drawRect(bossLaserX - laserW, insetTop + 140f,
+                    bossLaserX + laserW, worldH, pFill);
+
+            pFill.setColor(0xFFFFFFFF);
+            c.drawRect(bossLaserX - laserW * 0.4f, insetTop + 140f,
+                    bossLaserX + laserW * 0.4f, worldH, pFill);
+        }
+    }
+
+    void drawBossConduits(Canvas c) {
+        if (bossConduits.isEmpty()) {
+            return;
+        }
+
         pStroke.setStyle(Paint.Style.STROKE);
-        pStroke.setStrokeWidth(6f);
-        pStroke.setColor(C_CYAN);
-        pStroke.setAlpha(210);
-        c.drawCircle(bossZone.x, bossZone.y, BOSS_ZONE_RADIUS, pStroke);
-        pStroke.setColor(0xAAFFFFFF);
-        pStroke.setStrokeWidth(3f);
-        tmpRect.set(bossZone.x - BOSS_ZONE_RADIUS + 10f,
-                bossZone.y - BOSS_ZONE_RADIUS + 10f,
-                bossZone.x + BOSS_ZONE_RADIUS - 10f,
-                bossZone.y + BOSS_ZONE_RADIUS - 10f);
-        c.drawArc(tmpRect, -90f, bossZone.fill * 360f, false, pStroke);
-        pStroke.setStyle(Paint.Style.FILL);
-        textC(c, sBossZone + " " + (bossZonesCompleted + 1) + "/4",
-                bossZone.x, bossZone.y - 12f, 24f, UI_INK, tfBlack, Paint.Align.CENTER);
-        textC(c, fmt((int) (bossZone.fill * 100f)) + "%",
-                bossZone.x, bossZone.y + 24f, 22f, C_CYAN, tfBold, Paint.Align.CENTER);
+        pStroke.setStrokeWidth(3.5f);
+        pStroke.setColor(0x885FF3FF);
+        for (int i = 0; i < bossConduits.size() - 1; i++) {
+            BossConduit c1 = bossConduits.get(i);
+            BossConduit c2 = bossConduits.get(i + 1);
+            c.drawLine(c1.x, c1.y, c2.x, c2.y, pStroke);
+        }
+        strokeReset();
+
+        for (int i = 0; i < bossConduits.size(); i++) {
+            BossConduit con = bossConduits.get(i);
+            float s = con.appearAnim * (1f + 0.08f * (float) Math.sin(con.pulse));
+            float r = con.r * s;
+
+            if (con.active) {
+                drawGlow(c, con.x, con.y, r * 3.2f, C_MINT, 170);
+                pFill.setColor(0x337CF9D0);
+                c.drawCircle(con.x, con.y, r, pFill);
+                strokeStyle(C_MINT, 4.5f);
+                c.drawCircle(con.x, con.y, r, pStroke);
+                strokeReset();
+                pFill.setColor(0xFFFFFFFF);
+                c.drawCircle(con.x, con.y, r * 0.35f, pFill);
+            } else {
+                drawGlow(c, con.x, con.y, r * 2.8f, C_CYAN, 130);
+                pFill.setColor(0x225FF3FF);
+                c.drawCircle(con.x, con.y, r, pFill);
+                strokeStyle(C_CYAN, 3.5f);
+                c.drawCircle(con.x, con.y, r, pStroke);
+                strokeReset();
+
+                hexPath.reset();
+                hexPath.moveTo(con.x, con.y - r * 0.55f);
+                hexPath.lineTo(con.x + r * 0.55f, con.y);
+                hexPath.lineTo(con.x, con.y + r * 0.55f);
+                hexPath.lineTo(con.x - r * 0.55f, con.y);
+                hexPath.close();
+                pFill.setColor(0xFFFFFFFF);
+                c.drawPath(hexPath, pFill);
+
+                textC(c, String.valueOf(i + 1), con.x, con.y, 22f, UI_INK, tfBlack, Paint.Align.CENTER);
+            }
+        }
+
+        if (conduitArcTimer > 0f) {
+            float progress = conduitArcTimer / 0.65f;
+            float targetX = W / 2f;
+            float targetY = insetTop + 210f;
+            for (int i = 0; i < obstacles.size(); i++) {
+                if (obstacles.get(i).boss) {
+                    targetX = obstacles.get(i).x;
+                    targetY = obstacles.get(i).y;
+                    break;
+                }
+            }
+            strokeStyle(0xFFFFFFFF, 8f * progress);
+            c.drawLine(conduitArcX, conduitArcY, targetX, targetY, pStroke);
+            strokeStyle(C_GOLD, 16f * progress);
+            pStroke.setAlpha((int) (220f * progress));
+            c.drawLine(conduitArcX, conduitArcY, targetX, targetY, pStroke);
+            strokeReset();
+        }
     }
 
     void drawBossBullets(Canvas c) {
         for (int i = 0; i < bossBullets.size(); i++) {
             BossBullet b = bossBullets.get(i);
-            drawGlow(c, b.x, b.y, b.r * 4f, b.color, 145);
-            pFill.setColor(b.color);
-            c.drawCircle(b.x, b.y, b.r, pFill);
+            if (b.reflected) {
+                drawGlow(c, b.x, b.y, b.r * 4.5f, C_MINT, 190);
+                pFill.setColor(C_MINT);
+                c.drawCircle(b.x, b.y, b.r, pFill);
+                pFill.setColor(0xFFFFFFFF);
+                c.drawCircle(b.x, b.y, b.r * 0.5f, pFill);
+            } else if (b.kind == BULLET_REFLECTABLE) {
+                float pulse = 0.88f + 0.12f * (float) Math.sin(time * 8f);
+                drawGlow(c, b.x, b.y, b.r * 3.8f * pulse, C_GOLD, 180);
+                pFill.setColor(C_GOLD);
+                c.drawCircle(b.x, b.y, b.r, pFill);
+                pFill.setColor(0xFFFFFFFF);
+                c.drawCircle(b.x, b.y, b.r * 0.45f, pFill);
+            } else if (b.kind == BULLET_SPIRAL) {
+                drawGlow(c, b.x, b.y, b.r * 3.2f, b.color, 150);
+                pFill.setColor(b.color);
+                c.drawCircle(b.x, b.y, b.r, pFill);
+                pFill.setColor(0xFFFFFFFF);
+                c.drawCircle(b.x, b.y, b.r * 0.35f, pFill);
+            } else {
+                drawGlow(c, b.x, b.y, b.r * 3.8f, b.color, 145);
+                pFill.setColor(b.color);
+                c.drawCircle(b.x, b.y, b.r, pFill);
+                pFill.setColor(0xFFFFFFFF);
+                c.drawCircle(b.x - b.r * 0.25f, b.y - b.r * 0.25f, b.r * 0.28f, pFill);
+            }
+        }
+    }
+
+    void drawEssenceHarvest(Canvas c) {
+        if (bossDeathPhase < 2) {
+            return;
+        }
+
+        for (int i = 0; i < essenceOrbs.size(); i++) {
+            EssenceOrb orb = essenceOrbs.get(i);
+            if (orb.absorbed) continue;
+            drawGlow(c, orb.x, orb.y, orb.r * 4.0f, orb.color, 190);
+            pFill.setColor(orb.color);
+            c.drawCircle(orb.x, orb.y, orb.r, pFill);
             pFill.setColor(0xFFFFFFFF);
-            c.drawCircle(b.x - b.r * 0.25f, b.y - b.r * 0.25f, b.r * 0.28f, pFill);
+            c.drawCircle(orb.x, orb.y, orb.r * 0.45f, pFill);
+        }
+
+        if (playerAbsorptionPulse > 0.01f) {
+            float waveR = PLAYER_R + (1f - playerAbsorptionPulse) * 140f;
+            strokeStyle(C_GOLD, 6f * playerAbsorptionPulse);
+            pStroke.setAlpha((int) (220f * playerAbsorptionPulse));
+            c.drawCircle(px, py, waveR, pStroke);
+
+            strokeStyle(C_CYAN, 3.5f * playerAbsorptionPulse);
+            pStroke.setAlpha((int) (180f * playerAbsorptionPulse));
+            c.drawCircle(px, py, waveR * 0.7f, pStroke);
+            strokeReset();
+        }
+
+        if (bossDeathPhase == 3) {
+            float midY = worldH * 0.38f;
+            textGlow(c, sBossEssenceHarvested, W / 2f, midY, 46f,
+                    0xFFFFFFFF, 0xFFFFD75E, tfDisplay);
+
+            String scoreText = "+" + fmt((int) scoreRollupCurrent);
+            textGlow(c, scoreText, W / 2f, midY + 68f, 62f,
+                    C_GOLD, 0xAAFFD75E, tfDisplayBold);
         }
     }
 
@@ -389,13 +578,21 @@ abstract class GameRenderer extends GameLoop {
             pStroke.setAlpha((int) (90f * pulse));
             pStroke.setStrokeWidth(1.6f);
             c.drawCircle(x, y, PLAYER_R + 31f, pStroke);
+            if (shieldCharges > 1) {
+                pStroke.setColor(C_CYAN);
+                pStroke.setAlpha((int) (150f * pulse));
+                pStroke.setStrokeWidth(2.2f);
+                c.drawCircle(x, y, PLAYER_R + 39f, pStroke);
+            }
             pStroke.setStyle(Paint.Style.FILL);
-            for (int i = 0; i < 4; i++) {
-                double ang = Math.toRadians(time * 90f + i * 90f);
-                pFill.setColor(C_MINT);
+            int motes = shieldCharges > 1 ? 8 : 4;
+            for (int i = 0; i < motes; i++) {
+                double ang = Math.toRadians(time * (shieldCharges > 1 ? -120f : 90f) + i * (360f / motes));
+                pFill.setColor(i % 2 == 0 ? C_MINT : C_CYAN);
                 pFill.setAlpha(210);
-                c.drawCircle(x + (float) Math.cos(ang) * (PLAYER_R + 27f),
-                        y + (float) Math.sin(ang) * (PLAYER_R + 27f), 3.4f, pFill);
+                float dist = shieldCharges > 1 ? (PLAYER_R + 33f) : (PLAYER_R + 27f);
+                c.drawCircle(x + (float) Math.cos(ang) * dist,
+                        y + (float) Math.sin(ang) * dist, 3.4f, pFill);
             }
         }
     }
@@ -414,17 +611,93 @@ abstract class GameRenderer extends GameLoop {
             pStroke.setStyle(Paint.Style.FILL);
         }
         if (o.boss) {
-            float pulse = 0.85f + 0.15f * (float) Math.sin(time * 4f);
-            drawGlow(c, o.x, o.y, o.r * 3.6f, o.color, 190);
-            drawHex(c, o.x, o.y, o.r * pulse, o.rot, o.color);
-            pStroke.setStyle(Paint.Style.STROKE);
-            pStroke.setColor(0xFFFFFFFF);
-            pStroke.setAlpha(210);
-            pStroke.setStrokeWidth(5f);
-            c.drawCircle(o.x, o.y, o.r * 0.48f, pStroke);
-            c.drawCircle(o.x, o.y, o.r * 0.22f, pStroke);
-            pStroke.setStyle(Paint.Style.FILL);
-            textC(c, sBossLabel, o.x, o.y + 8f, 24f, 0xFFFFFFFF, tfBlack, Paint.Align.CENTER);
+            float bx = o.x + bossWobble;
+            float by = o.y;
+            float pulse = 0.88f + 0.12f * (float) Math.sin(time * 5f);
+            int bossCol = (bossStunTimer > 0f) ? 0xFFFFFFFF : o.color;
+
+            drawGlow(c, bx, by, o.r * 3.8f, bossCol, 200);
+
+            switch (bossKind) {
+                case BOSS_KIND_PRISM:
+                    c.save();
+                    c.translate(bx, by);
+                    c.rotate(o.rot);
+                    hexPath.reset();
+                    hexPath.moveTo(0f, -o.r * pulse);
+                    hexPath.lineTo(o.r * 0.85f * pulse, 0f);
+                    hexPath.lineTo(0f, o.r * pulse);
+                    hexPath.lineTo(-o.r * 0.85f * pulse, 0f);
+                    hexPath.close();
+                    pFill.setColor(withAlpha(bossCol, 190));
+                    c.drawPath(hexPath, pFill);
+                    strokeStyle(0xFFFFFFFF, 5f);
+                    c.drawPath(hexPath, pStroke);
+
+                    c.rotate(-o.rot * 2.2f);
+                    hexPath.reset();
+                    hexPath.moveTo(0f, -o.r * 0.45f);
+                    hexPath.lineTo(o.r * 0.45f, 0f);
+                    hexPath.lineTo(0f, o.r * 0.45f);
+                    hexPath.lineTo(-o.r * 0.45f, 0f);
+                    hexPath.close();
+                    pFill.setColor(0xFFFFFFFF);
+                    c.drawPath(hexPath, pFill);
+                    strokeReset();
+                    c.restore();
+                    break;
+
+                case BOSS_KIND_VORTEX:
+                    pFill.setColor(0xFF140A28);
+                    c.drawCircle(bx, by, o.r * 0.65f, pFill);
+                    strokeStyle(bossCol, 6f);
+                    c.drawCircle(bx, by, o.r * 0.65f, pStroke);
+                    c.save();
+                    c.translate(bx, by);
+                    c.rotate(time * 90f);
+                    strokeStyle(0xFFA46BFF, 4f);
+                    for (int a = 0; a < 4; a++) {
+                        tmpRect.set(-o.r * 0.95f, -o.r * 0.95f, o.r * 0.95f, o.r * 0.95f);
+                        c.drawArc(tmpRect, a * 90f + 10f, 70f, false, pStroke);
+                    }
+                    strokeReset();
+                    c.restore();
+                    break;
+
+                case BOSS_KIND_STRIKER:
+                    c.save();
+                    c.translate(bx, by);
+                    hexPath.reset();
+                    hexPath.moveTo(0f, o.r * 0.9f);
+                    hexPath.lineTo(o.r * 0.95f, -o.r * 0.7f);
+                    hexPath.lineTo(0f, -o.r * 0.35f);
+                    hexPath.lineTo(-o.r * 0.95f, -o.r * 0.7f);
+                    hexPath.close();
+                    pFill.setColor(withAlpha(bossCol, 210));
+                    c.drawPath(hexPath, pFill);
+                    strokeStyle(0xFFFFFFFF, 5f);
+                    c.drawPath(hexPath, pStroke);
+
+                    pFill.setColor(C_GOLD);
+                    c.drawCircle(-o.r * 0.35f, -o.r * 0.45f, 12f * pulse, pFill);
+                    c.drawCircle(o.r * 0.35f, -o.r * 0.45f, 12f * pulse, pFill);
+                    strokeReset();
+                    c.restore();
+                    break;
+
+                case BOSS_KIND_NEXUS:
+                default:
+                    drawHex(c, bx, by, o.r * pulse, o.rot, bossCol);
+                    pStroke.setStyle(Paint.Style.STROKE);
+                    pStroke.setColor(0xFFFFFFFF);
+                    pStroke.setStrokeWidth(5f);
+                    c.drawCircle(bx, by, o.r * 0.52f, pStroke);
+                    c.drawCircle(bx, by, o.r * 0.25f, pStroke);
+                    strokeReset();
+                    break;
+            }
+
+            textC(c, getBossName(bossKind), bx, by + 8f, 22f, 0xFFFFFFFF, tfBlack, Paint.Align.CENTER);
             return;
         }
         int glowAlpha = 100;
@@ -796,7 +1069,7 @@ abstract class GameRenderer extends GameLoop {
                 pStroke.setStrokeWidth(size * 0.06f);
                 c.drawCircle(x, y, size * 0.94f, pStroke);
                 pStroke.setStyle(Paint.Style.FILL);
-                textC(c, "×" + (int) progress.temporaryMultiplier(), x, y, size * 0.72f, col, tfBlack, Paint.Align.CENTER);
+                textC(c, "×" + fmtMult(progress.temporaryMultiplier()), x, y, size * 0.72f, col, tfBlack, Paint.Align.CENTER);
                 break;
             }
             default:

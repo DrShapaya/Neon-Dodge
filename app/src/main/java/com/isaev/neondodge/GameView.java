@@ -179,9 +179,18 @@ public class GameView extends OverlayScreens {
             case B_WORKSHOP:
                 go(ST_WORKSHOP);
                 break;
+            case B_WORKSHOP_UPGRADE_LEVEL:
+                if (progress.upgradeLevelMultiplier()) {
+                    toast(sWorkshopStartMult + " · " + String.format(sWorkshopStartMultStep, fmtMult(progress.startMultiplier())));
+                    buzz(18);
+                } else {
+                    toast(sWorkshopNext + " · " + fmt(progress.levelMultiplierUpgradeCost()));
+                    buzz(10);
+                }
+                break;
             case B_WORKSHOP_UPGRADE:
                 if (progress.upgradeMultiplier()) {
-                    toast(sWorkshopStars + " · +" + fmtMult(progress.starMultiplierStep()));
+                    toast(sWorkshopStars + " · " + String.format(sWorkshopStarStep, fmtMult(progress.starMultiplierStep())));
                     buzz(18);
                 } else {
                     toast(sWorkshopNext + " · " + fmt(progress.multiplierUpgradeCost()));
@@ -190,28 +199,77 @@ public class GameView extends OverlayScreens {
                 break;
             case B_WORKSHOP_UPGRADE_CLOSE:
                 if (progress.upgradeCloseMultiplier()) {
-                    toast(sWorkshopClose + " · +" + fmtMult(progress.closeMultiplierStep()));
+                    toast(sWorkshopClose + " · " + String.format(sWorkshopCloseStep, fmtMult(progress.closeMultiplierStep())));
                     buzz(18);
                 } else {
                     toast(sWorkshopNext + " · " + fmt(progress.closeMultiplierUpgradeCost()));
                     buzz(10);
                 }
                 break;
+            case B_WORKSHOP_UPGRADE_COMBO:
+                if (progress.upgradeComboTime()) {
+                    toast(sWorkshopComboTime + " · " + String.format(sWorkshopComboTimeStep, fmtMult(progress.comboExtraTime())));
+                    buzz(18);
+                } else {
+                    toast(sWorkshopNext + " · " + fmt(progress.comboTimeUpgradeCost()));
+                    buzz(10);
+                }
+                break;
+            case B_WORKSHOP_UPGRADE_SHIELD:
+                if (progress.upgradeShieldCap()) {
+                    toast(sWorkshopShieldCap + " · " + String.format(sWorkshopShieldCapStep, fmtMult(progress.shieldInvulnBonus())));
+                    buzz(18);
+                } else {
+                    toast(sWorkshopNext + " · " + fmt(progress.shieldCapUpgradeCost()));
+                    buzz(10);
+                }
+                break;
+            case B_WORKSHOP_UPGRADE_MAGNET:
+                if (progress.upgradeMagnetRadius()) {
+                    int magPct = Math.round((progress.magnetRadiusScale() - 1f) * 100f);
+                    toast(sWorkshopMagnetRadius + " · " + String.format(sWorkshopMagnetRadiusStep, magPct));
+                    buzz(18);
+                } else {
+                    toast(sWorkshopNext + " · " + fmt(progress.magnetRadiusUpgradeCost()));
+                    buzz(10);
+                }
+                break;
+            case B_WORKSHOP_UPGRADE_PHASE:
+                if (progress.upgradeEmergencyPhase()) {
+                    toast(sWorkshopEmergencyPhase + " · " + String.format(sWorkshopEmergencyPhaseStep, fmtMult(progress.emergencyPhaseDuration())));
+                    buzz(18);
+                } else {
+                    toast(sWorkshopNext + " · " + fmt(progress.emergencyPhaseUpgradeCost()));
+                    buzz(10);
+                }
+                break;
+            case B_WORKSHOP_UPGRADE_HEART:
+                if (progress.upgradeSecondWind()) {
+                    int healPct = Math.round((progress.secondWindRateScale() - 1f) * 100f);
+                    toast(sWorkshopSecondWind + " · " + String.format(sWorkshopSecondWindStep, healPct));
+                    buzz(18);
+                } else {
+                    toast(sWorkshopNext + " · " + fmt(progress.secondWindUpgradeCost()));
+                    buzz(10);
+                }
+                break;
             case B_WORKSHOP_UPGRADE_BOSS:
                 if (progress.upgradeBossMultiplier()) {
-                    toast(sWorkshopBoss + " · x" + fmtMult(progress.bossMultiplier()));
+                    int essPct = Math.round((progress.essenceNeonBonus() - 1f) * 100f);
+                    toast(sWorkshopEssenceBoost + " · " + String.format(sWorkshopEssenceBoostStep, essPct));
                     buzz(18);
                 } else {
                     toast(sWorkshopNext + " · " + fmt(progress.bossMultiplierUpgradeCost()));
                     buzz(10);
                 }
                 break;
-            case B_WORKSHOP_UPGRADE_LEVEL:
-                if (progress.upgradeLevelMultiplier()) {
-                    toast(sWorkshopLevelMult + " · +" + fmtMult(progress.levelMultiplierStep()));
+            case B_WORKSHOP_UPGRADE_CONDUIT:
+                if (progress.upgradeConduitBoost()) {
+                    int condPct = Math.round((progress.conduitDamageScale() - 1f) * 100f);
+                    toast(sWorkshopConduitBoost + " · " + String.format(sWorkshopConduitBoostStep, condPct));
                     buzz(18);
                 } else {
-                    toast(sWorkshopNext + " · " + fmt(progress.levelMultiplierUpgradeCost()));
+                    toast(sWorkshopNext + " · " + fmt(progress.conduitBoostUpgradeCost()));
                     buzz(10);
                 }
                 break;
@@ -227,8 +285,7 @@ public class GameView extends OverlayScreens {
                 break;
             case B_WORKSHOP_UPGRADE_TEMP:
                 if (progress.upgradeTempMultiplier()) {
-                    int tempMult = (int) progress.temporaryMultiplier();
-                    toast(sWorkshopTempMultiplier + " · " + String.format(sWorkshopTempMultiplierStep, tempMult));
+                    toast(sWorkshopTempMultiplier + " · " + String.format(sWorkshopTempMultiplierStep, fmtMult(progress.temporaryMultiplier())));
                     buzz(18);
                 } else {
                     toast(sWorkshopNext + " · " + fmt(progress.tempMultiplierUpgradeCost()));
@@ -242,9 +299,16 @@ public class GameView extends OverlayScreens {
                     scrollVel = 0f;
                 }
                 break;
-            case B_WORKSHOP_TAB_BONUS:
+            case B_WORKSHOP_TAB_VESSEL:
                 if (workshopTab != 1) {
                     workshopTab = 1;
+                    scrollY = 0f;
+                    scrollVel = 0f;
+                }
+                break;
+            case B_WORKSHOP_TAB_BONUS:
+                if (workshopTab != 2) {
+                    workshopTab = 2;
                     scrollY = 0f;
                     scrollVel = 0f;
                 }

@@ -110,29 +110,122 @@ abstract class GameSpawner extends GameAudio {
         obstacles.add(o);
     }
 
+    void spawnBossConduits(int phase) {
+        bossConduits.clear();
+        int count = (phase <= 1) ? 3 : 2;
+        float minY = Math.max(520f, insetTop + 420f);
+        float maxY = Math.min(worldH - 320f, groundY() - 80f);
+        float laneHeight = (maxY - minY) / count;
+
+        for (int i = 0; i < count; i++) {
+            BossConduit c = new BossConduit();
+            c.index = i;
+            c.active = false;
+            c.pulse = 0f;
+            c.appearAnim = 0f;
+            c.r = 44f;
+            float laneY = minY + i * laneHeight + laneHeight * 0.5f;
+            c.y = laneY + (gameRnd.nextFloat() - 0.5f) * 60f;
+            if (count == 2) {
+                if (i == 0) {
+                    c.x = 220f + gameRnd.nextFloat() * 160f;
+                } else {
+                    c.x = W - 220f - gameRnd.nextFloat() * 160f;
+                }
+            } else {
+                if (i == 0) {
+                    c.x = 200f + gameRnd.nextFloat() * 120f;
+                } else if (i == 1) {
+                    c.x = W / 2f + (gameRnd.nextFloat() - 0.5f) * 120f;
+                } else {
+                    c.x = W - 200f - gameRnd.nextFloat() * 120f;
+                }
+            }
+            bossConduits.add(c);
+            explode(c.x, c.y, 14, C_CYAN);
+        }
+    }
+
+    void cleanBossState() {
+        bossActive = false;
+        bossHp = 3;
+        bossStunTimer = 0f;
+        bossLaserAimTimer = 0f;
+        bossLaserFireTimer = 0f;
+        bossDashWarnTimer = 0f;
+        bossDashTimer = 0f;
+        bossSlowMoTimer = 0f;
+        bossDeathPhase = 0;
+        bossDeathTimer = 0f;
+        conduitArcTimer = 0f;
+        bossBullets.clear();
+        bossConduits.clear();
+        essenceOrbs.clear();
+        bossZone = null;
+        bossZonesCompleted = 0;
+        bossZoneTimer = 0f;
+    }
+
     void spawnBoss(int minute) {
+        // Очистить все падающие обычные камни
+        for (int i = obstacles.size() - 1; i >= 0; i--) {
+            Obs obs = obstacles.get(i);
+            if (!obs.boss) {
+                explode(obs.x, obs.y, 10, obs.color);
+                obstacles.remove(i);
+            }
+        }
+        bombWaveOriginX = W / 2f;
+        bombWaveOriginY = worldH / 2f;
+        bombWaveTimer = BOMB_WAVE_DURATION;
+        flash = 0.45f;
+        shake = 0.40f;
+        playSound(sndPower, 0.8f);
+
+        int stage = minute / 2;
+        bossKind = (stage - 1) % 4;
+        bossActive = true;
+        bossHp = 3;
+        bossMaxHp = 3;
+        bossStunTimer = 0f;
+        bossWobble = 0f;
+        bossLaserAimTimer = 0f;
+        bossLaserFireTimer = 0f;
+        bossDashWarnTimer = 0f;
+        bossDashTimer = 0f;
+        bossSpiralTimer = 0f;
+        bossSpiralAngle = 0f;
+        bossDeathPhase = 0;
+        bossDeathTimer = 0f;
+        bossSlowMoTimer = 0f;
+        conduitArcTimer = 0f;
+        scoreRollupBonus = 0f;
+        scoreRollupCurrent = 0f;
+        scoreRollupTimer = 0f;
+        bossBullets.clear();
+        essenceOrbs.clear();
+
         Obs o = new Obs();
         o.boss = true;
-        o.bossStage = minute / 2;
+        o.bossStage = stage;
         o.type = T_ARMOR;
-        o.color = BOSS_COLORS[(o.bossStage - 1) % BOSS_COLORS.length];
-        // Keep the boss readable on the fixed-width field while its stage
-        // continues to scale projectile speed and timing indefinitely.
-        o.r = 82f + Math.min(10, o.bossStage) * 8f;
-        o.x = o.r + 24f + gameRnd.nextFloat() * (W - 2f * o.r - 48f);
-        o.y = -o.r - 60f;
-        o.baseVy = 250f + o.bossStage * 24f;
+        o.color = BOSS_COLORS[(stage - 1) % BOSS_COLORS.length];
+        o.r = 90f + Math.min(6, stage) * 6f;
+        o.x = W / 2f;
+        o.y = -o.r - 40f;
+        o.baseVy = 260f;
         o.vy = o.baseVy;
-        o.vx = (gameRnd.nextBoolean() ? 1f : -1f) * (90f + o.bossStage * 20f);
-        o.rot = gameRnd.nextFloat() * 360f;
-        o.vrot = 60f + o.bossStage * 18f;
-        o.bossShotTimer = 1.15f;
-        bossZonesCompleted = 0;
-        bossZone = null;
-        bossZoneTimer = 1.0f;
-        bossBullets.clear();
+        o.vx = (gameRnd.nextBoolean() ? 1f : -1f) * (85f + stage * 15f);
+        o.rot = 0f;
+        o.vrot = 40f + stage * 8f;
+        o.bossShotTimer = 1.3f;
         obstacles.add(o);
-        toast(String.format(sMiniBossToast, minute));
+
+        spawnBossConduits(bossHp);
+
+        bossAnnounceName = getBossName(bossKind);
+        announceTimer = 2.8f;
+        toast(sBossWarningTitle + ": " + bossAnnounceName);
     }
 
     void spawnSplitFragments(Obs parent) {
@@ -263,13 +356,13 @@ abstract class GameSpawner extends GameAudio {
         // В «Дзене» щит всё равно расходуется: он поглощает столкновение,
         // поэтому предмет не превращается в вечное декоративное кольцо.
         if (shieldCharges > 0) {
-            shieldCharges = 0;
+            shieldCharges--;
             if (countsPersistentProgress()) {
                 progress.shieldBlocks++;
             }
             shake = 24f;
             flash = 0.55f;
-            invuln = 1.2f;
+            invuln = 1.2f + progress.shieldInvulnBonus();
             explode(px, py, 22, C_MINT);
             explode(o.x, o.y, 14, o.color);
             playSound(sndPower, 0.85f);
@@ -307,6 +400,16 @@ abstract class GameSpawner extends GameAudio {
         playSound(sndHit, 0.9f + rnd.nextFloat() * 0.25f);
         buzz(45);
         if (lives <= 0) {
+            if (!emergencyPhaseUsed && progress.hasEmergencyPhase()) {
+                emergencyPhaseUsed = true;
+                lives = 1;
+                invuln = progress.emergencyPhaseDuration();
+                phaseTimer = invuln;
+                toast(sWorkshopEmergencyPhase);
+                playSound(sndPower, 1.4f);
+                flash = 0.7f;
+                return;
+            }
             gameOver();
         }
     }
@@ -344,13 +447,13 @@ abstract class GameSpawner extends GameAudio {
                 break;
 
             case P_SHIELD:
-                shieldCharges = 1;
+                shieldCharges = Math.min(shieldCharges + 1, progress.maxShieldCharges());
                 float shieldPoints = award(25f);
                 addScorePop(p.x, p.y - 40f, "+" + fmt((int) shieldPoints), C_MINT);
                 explode(p.x, p.y, 18, C_MINT);
                 playSound(sndPower, 1.05f);
                 buzz(20);
-                toast(sShieldActive);
+                toast(shieldCharges > 1 ? sShieldActive + " x" + shieldCharges : sShieldActive);
                 if (!hintShieldShown) {
                     hintShieldShown = true;
                     prefs.edit().putBoolean("hint_shield", true).apply();
@@ -537,7 +640,8 @@ abstract class GameSpawner extends GameAudio {
         closeMult = 1f;
         runMaxOverallMult = 1f;
         bossMult = 1f;
-        levelMult = 1f + progress.levelMultiplierStep();
+        levelMult = progress.startMultiplier();
+        emergencyPhaseUsed = false;
         scoreBanked = false;
         shieldCharges = 0;
         magnetTimer = 0f;
@@ -546,10 +650,7 @@ abstract class GameSpawner extends GameAudio {
         doubleTimer = 0f;
         spawnPauseTimer = 0f;
         lastBossMinute = 0;
-        bossZonesCompleted = 0;
-        bossZoneTimer = 0f;
-        bossZone = null;
-        bossBullets.clear();
+        cleanBossState();
         toastTimer = 0f;
         toastText = "";
         resumeTimer = 0f;
@@ -622,7 +723,8 @@ abstract class GameSpawner extends GameAudio {
         closeMult = 1f;
         runMaxOverallMult = 1f;
         bossMult = 1f;
-        levelMult = 1f + progress.levelMultiplierStep();
+        levelMult = progress.startMultiplier();
+        emergencyPhaseUsed = false;
         announceTimer = 0f;
         shieldCharges = 0;
         magnetTimer = 0f;
@@ -631,10 +733,7 @@ abstract class GameSpawner extends GameAudio {
         doubleTimer = 0f;
         spawnPauseTimer = 0f;
         lastBossMinute = 0;
-        bossZonesCompleted = 0;
-        bossZoneTimer = 0f;
-        bossZone = null;
-        bossBullets.clear();
+        cleanBossState();
         runEventKind = RE_NONE;
         runEventLeft = 0f;
         runEventTimer = 0f;
@@ -802,6 +901,7 @@ abstract class GameSpawner extends GameAudio {
             if (o.boss) {
                 // Бомба оглушает босса и сбивает его выстрелы, но не уничтожает босса мгновенно
                 o.bounceFlash = 1f;
+                bossStunTimer = Math.max(bossStunTimer, 1.3f);
                 o.bossShotTimer = Math.max(o.bossShotTimer, 2.0f);
                 continue;
             }

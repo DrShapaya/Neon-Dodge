@@ -187,10 +187,67 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     Random gameRnd = new Random();
     Random pickupRnd = new Random();
     int runStars;
+    static final int BOSS_KIND_PRISM = 0;
+    static final int BOSS_KIND_VORTEX = 1;
+    static final int BOSS_KIND_STRIKER = 2;
+    static final int BOSS_KIND_NEXUS = 3;
+
+    static final int BULLET_NORMAL = 0;
+    static final int BULLET_SPIRAL = 1;
+    static final int BULLET_REFLECTABLE = 2;
+    static final int BULLET_MINE = 3;
+
     int runDodged;
     int runMaxCombo;
     /** Минута последнего минибосса; боссы приходят каждые 2 минуты и без конца. */
     int lastBossMinute;
+    boolean bossActive;
+    int bossKind;
+    int bossHp = 3;
+    int bossMaxHp = 3;
+    float bossEntranceTimer;
+    float bossStunTimer;
+    float bossWobble;
+
+    // Лазер
+    float bossLaserAimTimer;
+    float bossLaserFireTimer;
+    float bossLaserX;
+    float bossLaserTargetX;
+    float bossLaserWidth = 26f;
+
+    // Таран
+    float bossDashWarnTimer;
+    float bossDashTimer;
+    float bossDashX;
+    float bossDashStartY;
+    float bossDashTargetY;
+
+    // Спирали / мины
+    float bossSpiralTimer;
+    float bossSpiralAngle;
+
+    // Резонаторы перегрузки (Conduits)
+    final ArrayList<BossConduit> bossConduits = new ArrayList<>();
+    float conduitArcTimer;
+    float conduitArcX;
+    float conduitArcY;
+
+    // Эссенция и финал боя
+    final ArrayList<EssenceOrb> essenceOrbs = new ArrayList<>();
+    float bossDeathTimer;
+    int bossDeathPhase;
+    float bossEssenceX;
+    float bossEssenceY;
+    float playerAbsorptionPulse;
+    float bossSlowMoTimer;
+
+    // Бегущий счет
+    float scoreRollupBonus;
+    float scoreRollupCurrent;
+    float scoreRollupTimer;
+    String bossAnnounceName = "";
+
     int bossZonesCompleted;
     float bossZoneTimer;
     BossZone bossZone;
@@ -423,6 +480,24 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     String sBossLabel;
     String sBossZoneScore;
     String sBossRewardScore;
+    String sBossNamePrism;
+    String sBossNameVortex;
+    String sBossNameStriker;
+    String sBossNameNexus;
+    String sBossWarningTitle;
+    String sBossConduitLinked;
+    String sBossEssenceHarvested;
+    String sBossReflect;
+
+    String getBossName(int kind) {
+        switch (kind) {
+            case BOSS_KIND_PRISM: return sBossNamePrism;
+            case BOSS_KIND_VORTEX: return sBossNameVortex;
+            case BOSS_KIND_STRIKER: return sBossNameStriker;
+            case BOSS_KIND_NEXUS: return sBossNameNexus;
+            default: return sBossLabel;
+        }
+    }
     String sWorkshop;
     String sWorkshopLevel;
     String sWorkshopNext;
@@ -437,6 +512,7 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     String sWorkshopLocked;
     String sWorkshopCost;
     String sWorkshopStars;
+    String sWorkshopStarStep;
     String sWorkshopClose;
     String sWorkshopBoss;
     String sWorkshopLevelMult;
@@ -445,11 +521,29 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     String sWorkshopLevelStep;
     String sWorkshopProgress;
     String sWorkshopTabMultipliers;
+    String sWorkshopTabVessel;
     String sWorkshopTabBonuses;
     String sWorkshopBonusDuration;
     String sWorkshopBonusDurationStep;
     String sWorkshopTempMultiplier;
     String sWorkshopTempMultiplierStep;
+    String sWorkshopStartMult;
+    String sWorkshopStartMultStep;
+    String sWorkshopComboTime;
+    String sWorkshopComboTimeStep;
+    String sWorkshopShieldCap;
+    String sWorkshopShieldCapStep;
+    String sWorkshopMagnetRadius;
+    String sWorkshopMagnetRadiusStep;
+    String sWorkshopEmergencyPhase;
+    String sWorkshopEmergencyPhaseStep;
+    String sWorkshopSecondWind;
+    String sWorkshopSecondWindStep;
+    String sWorkshopConduitBoost;
+    String sWorkshopConduitBoostStep;
+    String sWorkshopEssenceBoost;
+    String sWorkshopEssenceBoostStep;
+    boolean emergencyPhaseUsed;
     String sSphere;
     String sTrail;
     String sZen;
@@ -606,9 +700,16 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     static final int B_WORKSHOP_UPGRADE_LEVEL = 26;
     static final int B_WORKSHOP_UPGRADE_DURATION = 27;
     static final int B_WORKSHOP_UPGRADE_TEMP = 28;
+    static final int B_WORKSHOP_UPGRADE_COMBO = 120;
+    static final int B_WORKSHOP_UPGRADE_SHIELD = 121;
+    static final int B_WORKSHOP_UPGRADE_MAGNET = 122;
+    static final int B_WORKSHOP_UPGRADE_PHASE = 123;
+    static final int B_WORKSHOP_UPGRADE_HEART = 124;
+    static final int B_WORKSHOP_UPGRADE_CONDUIT = 125;
     static final int B_PROFILE = 29;
     static final int B_WORKSHOP_TAB_MULT = 80;
-    static final int B_WORKSHOP_TAB_BONUS = 81;
+    static final int B_WORKSHOP_TAB_VESSEL = 81;
+    static final int B_WORKSHOP_TAB_BONUS = 85;
     static final int B_RULES_TAB_BASICS = 82;
     static final int B_RULES_TAB_ASTEROIDS = 83;
     static final int B_RULES_TAB_BONUSES = 84;
@@ -774,6 +875,16 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
         float fill;
     }
 
+    static class BossConduit {
+        float x;
+        float y;
+        float r = 42f;
+        boolean active;
+        float pulse;
+        float appearAnim;
+        int index;
+    }
+
     static class BossBullet {
         float x;
         float y;
@@ -781,6 +892,22 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
         float vy;
         float r;
         int color;
+        int kind;
+        float timer;
+        boolean reflected;
+    }
+
+    static class EssenceOrb {
+        float x;
+        float y;
+        float vx;
+        float vy;
+        float r;
+        int color;
+        float life;
+        float maxLife;
+        float delay;
+        boolean absorbed;
     }
 
     static class Pickup {
@@ -846,6 +973,12 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
 
     /** См. {@link UiKit}. */
     abstract void text(Canvas c, String s, float x, float y, float size, int color, Typeface tf, Paint.Align align);
+
+    /** См. {@link UiKit}. */
+    abstract void box(Canvas c, float l, float t, float r, float b, float rad, int fill, int stroke);
+
+    /** См. {@link UiKit}. */
+    abstract void textGlow(Canvas c, String s, float x, float y, float size, int color, int glow, Typeface tf);
 
     /** См. {@link HudLayer}. */
     abstract void drawHud(Canvas c);

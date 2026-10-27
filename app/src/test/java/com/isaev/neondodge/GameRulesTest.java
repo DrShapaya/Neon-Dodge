@@ -65,17 +65,19 @@ public class GameRulesTest {
     @Test
     public void workshopCostGrowsModeratelyAndStopsAtCap() {
         assertEquals(2500, Progress.workshopCost(0, 2500));
-        assertEquals(3250, Progress.workshopCost(1, 2500));
-        // Каждая ступень доступнее, чем в старой кривой ×1.45.
+        assertEquals(4125, Progress.workshopCost(1, 2500));
+        // Каждая ступень растёт плавно по полиномиальной формуле.
         long c4 = Progress.workshopCost(4, 2500);
         long c5 = Progress.workshopCost(5, 2500);
+        assertTrue(c5 > c4);
         assertTrue(c5 * 100 < c4 * 135);
         // Максимальный уровень недостижим для покупок — цену не называют.
-        assertEquals(0, Progress.workshopCost(Progress.WORKSHOP_MAX_LEVEL_MULT, 2500));
-        // Хвост остаётся достижимым: самый дорогой уровень в пределах нескольких
-        // сотен тысяч неона, а не десятков миллионов как при ×1.45.
-        long top = Progress.workshopCost(Progress.WORKSHOP_MAX_LEVEL_MULT - 1, 4000);
-        assertTrue(top > 0 && top < 1_000_000);
+        assertEquals(0, Progress.workshopCost(Progress.WORKSHOP_MAX_10, 2500));
+        assertEquals(0, Progress.workshopCost(Progress.WORKSHOP_MAX_5, Progress.WORKSHOP_MAX_5, 2500));
+        assertEquals(0, Progress.workshopCost(Progress.WORKSHOP_MAX_8, Progress.WORKSHOP_MAX_8, 1200));
+        // Хвост остаётся достижимым: самый дорогой 10-й уровень в пределах десятков тысяч.
+        long top = Progress.workshopCost(Progress.WORKSHOP_MAX_10 - 1, 4000);
+        assertTrue(top > 0 && top < 100_000);
     }
 
     @Test

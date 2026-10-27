@@ -209,9 +209,14 @@ abstract class HudLayer extends UiKit {
     }
 
     float hudEffectWidth(int kind, float secs) {
-        String bonusName = kind == P_DOUBLE
-                ? "x" + (int) progress.temporaryMultiplier()
-                : sBonusName[kind];
+        String bonusName;
+        if (kind == P_DOUBLE) {
+            bonusName = "x" + fmtMult(progress.temporaryMultiplier());
+        } else if (kind == P_SHIELD && shieldCharges > 1) {
+            bonusName = sBonusName[kind] + " x" + shieldCharges;
+        } else {
+            bonusName = sBonusName[kind];
+        }
         String label = secs > 0f
                 ? bonusName + " " + String.format(sSecondsShort, (int) Math.ceil(secs))
                 : bonusName;
@@ -221,9 +226,14 @@ abstract class HudLayer extends UiKit {
     /** Чип бонуса: кольцо — оставшееся время, рядом название и секунды; возвращает правый край. */
     float hudEffect(Canvas c, int kind, float l, float cy, float frac, float secs) {
         int col = bonusColor(kind);
-        String bonusName = kind == P_DOUBLE
-                ? "x" + (int) progress.temporaryMultiplier()
-                : sBonusName[kind];
+        String bonusName;
+        if (kind == P_DOUBLE) {
+            bonusName = "x" + fmtMult(progress.temporaryMultiplier());
+        } else if (kind == P_SHIELD && shieldCharges > 1) {
+            bonusName = sBonusName[kind] + " x" + shieldCharges;
+        } else {
+            bonusName = sBonusName[kind];
+        }
         String label = secs > 0f
                 ? bonusName + " " + String.format(sSecondsShort, (int) Math.ceil(secs))
                 : bonusName;
@@ -314,13 +324,23 @@ abstract class HudLayer extends UiKit {
         }
         float a;
         if (announceTimer > 1.15f) {
-            a = (1.7f - announceTimer) / 0.55f;
+            a = (2.8f - announceTimer) / 0.6f;
         } else {
             a = announceTimer / 1.15f;
         }
         a = clamp(a, 0f, 1f);
-        textGlow(c, sSpeedUp, W / 2f, worldH * 0.32f, 56f,
-                Color.argb((int) (255f * a), 255, 255, 255),
-                Color.argb((int) (170f * a), 255, 79, 216), tfDisplay);
+
+        if (bossActive) {
+            textGlow(c, sBossWarningTitle, W / 2f, worldH * 0.28f, 34f,
+                    Color.argb((int) (255f * a), 255, 79, 106),
+                    Color.argb((int) (200f * a), 255, 79, 106), tfDisplay);
+            textGlow(c, bossAnnounceName, W / 2f, worldH * 0.34f, 62f,
+                    Color.argb((int) (255f * a), 255, 255, 255),
+                    Color.argb((int) (210f * a), 255, 215, 94), tfDisplayBold);
+        } else {
+            textGlow(c, sSpeedUp, W / 2f, worldH * 0.32f, 56f,
+                    Color.argb((int) (255f * a), 255, 255, 255),
+                    Color.argb((int) (170f * a), 255, 79, 216), tfDisplay);
+        }
     }
 }
