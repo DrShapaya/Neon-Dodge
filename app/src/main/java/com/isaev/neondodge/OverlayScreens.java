@@ -379,15 +379,23 @@ abstract class OverlayScreens extends InfoScreens {
         float menuCy = worldH - insetBottom - 40f - menuH / 2f - (1f - ease) * 60f;
         float againH = 184f;
         float againCy = menuCy - menuH / 2f - 22f - againH / 2f;
+        float reviveH = 150f;
+        float reviveCy = againCy - againH / 2f - 22f - reviveH / 2f;
 
         // Лента наград: сколько поместится между плитками и кнопками.
         float rowH = 122f;
-        float limit = againCy - againH / 2f - 30f;
+        float limitCy = revivePending ? reviveCy : againCy;
+        float limitH = revivePending ? reviveH : againH;
+        float limit = limitCy - limitH / 2f - 30f;
         for (int i = 0; i < runEvents.size() && y + rowH <= limit; i++) {
             drawRunEvent(c, runEvents.get(i), l, r, y, rowH);
             y += rowH + 20f;
         }
 
+        if (revivePending) {
+            primaryButton(c, B_REVIVE, cx, reviveCy, r - l, reviveH,
+                    sReviveWithAd, C_GOLD, 1f);
+        }
         primaryButton(c, B_AGAIN, cx, againCy, r - l, againH, sPlayAgain, C_CYAN, 1f);
         secondaryButton(c, B_MENU, cx, menuCy, r - l, menuH, sToMenu, 0xFFFFFFFF, UI_INK);
         c.restoreToCount(saved);

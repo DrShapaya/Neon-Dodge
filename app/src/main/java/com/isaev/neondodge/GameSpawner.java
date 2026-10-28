@@ -529,15 +529,20 @@ abstract class GameSpawner extends GameAudio {
     }
 
     void gameOver() {
+        // Keep the run alive on the result screen until the player decides
+        // whether to spend the one rewarded revive available for this run.
+        if (!reviveUsed && !revivePending && !zenMode) {
+            holdGameOverForRevive();
+            return;
+        }
+        finishGameOver();
+    }
+
+    void holdGameOverForRevive() {
         setKeepScreenOn(false);
-        cleanBossState();
         runPrevBest = progress.bestForMode(mode);
         newRecord = (int) score > runPrevBest;
-        bankScore();
-        progress.saveStats();
-        checkProgress();
-        collectRunEvents();
-
+        revivePending = true;
         state = ST_OVER;
         overTime = 0f;
         explode(px, py, 70, C_CYAN);
@@ -545,6 +550,62 @@ abstract class GameSpawner extends GameAudio {
         shake = 42f;
         buzz(180);
         playSound(sndHit, 0.6f);
+    }
+
+    /** Permanently records the run after revive was declined or used. */
+    void finishGameOver() {
+        setKeepScreenOn(false);
+        cleanBossState();
+        if (!scoreBanked) {
+            runPrevBest = progress.bestForMode(mode);
+            newRecord = (int) score > runPrevBest;
+            bankScore();
+            progress.saveStats();
+            checkProgress();
+            collectRunEvents();
+        }
+        revivePending = false;
+        state = ST_OVER;
+        overTime = 0f;
+        explode(px, py, 70, C_CYAN);
+        explode(px, py, 24, 0xFFFFFFFF);
+        shake = 42f;
+        buzz(180);
+        playSound(sndHit, 0.6f);
+    }
+
+    void finishPendingRun() {
+        if (revivePending) {
+            finishGameOver();
+        }
+    }
+
+    /** Called by the rewarded-ad callback; the reward itself is the proof of viewing. */
+    void reviveAfterReward() {
+        if (!revivePending || reviveUsed) {
+            return;
+        }
+        revivePending = false;
+        reviveUsed = true;
+        state = ST_PLAY;
+        setKeepScreenOn(true);
+        lives = 1;
+        invuln = 2.4f;
+        phaseTimer = 0f;
+        hitStop = 0f;
+        flash = 0f;
+        shake = 0f;
+        overTime = 0f;
+        inputLock = 0.20f;
+        resumeTimer = RESUME_TIME;
+        pressedId = B_NONE;
+        toast(sReviveWithAd);
+        playSound(sndPower, 1.25f);
+        buzz(25);
+    }
+
+    void showAdLoadingMessage() {
+        toast(sAdLoading);
     }
 
 
@@ -644,6 +705,8 @@ abstract class GameSpawner extends GameAudio {
         levelMult = progress.startMultiplier();
         emergencyPhaseUsed = false;
         scoreBanked = false;
+        revivePending = false;
+        reviveUsed = false;
         shieldCharges = 0;
         magnetTimer = 0f;
         slowTimer = 0f;
@@ -688,6 +751,7 @@ abstract class GameSpawner extends GameAudio {
     }
 
     void resetMenu() {
+        finishPendingRun();
         setKeepScreenOn(false);
         boolean finishedRun = !scoreBanked && score > 0f;
         if (finishedRun) {
@@ -716,6 +780,8 @@ abstract class GameSpawner extends GameAudio {
         flash = 0f;
         inputLock = 0.15f;
         overTime = 0f;
+        revivePending = false;
+        reviveUsed = false;
         newRecord = false;
         combo = 0;
         comboTimer = 0f;

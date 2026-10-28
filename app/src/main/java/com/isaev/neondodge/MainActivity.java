@@ -15,11 +15,32 @@ import android.view.WindowManager;
 import android.window.OnBackInvokedDispatcher;
 import android.content.res.Configuration;
 import android.os.LocaleList;
+import android.graphics.Color;
+import android.widget.LinearLayout;
+import com.yandex.mobile.ads.banner.BannerAdSize;
+import com.yandex.mobile.ads.banner.BannerAdView;
+import com.yandex.mobile.ads.common.AdRequest;
+import com.yandex.mobile.ads.common.YandexAds;
+import com.yandex.mobile.ads.rewarded.Reward;
+import com.yandex.mobile.ads.rewarded.RewardedAd;
+import com.yandex.mobile.ads.rewarded.RewardedAdEventListener;
+import com.yandex.mobile.ads.rewarded.RewardedAdLoadListener;
+import com.yandex.mobile.ads.rewarded.RewardedAdLoader;
+import com.yandex.mobile.ads.common.AdError;
+import com.yandex.mobile.ads.common.AdRequestError;
+import com.yandex.mobile.ads.common.ImpressionData;
 import java.util.Locale;
 
 public class MainActivity extends Activity {
 
     private GameView game;
+    private BannerAdView banner;
+    private RewardedAdLoader rewardedLoader;
+    private RewardedAd rewardedAd;
+    private boolean rewardedShowing;
+
+    private static final String BANNER_AD_UNIT_ID = "R-M-20265890-3";
+    private static final String REWARDED_AD_UNIT_ID = "R-M-20265890-2";
 
     @Override
     protected void attachBaseContext(Context newBase) {
@@ -49,7 +70,19 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         game = new GameView(this);
-        setContentView(game);
+
+        // Sticky banner gets its own row, so it never covers the game controls.
+        // The game keeps all of its existing coordinate system in the remaining space.
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(Color.BLACK);
+        banner = new BannerAdView(this);
+        root.addView(banner, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        root.addView(game, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+        setContentView(root);
         applyImmersiveMode();
         registerBackHandler();
 
@@ -69,6 +102,91 @@ public class MainActivity extends Activity {
             return insets;
         });
         game.requestApplyInsets();
+
+        YandexAds.initialize(this, () -> {
+            loadBanner();
+            loadRewarded();
+        });
+    }
+
+    private void loadBanner() {
+        if (banner == null || isFinishing()) {
+            return;
+        }
+        int widthPx = banner.getWidth();
+        if (widthPx <= 0) {
+            widthPx = getResources().getDisplayMetrics().widthPixels;
+        }
+        int widthDp = Math.max(1, Math.round(widthPx
+                / getResources().getDisplayMetrics().density));
+        banner.setAdSize(BannerAdSize.sticky(this, widthDp));
+        banner.loadAd(new AdRequest.Builder(BANNER_AD_UNIT_ID).build());
+    }
+
+    private void loadRewarded() {
+        rewardedLoader = new RewardedAdLoader(this);
+        rewardedLoader.loadAd(new AdRequest.Builder(REWARDED_AD_UNIT_ID).build(),
+                new RewardedAdLoadListener() {
+                    @Override
+                    public void onAdLoaded(RewardedAd ad) {
+                        rewardedAd = ad;
+                    }
+
+                    @Override
+                    public void onAdFailedToLoad(AdRequestError error) {
+                        rewardedAd = null;
+                    }
+                });
+    }
+
+    /** Called by the game only when the player taps the revive CTA. */
+    void showRewardedRevive() {
+        if (rewardedShowing) {
+            return;
+        }
+        if (rewardedAd == null) {
+            game.showAdLoadingMessage();
+            return;
+        }
+        final RewardedAd ad = rewardedAd;
+        rewardedShowing = true;
+        ad.setAdEventListener(new RewardedAdEventListener() {
+            @Override
+            public void onAdShown() {
+            }
+
+            @Override
+            public void onAdFailedToShow(AdError error) {
+                rewardedShowing = false;
+                rewardedAd = null;
+                loadRewarded();
+                game.showAdLoadingMessage();
+            }
+
+            @Override
+            public void onAdDismissed() {
+                rewardedShowing = false;
+                if (rewardedAd == ad) {
+                    rewardedAd = null;
+                }
+                ad.setAdEventListener(null);
+                loadRewarded();
+            }
+
+            @Override
+            public void onAdClicked() {
+            }
+
+            @Override
+            public void onAdImpression(ImpressionData impressionData) {
+            }
+
+            @Override
+            public void onRewarded(Reward reward) {
+                game.reviveAfterReward();
+            }
+        });
+        ad.show(this);
     }
 
     private void applyImmersiveMode() {
@@ -114,6 +232,20 @@ public class MainActivity extends Activity {
             game.onHostPause();
         }
         super.onPause();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (banner != null) {
+            banner.destroy();
+            banner = null;
+        }
+        if (rewardedAd != null) {
+            rewardedAd.setAdEventListener(null);
+            rewardedAd = null;
+        }
+        rewardedLoader = null;
+        super.onDestroy();
     }
 
     private void registerBackHandler() {

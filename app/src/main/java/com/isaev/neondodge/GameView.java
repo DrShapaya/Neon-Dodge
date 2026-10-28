@@ -389,12 +389,23 @@ public class GameView extends OverlayScreens {
                 break;
             case B_AGAIN:
                 if (overTime > 0.5f) {
+                    finishPendingRun();
                     startGame();
                 }
                 break;
             case B_MENU:
                 if (overTime > 0.5f) {
+                    finishPendingRun();
                     resetMenu();
+                }
+                break;
+            case B_REVIVE:
+                if (overTime > 0.5f && revivePending) {
+                    if (getContext() instanceof MainActivity) {
+                        ((MainActivity) getContext()).showRewardedRevive();
+                    } else {
+                        showAdLoadingMessage();
+                    }
                 }
                 break;
             case B_TUTORIAL:

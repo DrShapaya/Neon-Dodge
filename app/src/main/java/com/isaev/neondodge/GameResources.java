@@ -144,6 +144,8 @@ abstract class GameResources extends GameCore {
         sSecondsShort = context.getString(R.string.seconds_short);
         sSecUnit = context.getString(R.string.sec_unit);
         sStatMaxMult = context.getString(R.string.stat_max_mult);
+        sReviveWithAd = context.getString(R.string.revive_with_ad);
+        sAdLoading = context.getString(R.string.ad_loading);
         sWorkshopStat = context.getString(R.string.workshop_stat);
         sWorkshopStep = context.getString(R.string.workshop_star_step);
         sWorkshopLevelOf = context.getString(R.string.workshop_level_of);

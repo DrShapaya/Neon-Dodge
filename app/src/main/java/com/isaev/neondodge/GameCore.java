@@ -176,6 +176,9 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     float neonBase;
     boolean newRecord;
     int lives = MAX_LIVES;
+    /** Game-over is held until the player either revives or finishes the run. */
+    boolean revivePending;
+    boolean reviveUsed;
 
     int mode = Progress.MODE_CLASSIC;
     int maxLives = MAX_LIVES;
@@ -596,6 +599,8 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     String sSecondsShort;
     String sSecUnit;
     String sStatMaxMult;
+    String sReviveWithAd;
+    String sAdLoading;
     final String[] sBonusDesc = new String[8];
     final String[] sStatName = new String[6];
     final String[] sAchName = new String[Progress.ACH_COUNT];
@@ -699,6 +704,7 @@ abstract class GameCore extends View implements Choreographer.FrameCallback {
     static final int B_VIBRATION = 16;
     static final int B_AGAIN = 17;
     static final int B_MENU = 18;
+    static final int B_REVIVE = 31;
     static final int B_SLIDER = 19;
     static final int B_TUTORIAL = 20;
     static final int B_EMPTY_PLAY = 21;

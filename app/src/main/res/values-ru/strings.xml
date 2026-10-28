@@ -277,4 +277,6 @@
     <string name="seconds_short">%1$dс</string>
     <string name="sec_unit">с</string>
     <string name="stat_max_mult">макс. множитель</string>
+    <string name="revive_with_ad">Возродиться за рекламу</string>
+    <string name="ad_loading">Реклама ещё загружается</string>
 </resources>

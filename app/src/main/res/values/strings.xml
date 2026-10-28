@@ -277,4 +277,6 @@
     <string name="seconds_short">%1$ds</string>
     <string name="sec_unit">s</string>
     <string name="stat_max_mult">max multiplier</string>
+    <string name="revive_with_ad">Revive by watching an ad</string>
+    <string name="ad_loading">The ad is still loading</string>
 </resources>

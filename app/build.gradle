@@ -28,8 +28,8 @@ android {
         applicationId "com.isaev.neondodge"
         minSdk 26
         targetSdk 36
-        versionCode 23
-        versionName "2.2"
+        versionCode 24
+        versionName "2.3"
     }
 
     signingConfigs {
@@ -65,5 +65,6 @@ android {
 }
 
 dependencies {
+    implementation 'com.yandex.android:mobileads:8.6.0'
     testImplementation 'junit:junit:4.13.2'
 }
